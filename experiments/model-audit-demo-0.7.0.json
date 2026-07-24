@@ -1,0 +1,64 @@
+{
+  "format_version": 1,
+  "name": "model-audit-demo-0.7.0",
+  "purpose": "Shooting-foul and free-throw calibrated synthetic balanced-lineup regression baseline",
+  "master_seed": 20260728,
+  "games": 100,
+  "start_index": 0,
+  "clock": {
+    "regulation_periods": 4,
+    "period_seconds": 720,
+    "possession_seconds": 15
+  },
+  "model": {
+    "schema_version": "demo-v1.5",
+    "parameter_version": "demo-0.7.0",
+    "schema_hash": "d73e0642cc4568e3bbef8bebb37219138971f86155a20c45196eb63028d0e72f",
+    "schema_file_sha256": "738e0b319134907ce3743170f7a3044efd48c8b81328e486df0c90622a1e3531",
+    "parameter_hash": "2c7887dd9519a6ecfa5f93c6226b1ef68c01d6d6c407cffa94cc1289c641e755",
+    "parameter_file_sha256": "d11dfa5de3de9bf1678aad9da0f78cea1706423ed5696b5165f2704d96271f40"
+  },
+  "profile": {
+    "path": "examples/calibration_lineup_v1.json",
+    "sha256": "4cee166e79e82eb6c60614d156011eb5028e79be2e57590f330c21da4be4763c"
+  },
+  "calibration_pipeline": [
+    {
+      "operation": "parameters-add-fouls",
+      "path": "experiments/calibration/foul-free-throw-node-v1.json",
+      "sha256": "6e587ced7cd57ebf928207f4d5cf2164bb1afda704e3520a8694234c9dd20129"
+    },
+    {
+      "operation": "parameters-overlay",
+      "path": "experiments/calibration/foul-volume-v1.json",
+      "sha256": "cf4bdac5c4ffed26c0b34ef35d2aa26956f48b050afd9528f83557b011d8db8c"
+    },
+    {
+      "operation": "parameters-overlay",
+      "path": "experiments/calibration/execution-center-v2.json",
+      "sha256": "5374934f4c64b3402fc19730464998c67fa100b447f991547aeafbf6b3705ae3"
+    }
+  ],
+  "realism_targets": [
+    {
+      "path": "experiments/nba-2024-25-regular-season-core-v1.json",
+      "metrics": 10,
+      "passed": true
+    },
+    {
+      "path": "experiments/nba-2024-25-regular-season-free-throws-v1.json",
+      "metrics": 3,
+      "passed": true
+    }
+  ],
+  "acceptance": {
+    "completed_games": 100,
+    "aborted_games": 0,
+    "manifest_verification": true,
+    "audit_sha256": "994b101d9ccc7c052688849291de8a9f3d27e5c34c3367488e7c80dc364f1751",
+    "games_sha256": "a0d29268ab7fc96c8db741758480ad53c136792e7f3590df43d4f996ad0f2f99",
+    "realism_gate_passed": true,
+    "realism_required_failures": 0,
+    "realism_metrics_passed": 13
+  }
+}

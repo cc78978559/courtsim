@@ -1,0 +1,60 @@
+{
+  "format_version": 1,
+  "matrix_id": "demo-0-8-0-team-style-proxies",
+  "base_directory": "../..",
+  "master_seed": 20260805,
+  "defaults": {
+    "schema": "data/model_schema_demo_v1_6.json",
+    "profile": "examples/calibration_lineup_v1.json",
+    "games": 200,
+    "workers": 4,
+    "start_index": 0,
+    "trace_mode": "aggregate-only",
+    "clock": {
+      "regulation_periods": 4,
+      "period_seconds": 720,
+      "possession_seconds": 15
+    }
+  },
+  "targets": [
+    "experiments/nba-2024-25-regular-season-core-v1.json"
+  ],
+  "cells": [
+    {
+      "cell_id": "perimeter-volume-proxy",
+      "parameters": "data/model_parameters_demo_0.8.0.json",
+      "profile": "work/profiles/style-five-out-v1.json",
+      "targets": [
+        "experiments/nba-2024-25-boston-style-v1.json"
+      ],
+      "seed_group": "team-style-proxies"
+    },
+    {
+      "cell_id": "interior-hub-proxy",
+      "parameters": "data/model_parameters_demo_0.8.0.json",
+      "profile": "work/profiles/style-interior-hub-v1.json",
+      "targets": [
+        "experiments/nba-2024-25-denver-style-v1.json"
+      ],
+      "seed_group": "team-style-proxies"
+    },
+    {
+      "cell_id": "pressure-defense-proxy",
+      "parameters": "data/model_parameters_demo_0.8.0.json",
+      "profile": "work/profiles/style-pressure-defense-v1.json",
+      "targets": [
+        "experiments/nba-2024-25-okc-style-v1.json"
+      ],
+      "seed_group": "team-style-proxies"
+    },
+    {
+      "cell_id": "rim-defense-proxy",
+      "parameters": "data/model_parameters_demo_0.8.0.json",
+      "profile": "work/profiles/style-rim-wall-v1.json",
+      "targets": [
+        "experiments/nba-2024-25-orlando-style-v1.json"
+      ],
+      "seed_group": "team-style-proxies"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "kind": "regression-not-realism",
+  "gates": [
+    {"metric": "completed_games", "minimum": 100, "maximum": 100},
+    {"metric": "aborted_games", "minimum": 0, "maximum": 0},
+    {"metric": "completed_possessions", "minimum": 19200, "maximum": 19200},
+    {"metric": "mean_team_possessions", "minimum": 96, "maximum": 96},
+    {"metric": "points_per_100_possessions", "minimum": 116.6, "maximum": 116.8},
+    {"metric": "field_goal_attempts_per_100_possessions", "minimum": 91.8, "maximum": 92.1},
+    {"metric": "field_goal_percentage", "minimum": 0.459, "maximum": 0.461},
+    {"metric": "three_point_percentage", "minimum": 0.358, "maximum": 0.360},
+    {"metric": "free_throw_percentage", "minimum": 0.791, "maximum": 0.794},
+    {"metric": "free_throw_attempt_rate", "minimum": 0.249, "maximum": 0.251},
+    {"metric": "shooting_foul_rate", "minimum": 0.1255, "maximum": 0.1265},
+    {"metric": "non_shooting_foul_rate", "minimum": 0.0585, "maximum": 0.0597},
+    {"metric": "bonus_non_shooting_foul_rate", "minimum": 0.0137, "maximum": 0.0147},
+    {"metric": "defensive_foul_rate", "minimum": 0.1845, "maximum": 0.1858},
+    {"metric": "player_fouls_per_100_defensive_possessions.home.1", "minimum": 6.0, "maximum": 6.25},
+    {"metric": "player_fouls_per_100_defensive_possessions.home.5", "minimum": 9.4, "maximum": 9.7},
+    {"metric": "player_fouls_per_100_defensive_possessions.away.11", "minimum": 5.65, "maximum": 5.9},
+    {"metric": "player_fouls_per_100_defensive_possessions.away.15", "minimum": 9.9, "maximum": 10.2},
+    {"metric": "assist_per_field_goal", "minimum": 0.645, "maximum": 0.647},
+    {"metric": "block_rate", "minimum": 0.0545, "maximum": 0.0558},
+    {"metric": "turnover_rate", "minimum": 0.1424, "maximum": 0.1435},
+    {"metric": "offensive_rebound_rate", "minimum": 0.258, "maximum": 0.260},
+    {"metric": "steal_rate", "minimum": 0.0815, "maximum": 0.0828}
+  ]
+}

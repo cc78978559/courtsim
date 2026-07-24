@@ -1,0 +1,19 @@
+{
+  "format_version": 1,
+  "migration_id": "possession-duration-v1",
+  "parameter_version": "demo-1.0.0",
+  "notes": "Adds a bounded team-tempo effect on possession duration while retaining demo-0.9.0 possession outcomes.",
+  "possession_duration": {
+    "base_probabilities": {
+      "LONG": 0.2,
+      "SHORT": 0.2,
+      "STANDARD": 0.6
+    },
+    "durations_seconds": {
+      "LONG": 18,
+      "SHORT": 12,
+      "STANDARD": 15
+    },
+    "tempo_coefficient": 0.45
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "format_version": 1,
+  "migration_id": "foul-free-throw-node-v1",
+  "parameter_version": "demo-0.7.0-initial",
+  "notes": "Adds shooting-foul, fouler-hazard and free-throw execution nodes to the frozen demo-0.6.0 parameters.",
+  "shooting_foul": {
+    "base_probability_by_zone": {
+      "RIM": 0.14,
+      "MIDRANGE": 0.07,
+      "THREE": 0.04
+    },
+    "heavy_contest_logit_offset": 0.2,
+    "foul_drawing_coefficient": 0.25,
+    "contact_seek_coefficient": 0.15,
+    "fouler_discipline_coefficient": 0.25
+  },
+  "free_throw_make": {
+    "base_make_probability": 0.76,
+    "shooting_coefficient": 0.3
+  }
+}

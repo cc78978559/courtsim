@@ -1,0 +1,24 @@
+{
+  "format_version": 1,
+  "kind": "courtsim-player-lineup-overlay",
+  "overlay_id": "style-disciplined-defense-v1",
+  "lineup_id": "synthetic-style-disciplined-defense-v1",
+  "notes": "Composite synthetic style: primary point-of-attack, wing and anchor defenders avoid fouls.",
+  "overrides": [
+    {
+      "player_id": 1,
+      "path": ["abilities", "foul_discipline"],
+      "value": 95
+    },
+    {
+      "player_id": 3,
+      "path": ["abilities", "foul_discipline"],
+      "value": 95
+    },
+    {
+      "player_id": 5,
+      "path": ["abilities", "foul_discipline"],
+      "value": 95
+    }
+  ]
+}

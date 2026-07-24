@@ -1,0 +1,39 @@
+{
+  "format_version": 1,
+  "kind": "courtsim-matrix-contrast-spec",
+  "contrast_set_id": "demo-1-2-0-late-game-strategy-v1",
+  "comparisons": [
+    {
+      "contrast_id": "two-for-one-execution-vs-shadow",
+      "baseline_cell_id": "v11-shadow",
+      "candidate_cell_id": "v12-two-for-one",
+      "gates": [
+        {
+          "metric": "two_for_one_mean_observed_seconds",
+          "minimum_delta": -0.8,
+          "maximum_delta": -0.15
+        },
+        {
+          "metric": "intentional_foul_opportunities",
+          "minimum_delta": -10,
+          "maximum_delta": 10
+        },
+        {
+          "metric": "mean_team_possessions",
+          "minimum_delta": -0.2,
+          "maximum_delta": 0.2
+        },
+        {
+          "metric": "points_per_100_possessions",
+          "minimum_delta": -0.5,
+          "maximum_delta": 0.5
+        },
+        {
+          "metric": "field_goal_percentage",
+          "minimum_delta": -0.002,
+          "maximum_delta": 0.002
+        }
+      ]
+    }
+  ]
+}

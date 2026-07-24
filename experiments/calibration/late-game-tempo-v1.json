@@ -1,0 +1,12 @@
+{
+  "format_version": 1,
+  "migration_id": "late-game-tempo-v1",
+  "parameter_version": "demo-1.1.0",
+  "notes": "Adds bounded final-period score-margin adjustments to team tempo.",
+  "late_game_adjustments": {
+    "leading_tempo_delta": -15,
+    "margin_threshold": 6,
+    "trailing_tempo_delta": 20,
+    "window_seconds": 120
+  }
+}

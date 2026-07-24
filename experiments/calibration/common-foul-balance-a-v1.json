@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "overlay_id": "common-foul-balance-a-v1",
+  "parameter_version": "demo-0.8.0-balance-a",
+  "notes": "Keeps the initial common-foul volume and reduces shooting-foul bases by 12 percent to absorb bonus free throws.",
+  "overrides": [
+    {
+      "path": ["nodes", "shooting_foul", "base_probability_by_zone", "RIM"],
+      "value": 0.22
+    },
+    {
+      "path": ["nodes", "shooting_foul", "base_probability_by_zone", "MIDRANGE"],
+      "value": 0.1144
+    },
+    {
+      "path": ["nodes", "shooting_foul", "base_probability_by_zone", "THREE"],
+      "value": 0.066
+    }
+  ]
+}

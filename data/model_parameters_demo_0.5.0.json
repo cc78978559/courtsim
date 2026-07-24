@@ -1,0 +1,558 @@
+{
+  "metadata": {
+    "created_at_utc": "2026-07-23T00:00:00Z",
+    "engine_compatibility": ">=0.1.0,<0.2.0",
+    "notes": "Selected structure calibration: zone-extra-v1 plus turnover competing-risk and rebound-side changes; shot make and contest parameters remain frozen.",
+    "parameter_hash": null,
+    "parameter_version": "demo-0.5.0",
+    "rng_schema_version": 1,
+    "schema_version": "demo-v1.3"
+  },
+  "nodes": {
+    "contest_gate": {
+      "base_probabilities": {
+        "MIDRANGE": {
+          "BLOCK": 0.02,
+          "HEAVY_CONTEST": 0.18,
+          "NORMAL": 0.8
+        },
+        "RIM": {
+          "BLOCK": 0.06,
+          "HEAVY_CONTEST": 0.24,
+          "NORMAL": 0.7
+        },
+        "THREE": {
+          "BLOCK": 0.007,
+          "HEAVY_CONTEST": 0.16,
+          "NORMAL": 0.833
+        }
+      },
+      "feature_weights": {
+        "block_candidate.block_chase": {
+          "BLOCK": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": 0.2
+          },
+          "HEAVY_CONTEST": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": -0.1
+          },
+          "NORMAL": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": -0.1
+          }
+        },
+        "block_candidate.rim_protection": {
+          "BLOCK": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": 0.25
+          },
+          "HEAVY_CONTEST": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": -0.05
+          },
+          "NORMAL": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": -0.2
+          }
+        }
+      }
+    },
+    "defense_response": {
+      "base_probabilities": {
+        "BALL_SCREEN": {
+          "BASE": 0.35,
+          "BLITZ": 0.15,
+          "DROP": 0.3,
+          "SWITCH": 0.2
+        },
+        "ISOLATION": {
+          "BASE": 0.8666666666666667,
+          "BLITZ": 0.1333333333333333
+        },
+        "OFF_BALL_ACTION": {
+          "BASE": 1.0
+        },
+        "OFF_BALL_ACTION|WITH_SCREEN": {
+          "BASE": 0.75,
+          "SWITCH": 0.25
+        }
+      },
+      "help_aggression_effect": {
+        "BASE": -0.05,
+        "BLITZ": 0.4,
+        "DROP": -0.15,
+        "SWITCH": -0.2
+      }
+    },
+    "finisher_route": {
+      "base_probabilities": {
+        "BALL_SCREEN": {
+          "HELP_RELEASE": 0.25,
+          "INITIATOR_SELF": 0.5,
+          "SCREENER_POP": 0.1,
+          "SCREENER_ROLL": 0.15
+        },
+        "ISOLATION": {
+          "HELP_RELEASE": 0.22,
+          "INITIATOR_SELF": 0.78
+        },
+        "OFF_BALL_ACTION": {
+          "DESIGNED_OFF_BALL_TARGET": 0.82,
+          "INITIATOR_BAILOUT": 0.18
+        }
+      },
+      "feature_weights": {}
+    },
+    "interaction": {
+      "coefficients": {
+        "ball_pressure_primary_defense": 0.35,
+        "ball_screen_creator": 0.35,
+        "ball_screen_primary_defense": -0.35,
+        "ball_screen_screen": 0.2,
+        "help_candidate_awareness": -0.3,
+        "help_candidate_movement": 0.3,
+        "isolation_creator": 0.45,
+        "isolation_primary_defense": -0.45,
+        "offball_playmaking": 0.25,
+        "offball_target_awareness": -0.3,
+        "offball_target_movement": 0.3,
+        "pass_release_help_awareness": -0.35,
+        "pass_release_playmaking": 0.35,
+        "pass_release_target_movement": 0.25,
+        "primary_contest_creator_edge": -0.25,
+        "primary_contest_defense": 0.35,
+        "rim_access_creator": 0.25,
+        "rim_access_help_awareness": -0.2,
+        "rim_access_primary_defense": -0.25,
+        "rim_access_screen": 0.2,
+        "rim_help_awareness": 0.4
+      },
+      "coverage_deltas": {
+        "BALL_SCREEN|BASE": {
+          "ball_pressure": 0.0,
+          "creator_edge": 0.0,
+          "pass_release": 0.0,
+          "rim_access": 0.0,
+          "rim_help": 0.0
+        },
+        "BALL_SCREEN|BLITZ": {
+          "ball_pressure": 0.35,
+          "creator_edge": -0.25,
+          "pass_release": 0.3,
+          "rim_access": -0.15,
+          "rim_help": 0.1
+        },
+        "BALL_SCREEN|DROP": {
+          "ball_pressure": -0.15,
+          "creator_edge": 0.05,
+          "pass_release": 0.05,
+          "rim_access": -0.25,
+          "rim_help": 0.3
+        },
+        "BALL_SCREEN|SWITCH": {
+          "ball_pressure": 0.05,
+          "creator_edge": -0.1,
+          "pass_release": -0.1,
+          "rim_access": -0.1,
+          "rim_help": 0.0
+        },
+        "ISOLATION|BASE": {
+          "ball_pressure": 0.0,
+          "creator_edge": 0.0,
+          "pass_release": 0.0,
+          "rim_access": 0.0,
+          "rim_help": 0.0
+        },
+        "ISOLATION|BLITZ": {
+          "ball_pressure": 0.4,
+          "creator_edge": -0.3,
+          "pass_release": 0.3,
+          "rim_access": -0.15,
+          "rim_help": 0.1
+        },
+        "OFF_BALL_ACTION|BASE": {
+          "ball_pressure": 0.0,
+          "creator_edge": 0.0,
+          "pass_release": 0.0,
+          "rim_access": 0.0,
+          "rim_help": 0.0
+        },
+        "OFF_BALL_ACTION|SWITCH": {
+          "ball_pressure": 0.1,
+          "creator_edge": -0.05,
+          "pass_release": -0.15,
+          "rim_access": 0.0,
+          "rim_help": 0.0
+        }
+      },
+      "dimensions": [
+        "creator_edge",
+        "ball_pressure",
+        "pass_release",
+        "rim_access",
+        "rim_help"
+      ],
+      "favorable_switch_creator_delta": 0.25,
+      "unfavorable_switch_creator_delta": -0.25
+    },
+    "participant_selection": {
+      "involvement_coefficient": 0.35,
+      "offball_no_screen_probability": 0.25,
+      "role_preference_coefficient": 0.35
+    },
+    "play_selection": {
+      "base_probabilities": {
+        "BALL_SCREEN": 0.45,
+        "ISOLATION": 0.25,
+        "OFF_BALL_ACTION": 0.3
+      }
+    },
+    "rebound_hazard": {
+      "ability_coefficient": 0.45,
+      "blocked_oreb_offset": 0.15,
+      "blocker_context_offset": -0.25,
+      "commitment_coefficient": 0.3,
+      "defense_context_factor": 2.2,
+      "shooter_context_offset": -1.2
+    },
+    "rebound_side": {
+      "neutral_oreb_probability": 0.25
+    },
+    "shot_make": {
+      "base_make_probability": {
+        "MIDRANGE": 0.43,
+        "RIM": 0.64,
+        "THREE": 0.37
+      },
+      "heavy_contest_offset": {
+        "MIDRANGE": -0.4,
+        "RIM": -0.55,
+        "THREE": -0.32
+      },
+      "zone_skill_coefficient": {
+        "MIDRANGE": 0.24,
+        "RIM": 0.28,
+        "THREE": 0.22
+      }
+    },
+    "shot_zone": {
+      "base_probabilities": {
+        "BALL_SCREEN|HELP_RELEASE": {
+          "MIDRANGE": 0.68,
+          "THREE": 0.32
+        },
+        "BALL_SCREEN|INITIATOR_SELF": {
+          "MIDRANGE": 0.32,
+          "RIM": 0.58,
+          "THREE": 0.1
+        },
+        "BALL_SCREEN|SCREENER_POP": {
+          "MIDRANGE": 0.78,
+          "THREE": 0.22
+        },
+        "BALL_SCREEN|SCREENER_ROLL": {
+          "MIDRANGE": 0.125,
+          "RIM": 0.875
+        },
+        "ISOLATION|HELP_RELEASE": {
+          "MIDRANGE": 0.68,
+          "THREE": 0.32
+        },
+        "ISOLATION|INITIATOR_SELF": {
+          "MIDRANGE": 0.35,
+          "RIM": 0.55,
+          "THREE": 0.1
+        },
+        "OFF_BALL_ACTION|DESIGNED_OFF_BALL_TARGET": {
+          "MIDRANGE": 0.68,
+          "THREE": 0.32
+        },
+        "OFF_BALL_ACTION|INITIATOR_BAILOUT": {
+          "MIDRANGE": 0.32,
+          "RIM": 0.58,
+          "THREE": 0.1
+        }
+      },
+      "feature_weights": {}
+    },
+    "steal_hazard": {
+      "gamble_coefficient": 0.3,
+      "skill_coefficient": 0.5
+    },
+    "terminal_competing_risk": {
+      "base_probabilities": {
+        "BALL_SCREEN": {
+          "SHOT_OPPORTUNITY": 0.78,
+          "TO_BAD_PASS_STEAL": 0.055,
+          "TO_BAD_PASS_UNFORCED": 0.047,
+          "TO_LOST_BALL_STEAL": 0.055,
+          "TO_LOST_BALL_UNFORCED": 0.032,
+          "TO_VIOLATION": 0.031
+        },
+        "ISOLATION": {
+          "SHOT_OPPORTUNITY": 0.82,
+          "TO_BAD_PASS_STEAL": 0.025,
+          "TO_BAD_PASS_UNFORCED": 0.025,
+          "TO_LOST_BALL_STEAL": 0.065,
+          "TO_LOST_BALL_UNFORCED": 0.041,
+          "TO_VIOLATION": 0.024
+        },
+        "OFF_BALL_ACTION": {
+          "SHOT_OPPORTUNITY": 0.865,
+          "TO_BAD_PASS_STEAL": 0.042,
+          "TO_BAD_PASS_UNFORCED": 0.042,
+          "TO_LOST_BALL_STEAL": 0.017,
+          "TO_LOST_BALL_UNFORCED": 0.017,
+          "TO_VIOLATION": 0.017
+        }
+      },
+      "feature_weights": {
+        "handler.ball_security": {
+          "SHOT_OPPORTUNITY": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": 0.1833333333333333
+          },
+          "TO_BAD_PASS_STEAL": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": 0.1833333333333333
+          },
+          "TO_BAD_PASS_UNFORCED": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": 0.1833333333333333
+          },
+          "TO_LOST_BALL_STEAL": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": -0.3666666666666667
+          },
+          "TO_LOST_BALL_UNFORCED": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": -0.3666666666666667
+          },
+          "TO_VIOLATION": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": 0.1833333333333333
+          }
+        },
+        "handler.offensive_decision": {
+          "SHOT_OPPORTUNITY": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": 0.1583333333333333
+          },
+          "TO_BAD_PASS_STEAL": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": -0.0916666666666667
+          },
+          "TO_BAD_PASS_UNFORCED": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": -0.2916666666666667
+          },
+          "TO_LOST_BALL_STEAL": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": 0.1583333333333333
+          },
+          "TO_LOST_BALL_UNFORCED": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": 0.1583333333333333
+          },
+          "TO_VIOLATION": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": -0.0916666666666667
+          }
+        },
+        "handler.pass_risk": {
+          "SHOT_OPPORTUNITY": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": -0.1166666666666667
+          },
+          "TO_BAD_PASS_STEAL": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": 0.2333333333333333
+          },
+          "TO_BAD_PASS_UNFORCED": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": 0.2333333333333333
+          },
+          "TO_LOST_BALL_STEAL": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": -0.1166666666666667
+          },
+          "TO_LOST_BALL_UNFORCED": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": -0.1166666666666667
+          },
+          "TO_VIOLATION": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": -0.1166666666666667
+          }
+        },
+        "interaction.ball_pressure": {
+          "SHOT_OPPORTUNITY": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": -0.2
+          },
+          "TO_BAD_PASS_STEAL": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": 0.1
+          },
+          "TO_BAD_PASS_UNFORCED": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": -0.2
+          },
+          "TO_LOST_BALL_STEAL": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": 0.35
+          },
+          "TO_LOST_BALL_UNFORCED": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": 0.15
+          },
+          "TO_VIOLATION": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": -0.2
+          }
+        },
+        "interaction.pass_release": {
+          "SHOT_OPPORTUNITY": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": 0.1
+          },
+          "TO_BAD_PASS_STEAL": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": -0.2
+          },
+          "TO_BAD_PASS_UNFORCED": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": -0.2
+          },
+          "TO_LOST_BALL_STEAL": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": 0.1
+          },
+          "TO_LOST_BALL_UNFORCED": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": 0.1
+          },
+          "TO_VIOLATION": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": 0.1
+          }
+        },
+        "team.steal_pressure": {
+          "SHOT_OPPORTUNITY": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": -0.15
+          },
+          "TO_BAD_PASS_STEAL": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": 0.3
+          },
+          "TO_BAD_PASS_UNFORCED": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": -0.15
+          },
+          "TO_LOST_BALL_STEAL": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": 0.3
+          },
+          "TO_LOST_BALL_UNFORCED": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": -0.15
+          },
+          "TO_VIOLATION": {
+            "lower": -0.8,
+            "trainable": false,
+            "upper": 0.8,
+            "value": -0.15
+          }
+        }
+      }
+    }
+  },
+  "rules": {
+    "max_action_segments_per_possession": 32,
+    "offensive_rebound_continues_possession": true
+  }
+}

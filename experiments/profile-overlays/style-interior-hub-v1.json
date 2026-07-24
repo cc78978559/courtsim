@@ -1,0 +1,44 @@
+{
+  "format_version": 1,
+  "kind": "courtsim-player-lineup-overlay",
+  "overlay_id": "style-interior-hub-v1",
+  "lineup_id": "synthetic-style-interior-hub-v1",
+  "notes": "Composite style proxy: the center becomes a high-involvement post facilitator who strongly prefers passing.",
+  "overrides": [
+    {
+      "player_id": 5,
+      "path": ["abilities", "playmaking"],
+      "value": 92
+    },
+    {
+      "player_id": 5,
+      "path": ["abilities", "offensive_decision"],
+      "value": 94
+    },
+    {
+      "player_id": 5,
+      "path": ["tendencies", "offensive_involvement"],
+      "value": 88
+    },
+    {
+      "player_id": 5,
+      "path": ["tendencies", "play_role_mix", "handler"],
+      "value": 70
+    },
+    {
+      "player_id": 5,
+      "path": ["tendencies", "play_role_mix", "post"],
+      "value": 95
+    },
+    {
+      "player_id": 5,
+      "path": ["tendencies", "shoot_vs_pass"],
+      "value": 30
+    },
+    {
+      "player_id": 5,
+      "path": ["tendencies", "pass_risk"],
+      "value": 42
+    }
+  ]
+}

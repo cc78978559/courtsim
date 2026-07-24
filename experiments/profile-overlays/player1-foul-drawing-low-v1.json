@@ -1,0 +1,14 @@
+{
+  "format_version": 1,
+  "kind": "courtsim-player-lineup-overlay",
+  "overlay_id": "player1-foul-drawing-low-v1",
+  "lineup_id": "synthetic-balanced-player1-foul-drawing-low-v1",
+  "notes": "Single-factor sensitivity fixture: player 1 foul_drawing from 60 to 20.",
+  "overrides": [
+    {
+      "player_id": 1,
+      "path": ["abilities", "foul_drawing"],
+      "value": 20
+    }
+  ]
+}

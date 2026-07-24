@@ -1,0 +1,7 @@
+{
+  "format_version": 1,
+  "migration_id": "intentional-foul-non-bonus-v1",
+  "parameter_version": "demo-1.4.0",
+  "notes": "Executes all late-game intentional-foul opportunities; retained-ball outcomes add a separately timed inbound continuation.",
+  "intentional_foul_non_bonus_enabled": true
+}

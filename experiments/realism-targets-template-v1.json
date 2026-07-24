@@ -1,0 +1,24 @@
+{
+  "format_version": 1,
+  "target_set_id": "realism-targets-template-v1",
+  "status": "draft",
+  "population": "TBD league and competition scope",
+  "season": "TBD",
+  "notes": "Contract-only template. Do not activate until every metric has a pinned source artifact and reviewed aggregation definition.",
+  "sources": [],
+  "metrics": [],
+  "planned_metrics": [
+    "mean_team_possessions",
+    "points_per_100_possessions",
+    "field_goal_percentage",
+    "three_point_percentage",
+    "turnover_rate",
+    "offensive_rebound_rate",
+    "assist_per_field_goal",
+    "block_rate",
+    "steal_rate",
+    "shot_zone_share.RIM",
+    "shot_zone_share.MIDRANGE",
+    "shot_zone_share.THREE"
+  ]
+}

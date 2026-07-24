@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "name": "model-audit-demo-0.4.0",
+  "purpose": "Uncalibrated symmetric-lineup distribution baseline",
+  "master_seed": 20260723,
+  "games": 50,
+  "start_index": 0,
+  "clock": {
+    "regulation_periods": 4,
+    "period_seconds": 720,
+    "possession_seconds": 15
+  },
+  "model": {
+    "schema_version": "demo-v1.3",
+    "parameter_version": "demo-0.4.0",
+    "schema_hash": "8fc2f9243e7f83711549ad67cc51435b8d078524d7221a0ec41e2d8f3c675ff0",
+    "parameter_hash": "c3592432913e940005ff69449c31e2e30a23355f1986e1d5a18a214daff22d38"
+  },
+  "acceptance": {
+    "completed_games": 50,
+    "aborted_games": 0,
+    "manifest_verification": true,
+    "audit_sha256": "37ebb1d3546c68a546c75039b69926bc5ab1178e17a930d972d63b842ef0f8bf",
+    "games_sha256": "3cf488e64ea15e2635b1db94eaa64b1469b241b28cd4e9038d2a93351773cc23"
+  }
+}

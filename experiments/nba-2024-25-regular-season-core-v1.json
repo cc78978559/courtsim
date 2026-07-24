@@ -1,0 +1,111 @@
+{
+  "format_version": 1,
+  "metrics": [
+    {
+      "lower": 94.600683333333,
+      "metric": "mean_team_possessions",
+      "required": true,
+      "source_id": "nba-com-team-core-2024-25",
+      "target": 99.579666666667,
+      "upper": 104.55865,
+      "weight": 1.0
+    },
+    {
+      "lower": 108.007056750403,
+      "metric": "points_per_100_possessions",
+      "required": true,
+      "source_id": "nba-com-team-core-2024-25",
+      "target": 113.691638684635,
+      "upper": 119.376220618866,
+      "weight": 1.0
+    },
+    {
+      "lower": 0.443852920142,
+      "metric": "field_goal_percentage",
+      "required": true,
+      "source_id": "nba-com-team-core-2024-25",
+      "target": 0.467213600149,
+      "upper": 0.490574280157,
+      "weight": 1.0
+    },
+    {
+      "lower": 0.342211261817,
+      "metric": "three_point_percentage",
+      "required": true,
+      "source_id": "nba-com-team-core-2024-25",
+      "target": 0.36022238086,
+      "upper": 0.378233499903,
+      "weight": 1.0
+    },
+    {
+      "lower": 0.135675162106,
+      "metric": "turnover_rate",
+      "required": true,
+      "source_id": "nba-com-team-core-2024-25",
+      "target": 0.142815960112,
+      "upper": 0.149956758117,
+      "weight": 1.0
+    },
+    {
+      "lower": 0.239461001143,
+      "metric": "offensive_rebound_rate",
+      "required": true,
+      "source_id": "nba-com-team-core-2024-25",
+      "target": 0.252064211729,
+      "upper": 0.264667422316,
+      "weight": 1.0
+    },
+    {
+      "lower": 0.604941208588,
+      "metric": "assist_per_field_goal",
+      "required": true,
+      "source_id": "nba-com-team-core-2024-25",
+      "target": 0.636780219566,
+      "upper": 0.668619230544,
+      "weight": 1.0
+    },
+    {
+      "lower": 0.051908193525,
+      "metric": "block_rate",
+      "required": true,
+      "source_id": "nba-com-team-core-2024-25",
+      "target": 0.054640203711,
+      "upper": 0.057372213896,
+      "weight": 1.0
+    },
+    {
+      "lower": 0.077854877806,
+      "metric": "steal_rate",
+      "required": true,
+      "source_id": "nba-com-team-core-2024-25",
+      "target": 0.081952502954,
+      "upper": 0.086050128102,
+      "weight": 1.0
+    },
+    {
+      "lower": 0.400093382591,
+      "metric": "shot_zone_share.THREE",
+      "required": true,
+      "source_id": "nba-com-team-core-2024-25",
+      "target": 0.421150929043,
+      "upper": 0.442208475495,
+      "weight": 1.0
+    }
+  ],
+  "notes": "Core event-denominator targets derived deterministically from the pinned NBA.com table projection. Bounds are an initial +/-5.00% relative calibration envelope, not sampling confidence intervals. PACE is the official normalized pace field; all other ratios use totals matching DistributionAudit.",
+  "planned_metrics": [],
+  "population": "NBA 2024-25 regular season, all 30 teams and 2,460 team-games",
+  "season": "2024-25",
+  "sources": [
+    {
+      "artifact_path": "sources/nba-2024-25-team-core.json",
+      "content_sha256": "c5767fedd34a7ac7c99c86bfc382138b14be56ff2ae20d2375f815578f7241b7",
+      "label": "NBA.com 2024-25 team traditional and advanced table projection",
+      "origin": "https://www.nba.com/stats/teams/traditional?Season=2024-25&SeasonType=Regular+Season&PerMode=Totals | https://www.nba.com/stats/teams/advanced?Season=2024-25&SeasonType=Regular+Season&PerMode=Totals",
+      "retrieved_on": "2026-07-23",
+      "source_id": "nba-com-team-core-2024-25"
+    }
+  ],
+  "status": "active",
+  "target_set_id": "nba-2024-25-regular-season-core-v1"
+}

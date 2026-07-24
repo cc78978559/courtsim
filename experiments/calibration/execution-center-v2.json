@@ -1,0 +1,44 @@
+{
+  "format_version": 1,
+  "overlay_id": "execution-center-v2",
+  "parameter_version": "demo-0.7.0",
+  "notes": "Centers post-foul field-goal execution and slightly lowers block competing risk while preserving the accepted foul/free-throw nodes.",
+  "overrides": [
+    {
+      "path": ["nodes", "shot_make", "base_make_probability", "RIM"],
+      "value": 0.59
+    },
+    {
+      "path": ["nodes", "shot_make", "base_make_probability", "MIDRANGE"],
+      "value": 0.38
+    },
+    {
+      "path": ["nodes", "shot_make", "base_make_probability", "THREE"],
+      "value": 0.29
+    },
+    {
+      "path": ["nodes", "contest_gate", "base_probabilities", "RIM", "BLOCK"],
+      "value": 0.0514
+    },
+    {
+      "path": ["nodes", "contest_gate", "base_probabilities", "RIM", "NORMAL"],
+      "value": 0.7086
+    },
+    {
+      "path": ["nodes", "contest_gate", "base_probabilities", "MIDRANGE", "BLOCK"],
+      "value": 0.0172
+    },
+    {
+      "path": ["nodes", "contest_gate", "base_probabilities", "MIDRANGE", "NORMAL"],
+      "value": 0.8028
+    },
+    {
+      "path": ["nodes", "contest_gate", "base_probabilities", "THREE", "BLOCK"],
+      "value": 0.006
+    },
+    {
+      "path": ["nodes", "contest_gate", "base_probabilities", "THREE", "NORMAL"],
+      "value": 0.834
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "kind": "courtsim-matrix-contrast-spec",
+  "contrast_set_id": "demo-0_7_0-single-factor-three-v1",
+  "comparisons": [
+    {
+      "contrast_id": "three-tendency-low-vs-baseline",
+      "baseline_cell_id": "baseline",
+      "candidate_cell_id": "three-tendency-low",
+      "gates": [
+        {
+          "metric": "shot_zone_share.THREE",
+          "minimum_delta": -0.3,
+          "maximum_delta": -0.15
+        },
+        {
+          "metric": "player_usage_share.home.2",
+          "minimum_delta": -0.03,
+          "maximum_delta": 0.03
+        },
+        {
+          "metric": "three_point_percentage",
+          "minimum_delta": -0.04,
+          "maximum_delta": 0.02
+        }
+      ]
+    },
+    {
+      "contrast_id": "three-ability-low-vs-baseline",
+      "baseline_cell_id": "baseline",
+      "candidate_cell_id": "three-ability-low",
+      "gates": [
+        {
+          "metric": "three_point_percentage",
+          "minimum_delta": -0.1,
+          "maximum_delta": -0.04
+        },
+        {
+          "metric": "shot_zone_share.THREE",
+          "minimum_delta": -0.08,
+          "maximum_delta": 0.03
+        },
+        {
+          "metric": "player_usage_share.home.2",
+          "minimum_delta": -0.18,
+          "maximum_delta": -0.05
+        }
+      ]
+    }
+  ]
+}

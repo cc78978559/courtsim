@@ -1,0 +1,65 @@
+{
+  "format_version": 1,
+  "name": "model-audit-demo-0.9.0",
+  "purpose": "Passer-aware assist occurrence with centered league baseline and fixed-opponent interior-hub response",
+  "master_seed": 20260728,
+  "games": 100,
+  "start_index": 0,
+  "clock": {
+    "regulation_periods": 4,
+    "period_seconds": 720,
+    "possession_seconds": 15
+  },
+  "model": {
+    "schema_version": "demo-v1.7",
+    "parameter_version": "demo-0.9.0",
+    "schema_hash": "7d1c7f8872d631719815248d7d66d1e292d60e4a37fc1177beb517d1d9f71674",
+    "schema_file_sha256": "cf31765e86eda34153b975cb562da3d84c003e14aaa147ccdd83d931c90825ed",
+    "parameter_hash": "fd2dc6abc8fb0e99639fe7b9e1362ca0f8ce86a43b108fd0750d7ec29c2e788e",
+    "parameter_file_sha256": "207044fea98084190068a06d835364e114e8cdc2951fb6d26c312d864b88f031"
+  },
+  "profile": {
+    "path": "examples/calibration_lineup_v1.json",
+    "sha256": "4cee166e79e82eb6c60614d156011eb5028e79be2e57590f330c21da4be4763c"
+  },
+  "calibration_pipeline": [
+    {
+      "operation": "parameters-add-assist-occurrence",
+      "path": "experiments/calibration/assist-occurrence-v1.json",
+      "sha256": "7e88730b0337b9c31323830c60bdacdb773b1883d244aa0e1fe86481ea9556ff"
+    }
+  ],
+  "sensitivity_evidence": {
+    "matrix": "experiments/matrices/demo-0.9.0-assist-occurrence-effects.json",
+    "contrasts": "experiments/contrasts/demo-0.9.0-assist-occurrence-v1.json",
+    "games_per_cell": 200,
+    "robustness_replicates": 3,
+    "comparisons": 4,
+    "direction_and_isolation_gates": 11,
+    "direction_and_isolation_gates_passed": 11,
+    "automatic_promotion": false
+  },
+  "realism_targets": [
+    {
+      "path": "experiments/nba-2024-25-regular-season-core-v1.json",
+      "metrics": 10,
+      "passed": true
+    },
+    {
+      "path": "experiments/nba-2024-25-regular-season-free-throws-v1.json",
+      "metrics": 3,
+      "passed": true
+    }
+  ],
+  "acceptance": {
+    "completed_games": 100,
+    "aborted_games": 0,
+    "manifest_verification": true,
+    "audit_sha256": "0f9dffea0c57c4eebbd75da7b30c74371c32f753b80acaaeb581b798cd9189e8",
+    "games_sha256": "194fcc2d55fb9afe4064b77d81347ec39ef0aae4c1ba6a3c705b7f7d5f223c80",
+    "realism_gate_passed": true,
+    "realism_required_failures": 0,
+    "realism_metrics_passed": 13,
+    "regression_gates_passed": 25
+  }
+}

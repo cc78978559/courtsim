@@ -1,0 +1,44 @@
+{
+  "format_version": 1,
+  "kind": "courtsim-matrix-contrast-spec",
+  "contrast_set_id": "demo-0_7_0-profile-contrast-v1",
+  "comparisons": [
+    {
+      "contrast_id": "balanced-vs-neutral",
+      "baseline_cell_id": "neutral-template",
+      "candidate_cell_id": "balanced-lineup",
+      "gates": [
+        {
+          "metric": "player_usage_share.home.1",
+          "minimum_delta": 0.15,
+          "maximum_delta": 0.45
+        },
+        {
+          "metric": "shot_zone_share.THREE",
+          "minimum_delta": -0.55,
+          "maximum_delta": -0.2
+        },
+        {
+          "metric": "shot_zone_share.RIM",
+          "minimum_delta": 0.15,
+          "maximum_delta": 0.45
+        },
+        {
+          "metric": "offensive_rebound_rate",
+          "minimum_delta": 0.05,
+          "maximum_delta": 0.25
+        },
+        {
+          "metric": "block_rate",
+          "minimum_delta": 0.02,
+          "maximum_delta": 0.15
+        },
+        {
+          "metric": "free_throw_attempt_rate",
+          "minimum_delta": 0.05,
+          "maximum_delta": 0.25
+        }
+      ]
+    }
+  ]
+}

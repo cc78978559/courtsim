@@ -1,0 +1,66 @@
+{
+  "format_version": 1,
+  "name": "model-audit-demo-1.1.0",
+  "purpose": "Final-period score-margin tempo adjustments with event-sourced context observability",
+  "master_seed": 20260728,
+  "games": 100,
+  "start_index": 0,
+  "clock": {
+    "regulation_periods": 4,
+    "period_seconds": 720,
+    "possession_seconds": 15
+  },
+  "model": {
+    "schema_version": "demo-v1.9",
+    "parameter_version": "demo-1.1.0",
+    "schema_hash": "8bbde2a54258631170a981fbaf654b52468dd0f4a3afeca582cabd2353aa7cb0",
+    "schema_file_sha256": "1545c3e66768bf1cd2522439b05012139ccb0081659ac0e6d7a9e4d83649a4b4",
+    "parameter_hash": "0e3ed1d24e4b4a705e13a7e93153814ef223660bf59227e4b75f1b31a0c633b5",
+    "parameter_file_sha256": "b3b3a745907ee74b2444d8c3c92f96629dffec59e4acbaba20f6524b0f905688"
+  },
+  "profile": {
+    "path": "examples/calibration_lineup_v1.json",
+    "sha256": "4cee166e79e82eb6c60614d156011eb5028e79be2e57590f330c21da4be4763c"
+  },
+  "calibration_pipeline": [
+    {
+      "operation": "parameters-add-late-game-tempo",
+      "path": "experiments/calibration/late-game-tempo-v1.json",
+      "sha256": "55c825dd485db4774b60ed4a3c69c8a4b7668b48bb051eb68c6fe671223812ff"
+    }
+  ],
+  "sensitivity_evidence": {
+    "policy_audit": "work/audits/demo-1.1.0-tempo-policy.json",
+    "matrix": "experiments/matrices/demo-1.1.0-late-game-tempo.json",
+    "contrasts": "experiments/contrasts/demo-1.1.0-late-game-tempo-v1.json",
+    "games_per_cell": 300,
+    "robustness_replicates": 3,
+    "comparisons": 1,
+    "direction_and_isolation_gates": 6,
+    "direction_and_isolation_gates_passed": 6,
+    "automatic_promotion": false
+  },
+  "realism_targets": [
+    {
+      "path": "experiments/nba-2024-25-regular-season-core-v1.json",
+      "metrics": 10,
+      "passed": true
+    },
+    {
+      "path": "experiments/nba-2024-25-regular-season-free-throws-v1.json",
+      "metrics": 3,
+      "passed": true
+    }
+  ],
+  "acceptance": {
+    "completed_games": 100,
+    "aborted_games": 0,
+    "manifest_verification": true,
+    "audit_sha256": "973af19704690abf53ea70fadb47d526a9609abad04e7b05b04c22ddcc4493cd",
+    "games_sha256": "ea5708b5ff2b4077d41d3a0632a8dd407f3fcf4ea1bb3ab3dd20f8e9ff6165ee",
+    "realism_gate_passed": true,
+    "realism_required_failures": 0,
+    "realism_metrics_passed": 13,
+    "regression_gates_passed": 31
+  }
+}

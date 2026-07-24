@@ -1,0 +1,61 @@
+{
+  "format_version": 1,
+  "kind": "courtsim-matrix-contrast-spec",
+  "contrast_set_id": "demo-0-8-0-single-factor-fouls-v1",
+  "comparisons": [
+    {
+      "contrast_id": "foul-drawing-low-vs-baseline",
+      "baseline_cell_id": "baseline",
+      "candidate_cell_id": "foul-drawing-low",
+      "gates": [
+        {
+          "metric": "non_shooting_foul_rate",
+          "minimum_delta": -0.03,
+          "maximum_delta": -0.01
+        },
+        {
+          "metric": "shooting_foul_rate",
+          "minimum_delta": -0.04,
+          "maximum_delta": -0.015
+        },
+        {
+          "metric": "defensive_foul_rate",
+          "minimum_delta": -0.065,
+          "maximum_delta": -0.03
+        },
+        {
+          "metric": "free_throw_attempt_rate",
+          "minimum_delta": -0.09,
+          "maximum_delta": -0.035
+        }
+      ]
+    },
+    {
+      "contrast_id": "foul-discipline-high-vs-baseline",
+      "baseline_cell_id": "baseline",
+      "candidate_cell_id": "foul-discipline-high",
+      "gates": [
+        {
+          "metric": "non_shooting_foul_rate",
+          "minimum_delta": -0.018,
+          "maximum_delta": -0.003
+        },
+        {
+          "metric": "shooting_foul_rate",
+          "minimum_delta": -0.02,
+          "maximum_delta": -0.003
+        },
+        {
+          "metric": "player_foul_share.home.1",
+          "minimum_delta": -0.13,
+          "maximum_delta": -0.04
+        },
+        {
+          "metric": "player_foul_share.away.11",
+          "minimum_delta": -0.13,
+          "maximum_delta": -0.04
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "format_version": 1,
+  "overlay_id": "three-make-031-v1",
+  "parameter_version": "demo-0.6.0-three-031",
+  "notes": "Three-point execution candidate; structure and assist parameters frozen.",
+  "overrides": [
+    {"path": ["nodes", "shot_make", "base_make_probability", "THREE"], "value": 0.31}
+  ]
+}

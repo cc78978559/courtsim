@@ -1,0 +1,14 @@
+{
+  "format_version": 1,
+  "overlay_id": "block-0885-v1",
+  "parameter_version": "demo-0.6.0-execution-candidate",
+  "notes": "Applies a uniform approximate 0.885 block-risk factor after assist and three-point execution calibration.",
+  "overrides": [
+    {"path": ["nodes", "contest_gate", "base_probabilities", "RIM", "BLOCK"], "value": 0.053},
+    {"path": ["nodes", "contest_gate", "base_probabilities", "RIM", "NORMAL"], "value": 0.707},
+    {"path": ["nodes", "contest_gate", "base_probabilities", "MIDRANGE", "BLOCK"], "value": 0.0177},
+    {"path": ["nodes", "contest_gate", "base_probabilities", "MIDRANGE", "NORMAL"], "value": 0.8023},
+    {"path": ["nodes", "contest_gate", "base_probabilities", "THREE", "BLOCK"], "value": 0.0062},
+    {"path": ["nodes", "contest_gate", "base_probabilities", "THREE", "NORMAL"], "value": 0.8338}
+  ]
+}
