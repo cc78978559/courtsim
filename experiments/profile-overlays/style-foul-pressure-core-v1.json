@@ -1,0 +1,19 @@
+{
+  "format_version": 1,
+  "kind": "courtsim-player-lineup-overlay",
+  "overlay_id": "style-foul-pressure-core-v1",
+  "lineup_id": "synthetic-style-foul-pressure-core-v1",
+  "notes": "Composite synthetic style: the lead creator aggressively seeks contact and draws fouls.",
+  "overrides": [
+    {
+      "player_id": 1,
+      "path": ["abilities", "foul_drawing"],
+      "value": 90
+    },
+    {
+      "player_id": 1,
+      "path": ["tendencies", "contact_seek"],
+      "value": 90
+    }
+  ]
+}

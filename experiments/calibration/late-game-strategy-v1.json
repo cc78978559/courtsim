@@ -1,0 +1,15 @@
+{
+  "format_version": 1,
+  "migration_id": "late-game-strategy-v1",
+  "parameter_version": "demo-1.2.0",
+  "notes": "Adds explicit late-game offense and defense strategy states, with two-for-one tempo execution and shadow intentional-foul opportunities.",
+  "late_game_strategy": {
+    "intentional_foul_max_trailing_margin": 8,
+    "intentional_foul_min_trailing_margin": 3,
+    "intentional_foul_window_seconds": 30,
+    "two_for_one_max_abs_margin": 5,
+    "two_for_one_tempo_delta": 15,
+    "two_for_one_window_end_seconds": 40,
+    "two_for_one_window_start_seconds": 32
+  }
+}

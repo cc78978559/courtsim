@@ -1,0 +1,44 @@
+{
+  "format_version": 1,
+  "kind": "courtsim-matrix-contrast-spec",
+  "contrast_set_id": "demo-1-1-0-late-game-tempo-v1",
+  "comparisons": [
+    {
+      "contrast_id": "contextual-vs-static",
+      "baseline_cell_id": "v10-static",
+      "candidate_cell_id": "v11-contextual",
+      "gates": [
+        {
+          "metric": "late_game_trailing_mean_observed_seconds",
+          "minimum_delta": -0.9,
+          "maximum_delta": -0.25
+        },
+        {
+          "metric": "late_game_leading_mean_observed_seconds",
+          "minimum_delta": 0.15,
+          "maximum_delta": 0.8
+        },
+        {
+          "metric": "late_game_neutral_mean_observed_seconds",
+          "minimum_delta": -0.15,
+          "maximum_delta": 0.15
+        },
+        {
+          "metric": "mean_team_possessions",
+          "minimum_delta": -0.3,
+          "maximum_delta": 0.3
+        },
+        {
+          "metric": "points_per_100_possessions",
+          "minimum_delta": -0.5,
+          "maximum_delta": 0.5
+        },
+        {
+          "metric": "field_goal_percentage",
+          "minimum_delta": -0.002,
+          "maximum_delta": 0.002
+        }
+      ]
+    }
+  ]
+}

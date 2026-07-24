@@ -1,0 +1,110 @@
+{
+  "format_version": 1,
+  "kind": "courtsim-matrix-contrast-spec",
+  "contrast_set_id": "demo-0-8-0-fixed-opponent-styles-v1",
+  "comparisons": [
+    {
+      "contrast_id": "perimeter-volume-vs-fixed-opponent",
+      "baseline_cell_id": "baseline",
+      "candidate_cell_id": "perimeter-volume-proxy",
+      "gates": [
+        {
+          "metric": "team.home.shot_zone_share.THREE",
+          "minimum_delta": 0.05,
+          "maximum_delta": 0.09
+        },
+        {
+          "metric": "team.home.points_per_100_possessions",
+          "minimum_delta": 1.0,
+          "maximum_delta": 5.0
+        },
+        {
+          "metric": "team.away.shot_zone_share.THREE",
+          "minimum_delta": -0.005,
+          "maximum_delta": 0.005
+        },
+        {
+          "metric": "team.away.points_per_100_possessions",
+          "minimum_delta": -0.5,
+          "maximum_delta": 0.5
+        }
+      ]
+    },
+    {
+      "contrast_id": "interior-hub-current-limit",
+      "baseline_cell_id": "baseline",
+      "candidate_cell_id": "interior-hub-proxy",
+      "gates": [
+        {
+          "metric": "team.home.assist_per_field_goal",
+          "minimum_delta": -0.005,
+          "maximum_delta": 0.005
+        },
+        {
+          "metric": "team.home.shot_zone_share.THREE",
+          "minimum_delta": -0.01,
+          "maximum_delta": 0.002
+        },
+        {
+          "metric": "team.away.points_per_100_possessions",
+          "minimum_delta": -0.5,
+          "maximum_delta": 0.5
+        }
+      ]
+    },
+    {
+      "contrast_id": "pressure-defense-vs-fixed-opponent",
+      "baseline_cell_id": "baseline",
+      "candidate_cell_id": "pressure-defense-proxy",
+      "gates": [
+        {
+          "metric": "team.home.steal_rate",
+          "minimum_delta": 0.03,
+          "maximum_delta": 0.06
+        },
+        {
+          "metric": "team.away.turnover_rate",
+          "minimum_delta": 0.03,
+          "maximum_delta": 0.055
+        },
+        {
+          "metric": "team.home.turnover_rate",
+          "minimum_delta": -0.005,
+          "maximum_delta": 0.005
+        },
+        {
+          "metric": "team.home.points_per_100_possessions",
+          "minimum_delta": -0.5,
+          "maximum_delta": 0.5
+        }
+      ]
+    },
+    {
+      "contrast_id": "rim-defense-vs-fixed-opponent",
+      "baseline_cell_id": "baseline",
+      "candidate_cell_id": "rim-defense-proxy",
+      "gates": [
+        {
+          "metric": "team.home.block_rate",
+          "minimum_delta": 0.015,
+          "maximum_delta": 0.035
+        },
+        {
+          "metric": "team.away.points_per_100_possessions",
+          "minimum_delta": -5.0,
+          "maximum_delta": -1.0
+        },
+        {
+          "metric": "team.home.points_per_100_possessions",
+          "minimum_delta": -0.5,
+          "maximum_delta": 0.5
+        },
+        {
+          "metric": "team.home.shot_zone_share.THREE",
+          "minimum_delta": -0.005,
+          "maximum_delta": 0.005
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "overlay_id": "post-foul-shot-execution-v1",
+  "parameter_version": "demo-0.7.0",
+  "notes": "Re-centers live-ball make logits after missed shooting fouls are correctly excluded from FGA; does not alter foul or free-throw volume.",
+  "overrides": [
+    {
+      "path": ["nodes", "shot_make", "base_make_probability", "RIM"],
+      "value": 0.605
+    },
+    {
+      "path": ["nodes", "shot_make", "base_make_probability", "MIDRANGE"],
+      "value": 0.395
+    },
+    {
+      "path": ["nodes", "shot_make", "base_make_probability", "THREE"],
+      "value": 0.27
+    }
+  ]
+}

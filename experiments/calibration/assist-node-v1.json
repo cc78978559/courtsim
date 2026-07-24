@@ -1,0 +1,16 @@
+{
+  "format_version": 1,
+  "migration_id": "assist-node-v1",
+  "parameter_version": "demo-0.6.0-assist-initial",
+  "notes": "Adds independent assist decision and assister hazard nodes to the frozen demo-0.5.0 structure parameters.",
+  "assist_resolution": {
+    "base_probability_by_creation_mode": {
+      "SELF_CREATED": 0.4,
+      "SCREEN_PARTNER_FEED": 0.9,
+      "SPOT_UP_FEED": 0.95,
+      "OFF_BALL_MOVEMENT_FEED": 0.93
+    },
+    "assister_playmaking_coefficient": 0.35,
+    "assister_decision_coefficient": 0.15
+  }
+}

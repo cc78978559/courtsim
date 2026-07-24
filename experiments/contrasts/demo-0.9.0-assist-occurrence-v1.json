@@ -1,0 +1,90 @@
+{
+  "format_version": 1,
+  "kind": "courtsim-matrix-contrast-spec",
+  "contrast_set_id": "demo-0-9-0-assist-occurrence-v1",
+  "comparisons": [
+    {
+      "contrast_id": "centered-baseline-v09-vs-v08",
+      "baseline_cell_id": "v08-baseline",
+      "candidate_cell_id": "v09-baseline",
+      "gates": [
+        {
+          "metric": "assist_per_field_goal",
+          "minimum_delta": 0.005,
+          "maximum_delta": 0.03
+        },
+        {
+          "metric": "team.home.assist_per_field_goal",
+          "minimum_delta": 0.005,
+          "maximum_delta": 0.03
+        },
+        {
+          "metric": "points_per_100_possessions",
+          "minimum_delta": -0.01,
+          "maximum_delta": 0.01
+        },
+        {
+          "metric": "field_goal_percentage",
+          "minimum_delta": -0.0001,
+          "maximum_delta": 0.0001
+        }
+      ]
+    },
+    {
+      "contrast_id": "legacy-interior-hub-limit",
+      "baseline_cell_id": "v08-baseline",
+      "candidate_cell_id": "v08-interior-hub",
+      "gates": [
+        {
+          "metric": "team.home.assist_per_field_goal",
+          "minimum_delta": -0.01,
+          "maximum_delta": 0.01
+        }
+      ]
+    },
+    {
+      "contrast_id": "v09-interior-hub-response",
+      "baseline_cell_id": "v09-baseline",
+      "candidate_cell_id": "v09-interior-hub",
+      "gates": [
+        {
+          "metric": "team.home.assist_per_field_goal",
+          "minimum_delta": 0.025,
+          "maximum_delta": 0.075
+        },
+        {
+          "metric": "team.away.assist_per_field_goal",
+          "minimum_delta": -0.005,
+          "maximum_delta": 0.005
+        }
+      ]
+    },
+    {
+      "contrast_id": "interior-hub-structure-v09-vs-v08",
+      "baseline_cell_id": "v08-interior-hub",
+      "candidate_cell_id": "v09-interior-hub",
+      "gates": [
+        {
+          "metric": "team.home.assist_per_field_goal",
+          "minimum_delta": 0.02,
+          "maximum_delta": 0.07
+        },
+        {
+          "metric": "team.home.points_per_100_possessions",
+          "minimum_delta": -0.01,
+          "maximum_delta": 0.01
+        },
+        {
+          "metric": "team.home.field_goal_percentage",
+          "minimum_delta": -0.0001,
+          "maximum_delta": 0.0001
+        },
+        {
+          "metric": "team.home.shot_zone_share.THREE",
+          "minimum_delta": -0.0001,
+          "maximum_delta": 0.0001
+        }
+      ]
+    }
+  ]
+}

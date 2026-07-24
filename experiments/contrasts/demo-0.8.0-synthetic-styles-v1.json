@@ -1,0 +1,115 @@
+{
+  "format_version": 1,
+  "kind": "courtsim-matrix-contrast-spec",
+  "contrast_set_id": "demo-0-8-0-synthetic-styles-v1",
+  "comparisons": [
+    {
+      "contrast_id": "foul-pressure-core-vs-baseline",
+      "baseline_cell_id": "baseline",
+      "candidate_cell_id": "foul-pressure-core",
+      "gates": [
+        {
+          "metric": "non_shooting_foul_rate",
+          "minimum_delta": 0.02,
+          "maximum_delta": 0.045
+        },
+        {
+          "metric": "shooting_foul_rate",
+          "minimum_delta": 0.03,
+          "maximum_delta": 0.06
+        },
+        {
+          "metric": "defensive_foul_rate",
+          "minimum_delta": 0.055,
+          "maximum_delta": 0.1
+        },
+        {
+          "metric": "shot_zone_share.THREE",
+          "minimum_delta": -0.015,
+          "maximum_delta": 0.025
+        }
+      ]
+    },
+    {
+      "contrast_id": "disciplined-defense-vs-baseline",
+      "baseline_cell_id": "baseline",
+      "candidate_cell_id": "disciplined-defense",
+      "gates": [
+        {
+          "metric": "non_shooting_foul_rate",
+          "minimum_delta": -0.035,
+          "maximum_delta": -0.01
+        },
+        {
+          "metric": "shooting_foul_rate",
+          "minimum_delta": -0.05,
+          "maximum_delta": -0.015
+        },
+        {
+          "metric": "player_fouls_per_100_defensive_possessions.home.1",
+          "minimum_delta": -3.0,
+          "maximum_delta": -0.8
+        },
+        {
+          "metric": "player_fouls_per_100_defensive_possessions.home.5",
+          "minimum_delta": -5.0,
+          "maximum_delta": -2.0
+        }
+      ]
+    },
+    {
+      "contrast_id": "rim-wall-vs-baseline",
+      "baseline_cell_id": "baseline",
+      "candidate_cell_id": "rim-wall",
+      "gates": [
+        {
+          "metric": "block_rate",
+          "minimum_delta": 0.015,
+          "maximum_delta": 0.035
+        },
+        {
+          "metric": "non_shooting_foul_rate",
+          "minimum_delta": -0.008,
+          "maximum_delta": 0.008
+        },
+        {
+          "metric": "shot_zone_share.THREE",
+          "minimum_delta": -0.015,
+          "maximum_delta": 0.015
+        },
+        {
+          "metric": "points_per_100_possessions",
+          "minimum_delta": -4.0,
+          "maximum_delta": -1.0
+        }
+      ]
+    },
+    {
+      "contrast_id": "five-out-vs-baseline",
+      "baseline_cell_id": "baseline",
+      "candidate_cell_id": "five-out",
+      "gates": [
+        {
+          "metric": "shot_zone_share.THREE",
+          "minimum_delta": 0.05,
+          "maximum_delta": 0.1
+        },
+        {
+          "metric": "three_point_percentage",
+          "minimum_delta": -0.005,
+          "maximum_delta": 0.02
+        },
+        {
+          "metric": "non_shooting_foul_rate",
+          "minimum_delta": -0.01,
+          "maximum_delta": 0.01
+        },
+        {
+          "metric": "points_per_100_possessions",
+          "minimum_delta": 1.0,
+          "maximum_delta": 5.0
+        }
+      ]
+    }
+  ]
+}

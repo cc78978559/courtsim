@@ -1,0 +1,56 @@
+{
+  "format_version": 1,
+  "matrix_id": "demo-0-9-0-assist-occurrence",
+  "base_directory": "../..",
+  "master_seed": 20260807,
+  "defaults": {
+    "schema": "data/model_schema_demo_v1_7.json",
+    "profile": "examples/calibration_lineup_v1.json",
+    "games": 200,
+    "workers": 4,
+    "start_index": 0,
+    "trace_mode": "aggregate-only",
+    "clock": {
+      "regulation_periods": 4,
+      "period_seconds": 720,
+      "possession_seconds": 15
+    }
+  },
+  "targets": [
+    "experiments/nba-2024-25-regular-season-core-v1.json"
+  ],
+  "cells": [
+    {
+      "cell_id": "v08-baseline",
+      "schema": "data/model_schema_demo_v1_6.json",
+      "parameters": "data/model_parameters_demo_0.8.0.json",
+      "seed_group": "assist-occurrence"
+    },
+    {
+      "cell_id": "v09-baseline",
+      "parameters": "data/model_parameters_demo_0.9.0.json",
+      "seed_group": "assist-occurrence"
+    },
+    {
+      "cell_id": "v08-interior-hub",
+      "schema": "data/model_schema_demo_v1_6.json",
+      "parameters": "data/model_parameters_demo_0.8.0.json",
+      "profile": "work/profiles/style-interior-hub-v1.json",
+      "opponent_profile": "examples/calibration_lineup_v1.json",
+      "targets": [
+        "experiments/nba-2024-25-denver-home-style-v1.json"
+      ],
+      "seed_group": "assist-occurrence"
+    },
+    {
+      "cell_id": "v09-interior-hub",
+      "parameters": "data/model_parameters_demo_0.9.0.json",
+      "profile": "work/profiles/style-interior-hub-v1.json",
+      "opponent_profile": "examples/calibration_lineup_v1.json",
+      "targets": [
+        "experiments/nba-2024-25-denver-home-style-v1.json"
+      ],
+      "seed_group": "assist-occurrence"
+    }
+  ]
+}

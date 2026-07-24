@@ -1,0 +1,48 @@
+{
+  "format_version": 1,
+  "metrics": [
+    {
+      "lower": 0.631404403867,
+      "metric": "team.home.assist_per_field_goal",
+      "required": true,
+      "source_id": "nba-com-team-core-2024-25",
+      "target": 0.682599355532,
+      "upper": 0.733794307197,
+      "weight": 1.0
+    },
+    {
+      "lower": 0.468029891304,
+      "metric": "team.home.field_goal_percentage",
+      "required": true,
+      "source_id": "nba-com-team-core-2024-25",
+      "target": 0.50597826087,
+      "upper": 0.543926630435,
+      "weight": 1.0
+    },
+    {
+      "lower": 0.329154211957,
+      "metric": "team.home.shot_zone_share.THREE",
+      "required": true,
+      "source_id": "nba-com-team-core-2024-25",
+      "target": 0.355842391304,
+      "upper": 0.382530570652,
+      "weight": 1.0
+    }
+  ],
+  "notes": "Selected observable team-style targets derived deterministically from the pinned NBA.com team tables. Bounds are an initial +/-7.50% relative representation envelope, not sampling confidence intervals. A symmetric self-play simulation is only a style proxy and is not a claim to reproduce this real team.",
+  "planned_metrics": [],
+  "population": "Denver Nuggets, NBA 2024-25 regular season, 82 team-games",
+  "season": "2024-25",
+  "sources": [
+    {
+      "artifact_path": "sources/nba-2024-25-team-core.json",
+      "content_sha256": "c5767fedd34a7ac7c99c86bfc382138b14be56ff2ae20d2375f815578f7241b7",
+      "label": "NBA.com 2024-25 team traditional and advanced table projection",
+      "origin": "https://www.nba.com/stats/teams/traditional?Season=2024-25&SeasonType=Regular+Season&PerMode=Totals | https://www.nba.com/stats/teams/advanced?Season=2024-25&SeasonType=Regular+Season&PerMode=Totals",
+      "retrieved_on": "2026-07-23",
+      "source_id": "nba-com-team-core-2024-25"
+    }
+  ],
+  "status": "active",
+  "target_set_id": "nba-2024-25-denver-nuggets-home-style-v1"
+}

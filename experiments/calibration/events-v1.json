@@ -1,0 +1,27 @@
+{
+  "format_version": 1,
+  "overlay_id": "events-v1",
+  "parameter_version": "demo-0.5.0",
+  "notes": "Selected structure calibration: zone-extra-v1 plus turnover competing-risk and rebound-side changes; shot make and contest parameters remain frozen.",
+  "overrides": [
+    {"path": ["nodes", "terminal_competing_risk", "base_probabilities", "BALL_SCREEN", "SHOT_OPPORTUNITY"], "value": 0.78},
+    {"path": ["nodes", "terminal_competing_risk", "base_probabilities", "BALL_SCREEN", "TO_LOST_BALL_STEAL"], "value": 0.055},
+    {"path": ["nodes", "terminal_competing_risk", "base_probabilities", "BALL_SCREEN", "TO_LOST_BALL_UNFORCED"], "value": 0.032},
+    {"path": ["nodes", "terminal_competing_risk", "base_probabilities", "BALL_SCREEN", "TO_BAD_PASS_STEAL"], "value": 0.055},
+    {"path": ["nodes", "terminal_competing_risk", "base_probabilities", "BALL_SCREEN", "TO_BAD_PASS_UNFORCED"], "value": 0.047},
+    {"path": ["nodes", "terminal_competing_risk", "base_probabilities", "BALL_SCREEN", "TO_VIOLATION"], "value": 0.031},
+    {"path": ["nodes", "terminal_competing_risk", "base_probabilities", "ISOLATION", "SHOT_OPPORTUNITY"], "value": 0.82},
+    {"path": ["nodes", "terminal_competing_risk", "base_probabilities", "ISOLATION", "TO_LOST_BALL_STEAL"], "value": 0.065},
+    {"path": ["nodes", "terminal_competing_risk", "base_probabilities", "ISOLATION", "TO_LOST_BALL_UNFORCED"], "value": 0.041},
+    {"path": ["nodes", "terminal_competing_risk", "base_probabilities", "ISOLATION", "TO_BAD_PASS_STEAL"], "value": 0.025},
+    {"path": ["nodes", "terminal_competing_risk", "base_probabilities", "ISOLATION", "TO_BAD_PASS_UNFORCED"], "value": 0.025},
+    {"path": ["nodes", "terminal_competing_risk", "base_probabilities", "ISOLATION", "TO_VIOLATION"], "value": 0.024},
+    {"path": ["nodes", "terminal_competing_risk", "base_probabilities", "OFF_BALL_ACTION", "SHOT_OPPORTUNITY"], "value": 0.865},
+    {"path": ["nodes", "terminal_competing_risk", "base_probabilities", "OFF_BALL_ACTION", "TO_LOST_BALL_STEAL"], "value": 0.017},
+    {"path": ["nodes", "terminal_competing_risk", "base_probabilities", "OFF_BALL_ACTION", "TO_LOST_BALL_UNFORCED"], "value": 0.017},
+    {"path": ["nodes", "terminal_competing_risk", "base_probabilities", "OFF_BALL_ACTION", "TO_BAD_PASS_STEAL"], "value": 0.042},
+    {"path": ["nodes", "terminal_competing_risk", "base_probabilities", "OFF_BALL_ACTION", "TO_BAD_PASS_UNFORCED"], "value": 0.042},
+    {"path": ["nodes", "terminal_competing_risk", "base_probabilities", "OFF_BALL_ACTION", "TO_VIOLATION"], "value": 0.017},
+    {"path": ["nodes", "rebound_hazard", "defense_context_factor"], "value": 2.2}
+  ]
+}

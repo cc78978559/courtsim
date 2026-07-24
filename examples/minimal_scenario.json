@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "name": "foundation-smoke-test",
+  "court": {
+    "zones": [
+      "left_corner",
+      "left_wing",
+      "top",
+      "right_wing",
+      "right_corner",
+      "left_elbow",
+      "right_elbow",
+      "paint",
+      "rim"
+    ]
+  },
+  "engine": {
+    "min_action_budget": 2,
+    "max_action_budget": 6
+  }
+}
+

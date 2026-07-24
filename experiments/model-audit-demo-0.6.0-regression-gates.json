@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "kind": "regression-not-realism",
+  "gates": [
+    {"metric": "completed_games", "minimum": 100, "maximum": 100},
+    {"metric": "aborted_games", "minimum": 0, "maximum": 0},
+    {"metric": "completed_possessions", "minimum": 19200, "maximum": 19200},
+    {"metric": "mean_team_possessions", "minimum": 96, "maximum": 96},
+    {"metric": "points_per_100_possessions", "minimum": 106.1, "maximum": 106.2},
+    {"metric": "assist_per_field_goal", "minimum": 0.636, "maximum": 0.638},
+    {"metric": "block_rate", "minimum": 0.053, "maximum": 0.054},
+    {"metric": "field_goal_percentage", "minimum": 0.464, "maximum": 0.465},
+    {"metric": "shot_zone_share.THREE", "minimum": 0.405, "maximum": 0.406},
+    {"metric": "three_point_percentage", "minimum": 0.369, "maximum": 0.371},
+    {"metric": "turnover_rate", "minimum": 0.146, "maximum": 0.148},
+    {"metric": "offensive_rebound_rate", "minimum": 0.247, "maximum": 0.249}
+  ]
+}

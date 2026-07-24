@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "player_id": 7,
+  "name": "Demo Movement Shooter",
+  "size_class": 1,
+  "abilities": {
+    "perimeter_creation": 35,
+    "post_creation": 25,
+    "ball_security": 58,
+    "playmaking": 50,
+    "off_ball_movement": 92,
+    "screen_setting": 30,
+    "rim_finishing": 48,
+    "midrange_shooting": 65,
+    "three_point_shooting": 90,
+    "free_throw_shooting": 84,
+    "foul_drawing": 40,
+    "point_of_attack_defense": 55,
+    "post_defense": 30,
+    "rim_protection": 25,
+    "steal_skill": 52,
+    "foul_discipline": 62,
+    "offensive_rebounding": 25,
+    "defensive_rebounding": 42,
+    "offensive_decision": 72,
+    "defensive_awareness": 60
+  },
+  "tendencies": {
+    "offensive_involvement": 62,
+    "play_role_mix": {
+      "handler": 20,
+      "post": 10,
+      "spot_up": 95,
+      "cutter": 70,
+      "screener": 15
+    },
+    "shoot_vs_pass": 68,
+    "shot_zone_mix": {
+      "rim": 15,
+      "midrange": 25,
+      "three": 95
+    },
+    "pass_risk": 42,
+    "contact_seek": 25,
+    "offensive_rebound_commitment": 20,
+    "defensive_rebound_commitment": 45,
+    "steal_gamble": 48,
+    "help_aggression": 50,
+    "block_chase": 25
+  },
+  "nominal_role_tags": [
+    "MOVEMENT_SHOOTER"
+  ]
+}

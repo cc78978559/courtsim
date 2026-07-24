@@ -1,0 +1,68 @@
+{
+  "format_version": 1,
+  "kind": "courtsim-artifact-retention-policy",
+  "policy_id": "courtsim-local-artifacts-review-v1",
+  "status": "draft",
+  "default_category": "unclassified",
+  "rules": [
+    {
+      "id": "protect-formal-audits",
+      "category": "protected",
+      "patterns": [
+        "audits/*formal*/**"
+      ],
+      "reason": "Formal audit evidence remains directly available for regression review."
+    },
+    {
+      "id": "protect-current-seed-audits",
+      "category": "protected",
+      "patterns": [
+        "audits/demo-1.3.0-seed-*/**",
+        "audits/demo-1.4.0-seed-*/**"
+      ],
+      "reason": "Current-version seed evidence remains directly available."
+    },
+    {
+      "id": "protect-current-benchmarks",
+      "category": "protected",
+      "patterns": [
+        "benchmarks/demo-1.3.0-control-rerun/**",
+        "benchmarks/demo-1.4.0-non-bonus-intentional-foul/**"
+      ],
+      "reason": "Current benchmark baselines remain directly available."
+    },
+    {
+      "id": "protect-top-level-audit-controls",
+      "category": "protected",
+      "patterns": [
+        "audits/*.json"
+      ],
+      "reason": "Small audit control files and prior review plans remain directly available."
+    },
+    {
+      "id": "protect-comparison-evidence",
+      "category": "protected",
+      "patterns": [
+        "contrasts/**",
+        "matrices/**"
+      ],
+      "reason": "Cross-run comparison and matrix evidence remains directly available."
+    },
+    {
+      "id": "review-game-ledgers-for-archive",
+      "category": "archive_candidate",
+      "patterns": [
+        "**/games.jsonl"
+      ],
+      "reason": "Large game ledgers outside protected evidence sets may be archived after review."
+    },
+    {
+      "id": "review-event-ledgers-for-archive",
+      "category": "archive_candidate",
+      "patterns": [
+        "**/events.jsonl"
+      ],
+      "reason": "Large event ledgers outside protected evidence sets may be archived after review."
+    }
+  ]
+}

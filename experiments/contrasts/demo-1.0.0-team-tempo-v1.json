@@ -1,0 +1,73 @@
+{
+  "format_version": 1,
+  "kind": "courtsim-matrix-contrast-spec",
+  "contrast_set_id": "demo-1-0-0-team-tempo-v1",
+  "comparisons": [
+    {
+      "contrast_id": "neutral-renewal-bound",
+      "baseline_cell_id": "v09-fixed",
+      "candidate_cell_id": "v10-neutral",
+      "gates": [
+        {
+          "metric": "mean_team_possessions",
+          "minimum_delta": 0.2,
+          "maximum_delta": 1.2
+        },
+        {
+          "metric": "points_per_100_possessions",
+          "minimum_delta": -0.5,
+          "maximum_delta": 0.5
+        },
+        {
+          "metric": "field_goal_percentage",
+          "minimum_delta": -0.002,
+          "maximum_delta": 0.002
+        }
+      ]
+    },
+    {
+      "contrast_id": "fast-tempo-raises-pace",
+      "baseline_cell_id": "v10-neutral",
+      "candidate_cell_id": "v10-fast",
+      "gates": [
+        {
+          "metric": "mean_team_possessions",
+          "minimum_delta": 7.0,
+          "maximum_delta": 10.0
+        },
+        {
+          "metric": "points_per_100_possessions",
+          "minimum_delta": -0.5,
+          "maximum_delta": 0.5
+        },
+        {
+          "metric": "assist_per_field_goal",
+          "minimum_delta": -0.002,
+          "maximum_delta": 0.002
+        }
+      ]
+    },
+    {
+      "contrast_id": "slow-tempo-lowers-pace",
+      "baseline_cell_id": "v10-neutral",
+      "candidate_cell_id": "v10-slow",
+      "gates": [
+        {
+          "metric": "mean_team_possessions",
+          "minimum_delta": -9.0,
+          "maximum_delta": -6.0
+        },
+        {
+          "metric": "points_per_100_possessions",
+          "minimum_delta": -0.5,
+          "maximum_delta": 0.5
+        },
+        {
+          "metric": "assist_per_field_goal",
+          "minimum_delta": -0.002,
+          "maximum_delta": 0.002
+        }
+      ]
+    }
+  ]
+}

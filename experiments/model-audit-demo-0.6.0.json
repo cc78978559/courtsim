@@ -1,0 +1,56 @@
+{
+  "format_version": 1,
+  "name": "model-audit-demo-0.6.0",
+  "purpose": "Assist-aware execution-calibrated synthetic balanced-lineup regression baseline",
+  "master_seed": 20260726,
+  "games": 100,
+  "start_index": 0,
+  "clock": {
+    "regulation_periods": 4,
+    "period_seconds": 720,
+    "possession_seconds": 15
+  },
+  "model": {
+    "schema_version": "demo-v1.4",
+    "parameter_version": "demo-0.6.0",
+    "schema_hash": "b43bac066c70dfc9aead2c281cabdd2358a3fad8aa6f99615834b1221c81e80e",
+    "schema_file_sha256": "5398ffb72cc082352d0ab967bcf1ae6d047bf9358378a865b7903a0093b488db",
+    "parameter_hash": "b6081415add0b1598bd86088bebddf5f2e835a677a8ed4230229153cee5dc362",
+    "parameter_file_sha256": "4a60455b77604bb7577f81e8ffb74336c78b291ea296ddd06395cb158d573b55"
+  },
+  "profile": {
+    "path": "examples/calibration_lineup_v1.json",
+    "sha256": "4cee166e79e82eb6c60614d156011eb5028e79be2e57590f330c21da4be4763c"
+  },
+  "calibration_pipeline": [
+    {
+      "operation": "parameters-add-assist",
+      "path": "experiments/calibration/assist-node-v1.json",
+      "sha256": "5f1f0d9149512dd74f90d195884a6a024f901312df5b0fadfee7a0bcab9d90e7"
+    },
+    {
+      "operation": "parameters-overlay",
+      "path": "experiments/calibration/three-make-030-v1.json",
+      "sha256": "01f3553992dbc03d9262ca767ed07f9575d157d99a06debb9e4b7bb3504a0fc9"
+    },
+    {
+      "operation": "parameters-overlay",
+      "path": "experiments/calibration/block-0885-v1.json",
+      "sha256": "a8e6e423070753c85f81d4df7f17fb31dd7c16e803f758cc12c56497817f370b"
+    },
+    {
+      "operation": "parameters-overlay",
+      "path": "experiments/calibration/turnover-center-v1.json",
+      "sha256": "951969245e835c07ca76c55d61f9bb6a6a68e394efb1258f46f065ee8d89cb54"
+    }
+  ],
+  "acceptance": {
+    "completed_games": 100,
+    "aborted_games": 0,
+    "manifest_verification": true,
+    "audit_sha256": "4a08159acfd40898626bd3953b17dcd376042be6bb5a56ec86a2bff155c72718",
+    "games_sha256": "f2956a936559cbbb84d0c1281aa752cd8eed101dab01bcbc504fa63d42559e63",
+    "realism_gate_passed": false,
+    "realism_required_failures": 1
+  }
+}

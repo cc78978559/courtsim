@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "migration_id": "common-foul-node-v1",
+  "parameter_version": "demo-0.8.0",
+  "notes": "Adds parameterized non-shooting defensive fouls, related-player fouler hazards and a per-period team bonus threshold.",
+  "bonus_foul_threshold": 5,
+  "non_shooting_foul": {
+    "base_probability_by_play_family": {
+      "BALL_SCREEN": 0.055,
+      "ISOLATION": 0.05,
+      "OFF_BALL_ACTION": 0.04
+    },
+    "ball_pressure_coefficient": 0.12,
+    "foul_drawing_coefficient": 0.2,
+    "contact_seek_coefficient": 0.1,
+    "fouler_discipline_coefficient": 0.25
+  }
+}

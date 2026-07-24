@@ -1,0 +1,135 @@
+{
+  "aborted_games": 0,
+  "assist_per_field_goal": 0.5497255762897915,
+  "block_rate": 0.0035415325177076628,
+  "completed_games": 50,
+  "completed_possessions": 9600,
+  "coverage_shares": [
+    {
+      "count": 6230,
+      "key": "BASE",
+      "share": 0.6158560695927244
+    },
+    {
+      "count": 1307,
+      "key": "DROP",
+      "share": 0.12920126532226175
+    },
+    {
+      "count": 1507,
+      "key": "SWITCH",
+      "share": 0.14897192566231712
+    },
+    {
+      "count": 1072,
+      "key": "BLITZ",
+      "share": 0.10597073942269672
+    }
+  ],
+  "field_goal_percentage": 0.4888388066108607,
+  "games": 50,
+  "mean_team_possessions": 96.0,
+  "mean_team_score": 131.62,
+  "offensive_rebound_rate": 0.10833508293092589,
+  "play_family_shares": [
+    {
+      "count": 4549,
+      "key": "BALL_SCREEN",
+      "share": 0.4496836694345591
+    },
+    {
+      "count": 2516,
+      "key": "ISOLATION",
+      "share": 0.2487149070778964
+    },
+    {
+      "count": 3051,
+      "key": "OFF_BALL_ACTION",
+      "share": 0.3016014234875445
+    }
+  ],
+  "player_usage_shares": [
+    {
+      "player_id": 11,
+      "share": 0.2045499505440158,
+      "team_id": "away",
+      "usage_events": 1034
+    },
+    {
+      "player_id": 12,
+      "share": 0.1887240356083086,
+      "team_id": "away",
+      "usage_events": 954
+    },
+    {
+      "player_id": 13,
+      "share": 0.20613254203758655,
+      "team_id": "away",
+      "usage_events": 1042
+    },
+    {
+      "player_id": 14,
+      "share": 0.20514342235410485,
+      "team_id": "away",
+      "usage_events": 1037
+    },
+    {
+      "player_id": 15,
+      "share": 0.19545004945598418,
+      "team_id": "away",
+      "usage_events": 988
+    },
+    {
+      "player_id": 1,
+      "share": 0.19956530329974315,
+      "team_id": "home",
+      "usage_events": 1010
+    },
+    {
+      "player_id": 2,
+      "share": 0.19304485279589015,
+      "team_id": "home",
+      "usage_events": 977
+    },
+    {
+      "player_id": 3,
+      "share": 0.20588816439438845,
+      "team_id": "home",
+      "usage_events": 1042
+    },
+    {
+      "player_id": 4,
+      "share": 0.2015411973918198,
+      "team_id": "home",
+      "usage_events": 1020
+    },
+    {
+      "player_id": 5,
+      "share": 0.19996048211815848,
+      "team_id": "home",
+      "usage_events": 1012
+    }
+  ],
+  "points_per_100_possessions": 137.10416666666666,
+  "shot_zone_shares": [
+    {
+      "count": 624,
+      "key": "RIM",
+      "share": 0.0669671603348358
+    },
+    {
+      "count": 265,
+      "key": "MIDRANGE",
+      "share": 0.028439579308864562
+    },
+    {
+      "count": 8429,
+      "key": "THREE",
+      "share": 0.9045932603562996
+    }
+  ],
+  "steal_rate": 0.043125,
+  "team_score_stddev": 13.986979659669203,
+  "three_point_percentage": 0.48072131925495315,
+  "turnover_rate": 0.083125
+}

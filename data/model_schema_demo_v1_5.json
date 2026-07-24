@@ -1,0 +1,154 @@
+{
+  "schema_version": "demo-v1.5",
+  "rng_schema_version": 1,
+  "nodes": {
+    "play_selection": {
+      "model_type": "centered_softmax",
+      "classes": ["BALL_SCREEN", "ISOLATION", "OFF_BALL_ACTION"],
+      "allowed_features": [],
+      "fixed_feature_loadings": {}
+    },
+    "participant_selection": {
+      "model_type": "player_hazard",
+      "classes": ["PLAYER_HAZARD"],
+      "allowed_features": [],
+      "fixed_feature_loadings": {}
+    },
+    "defense_response": {
+      "model_type": "conditional_softmax",
+      "classes": ["BASE", "DROP", "SWITCH", "BLITZ"],
+      "allowed_features": [],
+      "fixed_feature_loadings": {}
+    },
+    "terminal_competing_risk": {
+      "model_type": "centered_softmax",
+      "classes": [
+        "SHOT_OPPORTUNITY",
+        "TO_LOST_BALL_STEAL",
+        "TO_LOST_BALL_UNFORCED",
+        "TO_BAD_PASS_STEAL",
+        "TO_BAD_PASS_UNFORCED",
+        "TO_VIOLATION"
+      ],
+      "allowed_features": [
+        "interaction.ball_pressure",
+        "interaction.pass_release",
+        "handler.ball_security",
+        "handler.offensive_decision",
+        "handler.pass_risk",
+        "team.steal_pressure"
+      ],
+      "fixed_feature_loadings": {}
+    },
+    "finisher_route": {
+      "model_type": "centered_softmax",
+      "classes": [
+        "INITIATOR_SELF",
+        "SCREENER_ROLL",
+        "SCREENER_POP",
+        "HELP_RELEASE",
+        "DESIGNED_OFF_BALL_TARGET",
+        "INITIATOR_BAILOUT"
+      ],
+      "allowed_features": ["candidate.availability"],
+      "fixed_feature_loadings": {"candidate.availability": 1.0}
+    },
+    "shot_zone": {
+      "model_type": "centered_softmax",
+      "classes": ["RIM", "MIDRANGE", "THREE"],
+      "allowed_features": ["finisher.zone_tendency"],
+      "fixed_feature_loadings": {"finisher.zone_tendency": 0.75}
+    },
+    "contest_gate": {
+      "model_type": "centered_softmax",
+      "classes": ["BLOCK", "HEAVY_CONTEST", "NORMAL"],
+      "allowed_features": [
+        "block_candidate.rim_protection",
+        "block_candidate.block_chase"
+      ],
+      "fixed_feature_loadings": {}
+    },
+    "shot_make": {
+      "model_type": "binary_logit",
+      "classes": ["MISS", "MAKE"],
+      "allowed_features": ["shooter.zone_skill"],
+      "fixed_feature_loadings": {}
+    },
+    "assist_resolution": {
+      "model_type": "conditional_binary_with_player_hazard",
+      "classes": ["NO_ASSIST", "ASSIST"],
+      "allowed_features": [
+        "candidate.playmaking",
+        "candidate.offensive_decision"
+      ],
+      "fixed_feature_loadings": {}
+    },
+    "shooting_foul": {
+      "model_type": "conditional_binary_with_player_hazard",
+      "classes": ["NO_FOUL", "FOUL"],
+      "allowed_features": [
+        "shooter.foul_drawing",
+        "shooter.contact_seek",
+        "defender.foul_discipline"
+      ],
+      "fixed_feature_loadings": {}
+    },
+    "free_throw_make": {
+      "model_type": "binary_logit",
+      "classes": ["MISS", "MAKE"],
+      "allowed_features": ["shooter.free_throw_shooting"],
+      "fixed_feature_loadings": {}
+    },
+    "rebound_side": {
+      "model_type": "binary_logit",
+      "classes": ["DEFENSE", "OFFENSE"],
+      "allowed_features": [],
+      "fixed_feature_loadings": {}
+    },
+    "steal_hazard": {
+      "model_type": "player_hazard",
+      "classes": ["PLAYER_HAZARD"],
+      "allowed_features": [
+        "defender.steal_skill",
+        "defender.steal_gamble"
+      ],
+      "fixed_feature_loadings": {}
+    },
+    "rebound_hazard": {
+      "model_type": "player_hazard",
+      "classes": ["PLAYER_HAZARD"],
+      "allowed_features": [
+        "player.rebound_ability",
+        "player.rebound_commitment",
+        "event.rebound_context"
+      ],
+      "fixed_feature_loadings": {}
+    },
+    "interaction": {
+      "model_type": "deterministic_interaction",
+      "classes": [
+        "creator_edge",
+        "ball_pressure",
+        "pass_release",
+        "rim_access",
+        "rim_help"
+      ],
+      "allowed_features": [
+        "initiator.perimeter_creation",
+        "initiator.playmaking",
+        "screener.screen_setting",
+        "target.off_ball_movement",
+        "primary.point_of_attack_defense",
+        "target_defender.defensive_awareness",
+        "helper.defensive_awareness",
+        "size.switch_context"
+      ],
+      "fixed_feature_loadings": {}
+    }
+  },
+  "dormant_features": [
+    "ability.post_creation",
+    "ability.post_defense",
+    "tendency.post_role"
+  ]
+}

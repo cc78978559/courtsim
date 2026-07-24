@@ -1,0 +1,17 @@
+{
+  "format_version": 1,
+  "kind": "courtsim-player-lineup-overlay",
+  "overlay_id": "player2-three-ability-low-v1",
+  "lineup_id": "synthetic-balanced-player2-three-ability-low-v1",
+  "notes": "Single-factor sensitivity fixture: player 2 three_point_shooting from 80 to 20.",
+  "overrides": [
+    {
+      "player_id": 2,
+      "path": [
+        "abilities",
+        "three_point_shooting"
+      ],
+      "value": 20
+    }
+  ]
+}

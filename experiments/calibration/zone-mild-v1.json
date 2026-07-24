@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "overlay_id": "zone-mild-v1",
+  "parameter_version": "demo-0.4.1-zone-mild",
+  "notes": "Zone-only calibration candidate; all non-zone nodes frozen at demo-0.4.0.",
+  "overrides": [
+    {"path": ["nodes", "shot_zone", "base_probabilities", "BALL_SCREEN|INITIATOR_SELF", "RIM"], "value": 0.5},
+    {"path": ["nodes", "shot_zone", "base_probabilities", "BALL_SCREEN|INITIATOR_SELF", "MIDRANGE"], "value": 0.25},
+    {"path": ["nodes", "shot_zone", "base_probabilities", "BALL_SCREEN|INITIATOR_SELF", "THREE"], "value": 0.25},
+    {"path": ["nodes", "shot_zone", "base_probabilities", "BALL_SCREEN|SCREENER_POP", "MIDRANGE"], "value": 0.5},
+    {"path": ["nodes", "shot_zone", "base_probabilities", "BALL_SCREEN|SCREENER_POP", "THREE"], "value": 0.5},
+    {"path": ["nodes", "shot_zone", "base_probabilities", "BALL_SCREEN|HELP_RELEASE", "MIDRANGE"], "value": 0.4},
+    {"path": ["nodes", "shot_zone", "base_probabilities", "BALL_SCREEN|HELP_RELEASE", "THREE"], "value": 0.6},
+    {"path": ["nodes", "shot_zone", "base_probabilities", "ISOLATION|INITIATOR_SELF", "RIM"], "value": 0.4},
+    {"path": ["nodes", "shot_zone", "base_probabilities", "ISOLATION|INITIATOR_SELF", "MIDRANGE"], "value": 0.35},
+    {"path": ["nodes", "shot_zone", "base_probabilities", "ISOLATION|INITIATOR_SELF", "THREE"], "value": 0.25},
+    {"path": ["nodes", "shot_zone", "base_probabilities", "ISOLATION|HELP_RELEASE", "MIDRANGE"], "value": 0.4},
+    {"path": ["nodes", "shot_zone", "base_probabilities", "ISOLATION|HELP_RELEASE", "THREE"], "value": 0.6},
+    {"path": ["nodes", "shot_zone", "base_probabilities", "OFF_BALL_ACTION|DESIGNED_OFF_BALL_TARGET", "MIDRANGE"], "value": 0.4},
+    {"path": ["nodes", "shot_zone", "base_probabilities", "OFF_BALL_ACTION|DESIGNED_OFF_BALL_TARGET", "THREE"], "value": 0.6},
+    {"path": ["nodes", "shot_zone", "base_probabilities", "OFF_BALL_ACTION|INITIATOR_BAILOUT", "RIM"], "value": 0.5},
+    {"path": ["nodes", "shot_zone", "base_probabilities", "OFF_BALL_ACTION|INITIATOR_BAILOUT", "MIDRANGE"], "value": 0.25},
+    {"path": ["nodes", "shot_zone", "base_probabilities", "OFF_BALL_ACTION|INITIATOR_BAILOUT", "THREE"], "value": 0.25}
+  ]
+}

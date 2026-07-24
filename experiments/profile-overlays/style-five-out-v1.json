@@ -1,0 +1,49 @@
+{
+  "format_version": 1,
+  "kind": "courtsim-player-lineup-overlay",
+  "overlay_id": "style-five-out-v1",
+  "lineup_id": "synthetic-style-five-out-v1",
+  "notes": "Composite synthetic style: both interior players become credible and willing perimeter shooters.",
+  "overrides": [
+    {
+      "player_id": 4,
+      "path": ["abilities", "three_point_shooting"],
+      "value": 78
+    },
+    {
+      "player_id": 4,
+      "path": ["tendencies", "shot_zone_mix", "rim"],
+      "value": 40
+    },
+    {
+      "player_id": 4,
+      "path": ["tendencies", "shot_zone_mix", "midrange"],
+      "value": 30
+    },
+    {
+      "player_id": 4,
+      "path": ["tendencies", "shot_zone_mix", "three"],
+      "value": 85
+    },
+    {
+      "player_id": 5,
+      "path": ["abilities", "three_point_shooting"],
+      "value": 75
+    },
+    {
+      "player_id": 5,
+      "path": ["tendencies", "shot_zone_mix", "rim"],
+      "value": 45
+    },
+    {
+      "player_id": 5,
+      "path": ["tendencies", "shot_zone_mix", "midrange"],
+      "value": 20
+    },
+    {
+      "player_id": 5,
+      "path": ["tendencies", "shot_zone_mix", "three"],
+      "value": 90
+    }
+  ]
+}

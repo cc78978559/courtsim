@@ -1,0 +1,69 @@
+{
+  "format_version": 1,
+  "kind": "courtsim-player-lineup-overlay",
+  "overlay_id": "style-pressure-defense-v1",
+  "lineup_id": "synthetic-style-pressure-defense-v1",
+  "notes": "Composite style proxy: three perimeter defenders apply high steal pressure with disciplined awareness.",
+  "overrides": [
+    {
+      "player_id": 1,
+      "path": ["abilities", "steal_skill"],
+      "value": 92
+    },
+    {
+      "player_id": 1,
+      "path": ["abilities", "foul_discipline"],
+      "value": 88
+    },
+    {
+      "player_id": 1,
+      "path": ["abilities", "defensive_awareness"],
+      "value": 88
+    },
+    {
+      "player_id": 1,
+      "path": ["tendencies", "steal_gamble"],
+      "value": 88
+    },
+    {
+      "player_id": 2,
+      "path": ["abilities", "steal_skill"],
+      "value": 90
+    },
+    {
+      "player_id": 2,
+      "path": ["abilities", "foul_discipline"],
+      "value": 88
+    },
+    {
+      "player_id": 2,
+      "path": ["abilities", "defensive_awareness"],
+      "value": 90
+    },
+    {
+      "player_id": 2,
+      "path": ["tendencies", "steal_gamble"],
+      "value": 86
+    },
+    {
+      "player_id": 3,
+      "path": ["abilities", "steal_skill"],
+      "value": 94
+    },
+    {
+      "player_id": 3,
+      "path": ["abilities", "foul_discipline"],
+      "value": 92
+    },
+    {
+      "player_id": 3,
+      "path": ["abilities", "defensive_awareness"],
+      "value": 94
+    },
+    {
+      "player_id": 3,
+      "path": ["tendencies", "steal_gamble"],
+      "value": 90
+    }
+  ]
+}

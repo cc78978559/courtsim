@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "kind": "regression-not-realism",
+  "gates": [
+    {
+      "metric": "completed_games",
+      "minimum": 50,
+      "maximum": 50
+    },
+    {
+      "metric": "aborted_games",
+      "minimum": 0,
+      "maximum": 0
+    },
+    {
+      "metric": "completed_possessions",
+      "minimum": 9600,
+      "maximum": 9600
+    },
+    {
+      "metric": "mean_team_possessions",
+      "minimum": 96,
+      "maximum": 96
+    },
+    {
+      "metric": "points_per_100_possessions",
+      "minimum": 137,
+      "maximum": 137.2
+    },
+    {
+      "metric": "shot_zone_share.THREE",
+      "minimum": 0.904,
+      "maximum": 0.905
+    },
+    {
+      "metric": "turnover_rate",
+      "minimum": 0.083,
+      "maximum": 0.084
+    },
+    {
+      "metric": "offensive_rebound_rate",
+      "minimum": 0.108,
+      "maximum": 0.109
+    },
+    {
+      "metric": "play_family_share.BALL_SCREEN",
+      "minimum": 0.449,
+      "maximum": 0.451
+    }
+  ]
+}

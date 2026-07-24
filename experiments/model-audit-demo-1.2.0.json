@@ -1,0 +1,66 @@
+{
+  "format_version": 1,
+  "name": "model-audit-demo-1.2.0",
+  "purpose": "Explicit late-game offense and defense states with two-for-one execution and shadow intentional-foul opportunities",
+  "master_seed": 20260728,
+  "games": 100,
+  "start_index": 0,
+  "clock": {
+    "regulation_periods": 4,
+    "period_seconds": 720,
+    "possession_seconds": 15
+  },
+  "model": {
+    "schema_version": "demo-v1.10",
+    "parameter_version": "demo-1.2.0",
+    "schema_hash": "ad945566b77dbdcb0084a720e655aa6e92ad7832c9ca40e1d6da7bc5eb887b9b",
+    "schema_file_sha256": "6ff0651fb00add8564d1aae85709a293232c1a31edbadcbdebfe79ea6517bb7f",
+    "parameter_hash": "f6277ffadb034fd17e9369efd104eb767259dab71f9f2acc356e9c99c5400e89",
+    "parameter_file_sha256": "e41d029748899adabd9bb28f00a06f503cf7067cd29b793d9d56d3beccb2a2c7"
+  },
+  "profile": {
+    "path": "examples/calibration_lineup_v1.json",
+    "sha256": "4cee166e79e82eb6c60614d156011eb5028e79be2e57590f330c21da4be4763c"
+  },
+  "calibration_pipeline": [
+    {
+      "operation": "parameters-add-late-game-strategy",
+      "path": "experiments/calibration/late-game-strategy-v1.json",
+      "sha256": "98daf1b681722b2540ffcf6924dc33f1cb1079db4312b37bc6c5c2436dca0fd6"
+    }
+  ],
+  "sensitivity_evidence": {
+    "matrix": "experiments/matrices/demo-1.2.0-late-game-strategy.json",
+    "contrasts": "experiments/contrasts/demo-1.2.0-late-game-strategy-v1.json",
+    "games_per_cell": 300,
+    "robustness_replicates": 3,
+    "comparisons": 1,
+    "direction_and_isolation_gates": 5,
+    "direction_and_isolation_gates_passed": 5,
+    "automatic_promotion": false,
+    "intentional_foul_execution": "shadow-only"
+  },
+  "realism_targets": [
+    {
+      "path": "experiments/nba-2024-25-regular-season-core-v1.json",
+      "metrics": 10,
+      "passed": true
+    },
+    {
+      "path": "experiments/nba-2024-25-regular-season-free-throws-v1.json",
+      "metrics": 3,
+      "passed": true
+    }
+  ],
+  "acceptance": {
+    "completed_games": 100,
+    "aborted_games": 0,
+    "manifest_verification": true,
+    "audit_sha256": "b5c08b4bd7177d7615bf24d23b5127f5e90bb64717174e68d19a70352f090ca8",
+    "games_sha256": "ef8763ad4f35189040e85064a566ba9e69be7d476258549c1b788af53f556ce7",
+    "realism_gate_passed": true,
+    "realism_required_failures": 0,
+    "realism_metrics_passed": 13,
+    "regression_gates_passed": 34
+  }
+}

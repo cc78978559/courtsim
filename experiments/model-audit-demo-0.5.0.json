@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "name": "model-audit-demo-0.5.0",
+  "purpose": "Structure-calibrated synthetic balanced-lineup regression baseline",
+  "master_seed": 20260724,
+  "games": 100,
+  "start_index": 0,
+  "clock": {
+    "regulation_periods": 4,
+    "period_seconds": 720,
+    "possession_seconds": 15
+  },
+  "model": {
+    "schema_version": "demo-v1.3",
+    "parameter_version": "demo-0.5.0",
+    "schema_hash": "8fc2f9243e7f83711549ad67cc51435b8d078524d7221a0ec41e2d8f3c675ff0",
+    "parameter_hash": "1ef386dad280ad602b9b2374a1a011c1fcc35b6f55730f70044fd8bb8a5b398a",
+    "parameter_file_sha256": "664d590567a3a76bf03832030ddc572c954e6d88e87549de14d6cdb8b42bf45d"
+  },
+  "profile": {
+    "path": "examples/calibration_lineup_v1.json",
+    "sha256": "4cee166e79e82eb6c60614d156011eb5028e79be2e57590f330c21da4be4763c"
+  },
+  "calibration_pipeline": [
+    {
+      "path": "experiments/calibration/zone-extra-v1.json",
+      "sha256": "3a070b06ac4dccb45b807f487219729d1a11bb4c1a98bd85fa47a2efe4306e95"
+    },
+    {
+      "path": "experiments/calibration/events-v1.json",
+      "sha256": "af5538df2f8a6e2d664df7560c8abeca54eb6482a03a6ac8367e2d6d382995b7"
+    }
+  ],
+  "acceptance": {
+    "completed_games": 100,
+    "aborted_games": 0,
+    "manifest_verification": true,
+    "audit_sha256": "70fd2619999c0b932006920c02ada3db0604c9dd2264db043e36d172111e31b7",
+    "games_sha256": "ef74d78ccc782887715b3319edb218e1b0aff356bc118c58f67fa91d0523f5f0",
+    "realism_gate_passed": false,
+    "realism_required_failures": 3
+  }
+}

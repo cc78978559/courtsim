@@ -1,0 +1,42 @@
+{
+  "format_version": 1,
+  "matrix_id": "demo-0-8-0-single-factor-fouls",
+  "base_directory": "../..",
+  "master_seed": 20260801,
+  "defaults": {
+    "schema": "data/model_schema_demo_v1_6.json",
+    "profile": "examples/calibration_lineup_v1.json",
+    "games": 200,
+    "workers": 4,
+    "start_index": 0,
+    "trace_mode": "aggregate-only",
+    "clock": {
+      "regulation_periods": 4,
+      "period_seconds": 720,
+      "possession_seconds": 15
+    }
+  },
+  "targets": [
+    "experiments/nba-2024-25-regular-season-core-v1.json",
+    "experiments/nba-2024-25-regular-season-free-throws-v1.json"
+  ],
+  "cells": [
+    {
+      "cell_id": "baseline",
+      "parameters": "data/model_parameters_demo_0.8.0.json",
+      "seed_group": "single-factor-fouls"
+    },
+    {
+      "cell_id": "foul-drawing-low",
+      "parameters": "data/model_parameters_demo_0.8.0.json",
+      "profile": "work/profiles/player1-foul-drawing-low-v1.json",
+      "seed_group": "single-factor-fouls"
+    },
+    {
+      "cell_id": "foul-discipline-high",
+      "parameters": "data/model_parameters_demo_0.8.0.json",
+      "profile": "work/profiles/player1-foul-discipline-high-v1.json",
+      "seed_group": "single-factor-fouls"
+    }
+  ]
+}

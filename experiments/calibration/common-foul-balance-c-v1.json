@@ -1,0 +1,32 @@
+{
+  "format_version": 1,
+  "overlay_id": "common-foul-balance-c-v1",
+  "parameter_version": "demo-0.8.0-balance-c",
+  "notes": "Reduces common-foul bases by 20 percent and shooting-foul bases by 6 percent as a lower-common-foul comparison.",
+  "overrides": [
+    {
+      "path": ["nodes", "non_shooting_foul", "base_probability_by_play_family", "BALL_SCREEN"],
+      "value": 0.044
+    },
+    {
+      "path": ["nodes", "non_shooting_foul", "base_probability_by_play_family", "ISOLATION"],
+      "value": 0.04
+    },
+    {
+      "path": ["nodes", "non_shooting_foul", "base_probability_by_play_family", "OFF_BALL_ACTION"],
+      "value": 0.032
+    },
+    {
+      "path": ["nodes", "shooting_foul", "base_probability_by_zone", "RIM"],
+      "value": 0.235
+    },
+    {
+      "path": ["nodes", "shooting_foul", "base_probability_by_zone", "MIDRANGE"],
+      "value": 0.1222
+    },
+    {
+      "path": ["nodes", "shooting_foul", "base_probability_by_zone", "THREE"],
+      "value": 0.0705
+    }
+  ]
+}

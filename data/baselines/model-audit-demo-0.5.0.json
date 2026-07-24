@@ -1,0 +1,45 @@
+{
+  "aborted_games": 0,
+  "assist_per_field_goal": 0.48249238799478034,
+  "block_rate": 0.059306762772948905,
+  "completed_games": 100,
+  "completed_possessions": 19200,
+  "coverage_shares": [
+    {"count": 12726, "key": "BASE", "share": 0.585291818056386},
+    {"count": 2248, "key": "DROP", "share": 0.10338959665179598},
+    {"count": 2467, "key": "SWITCH", "share": 0.11346180379892379},
+    {"count": 4302, "key": "BLITZ", "share": 0.19785678149289426}
+  ],
+  "field_goal_percentage": 0.4873860504557982,
+  "games": 100,
+  "mean_team_possessions": 96.0,
+  "mean_team_score": 108.7,
+  "offensive_rebound_rate": 0.2629239040529363,
+  "play_family_shares": [
+    {"count": 9688, "key": "BALL_SCREEN", "share": 0.44556868877339834},
+    {"count": 5478, "key": "ISOLATION", "share": 0.2519431541185669},
+    {"count": 6577, "key": "OFF_BALL_ACTION", "share": 0.3024881571080348}
+  ],
+  "player_usage_shares": [
+    {"player_id": 11, "share": 0.4926443545421111, "team_id": "away", "usage_events": 5358},
+    {"player_id": 12, "share": 0.2682052225082751, "team_id": "away", "usage_events": 2917},
+    {"player_id": 13, "share": 0.099668995954395, "team_id": "away", "usage_events": 1084},
+    {"player_id": 14, "share": 0.04863920559029055, "team_id": "away", "usage_events": 529},
+    {"player_id": 15, "share": 0.09084222140492829, "team_id": "away", "usage_events": 988},
+    {"player_id": 1, "share": 0.49388055581117146, "team_id": "home", "usage_events": 5367},
+    {"player_id": 2, "share": 0.2657587190576976, "team_id": "home", "usage_events": 2888},
+    {"player_id": 3, "share": 0.10435262722002392, "team_id": "home", "usage_events": 1134},
+    {"player_id": 4, "share": 0.04794331462225085, "team_id": "home", "usage_events": 521},
+    {"player_id": 5, "share": 0.08806478328885617, "team_id": "home", "usage_events": 957}
+  ],
+  "points_per_100_possessions": 113.22916666666667,
+  "shot_zone_shares": [
+    {"count": 6963, "key": "RIM", "share": 0.3690375238499046},
+    {"count": 4134, "key": "MIDRANGE", "share": 0.21910112359550563},
+    {"count": 7771, "key": "THREE", "share": 0.4118613525545898}
+  ],
+  "steal_rate": 0.08427083333333334,
+  "team_score_stddev": 11.37233485261492,
+  "three_point_percentage": 0.4308325826791919,
+  "turnover_rate": 0.14973958333333334
+}

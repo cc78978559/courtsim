@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "kind": "courtsim-player-lineup-overlay",
+  "overlay_id": "player2-three-tendency-low-v1",
+  "lineup_id": "synthetic-balanced-player2-three-tendency-low-v1",
+  "notes": "Single-factor sensitivity fixture: player 2 shot_zone_mix.three from 85 to 10.",
+  "overrides": [
+    {
+      "player_id": 2,
+      "path": [
+        "tendencies",
+        "shot_zone_mix",
+        "three"
+      ],
+      "value": 10
+    }
+  ]
+}

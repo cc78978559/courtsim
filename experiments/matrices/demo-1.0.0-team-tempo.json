@@ -1,0 +1,49 @@
+{
+  "format_version": 1,
+  "matrix_id": "demo-1-0-0-team-tempo",
+  "base_directory": "../..",
+  "master_seed": 20260810,
+  "defaults": {
+    "schema": "data/model_schema_demo_v1_8.json",
+    "profile": "examples/calibration_lineup_v1.json",
+    "games": 200,
+    "workers": 4,
+    "start_index": 0,
+    "trace_mode": "aggregate-only",
+    "clock": {
+      "regulation_periods": 4,
+      "period_seconds": 720,
+      "possession_seconds": 15
+    }
+  },
+  "targets": [
+    "experiments/nba-2024-25-regular-season-core-v1.json"
+  ],
+  "cells": [
+    {
+      "cell_id": "v09-fixed",
+      "schema": "data/model_schema_demo_v1_7.json",
+      "parameters": "data/model_parameters_demo_0.9.0.json",
+      "seed_group": "team-tempo"
+    },
+    {
+      "cell_id": "v10-neutral",
+      "parameters": "data/model_parameters_demo_1.0.0.json",
+      "seed_group": "team-tempo"
+    },
+    {
+      "cell_id": "v10-fast",
+      "parameters": "data/model_parameters_demo_1.0.0.json",
+      "tempo": 90,
+      "opponent_tempo": 90,
+      "seed_group": "team-tempo"
+    },
+    {
+      "cell_id": "v10-slow",
+      "parameters": "data/model_parameters_demo_1.0.0.json",
+      "tempo": 10,
+      "opponent_tempo": 10,
+      "seed_group": "team-tempo"
+    }
+  ]
+}

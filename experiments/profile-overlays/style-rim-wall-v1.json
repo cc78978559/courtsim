@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "kind": "courtsim-player-lineup-overlay",
+  "overlay_id": "style-rim-wall-v1",
+  "lineup_id": "synthetic-style-rim-wall-v1",
+  "notes": "Composite synthetic style: both interior defenders emphasize rim protection and block pursuit.",
+  "overrides": [
+    {
+      "player_id": 4,
+      "path": ["abilities", "rim_protection"],
+      "value": 92
+    },
+    {
+      "player_id": 4,
+      "path": ["tendencies", "block_chase"],
+      "value": 92
+    },
+    {
+      "player_id": 5,
+      "path": ["abilities", "rim_protection"],
+      "value": 100
+    },
+    {
+      "player_id": 5,
+      "path": ["tendencies", "block_chase"],
+      "value": 100
+    }
+  ]
+}

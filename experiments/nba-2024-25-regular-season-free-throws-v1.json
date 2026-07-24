@@ -1,0 +1,56 @@
+{
+  "format_version": 1,
+  "target_set_id": "nba-2024-25-regular-season-free-throws-v1",
+  "status": "active",
+  "population": "NBA 2024-25 regular season, all 30 teams and 2,460 team-games",
+  "season": "2024-25",
+  "notes": "Free-throw execution, free-throw volume and field-goal-attempt production targets derived from pinned NBA.com totals projections. FTA/FGA joins FTA from the supplemental source to FGA from the core source. Bounds are an initial +/-5.00% relative calibration envelope.",
+  "sources": [
+    {
+      "source_id": "nba-com-team-free-throws-2024-25",
+      "label": "NBA.com 2024-25 team free-throw totals projection",
+      "origin": "https://www.nba.com/stats/teams/traditional?Season=2024-25&SeasonType=Regular%20Season&PerMode=Totals",
+      "artifact_path": "sources/nba-2024-25-team-free-throws.json",
+      "retrieved_on": "2026-07-24",
+      "content_sha256": "22c0f238fd50541c668a12f32513b136158fa68a72faeae5aa093ed87d19c9f3"
+    },
+    {
+      "source_id": "nba-com-team-core-2024-25",
+      "label": "NBA.com 2024-25 team traditional and advanced table projection",
+      "origin": "https://www.nba.com/stats/teams/traditional?Season=2024-25&SeasonType=Regular+Season&PerMode=Totals | https://www.nba.com/stats/teams/advanced?Season=2024-25&SeasonType=Regular+Season&PerMode=Totals",
+      "artifact_path": "sources/nba-2024-25-team-core.json",
+      "retrieved_on": "2026-07-23",
+      "content_sha256": "c5767fedd34a7ac7c99c86bfc382138b14be56ff2ae20d2375f815578f7241b7"
+    }
+  ],
+  "metrics": [
+    {
+      "metric": "free_throw_percentage",
+      "lower": 0.7408332082833133,
+      "target": 0.7798244297719088,
+      "upper": 0.8188156512605043,
+      "weight": 1.0,
+      "required": true,
+      "source_id": "nba-com-team-free-throws-2024-25"
+    },
+    {
+      "metric": "free_throw_attempt_rate",
+      "lower": 0.2307069289882338,
+      "target": 0.242849398934983,
+      "upper": 0.2549918688817321,
+      "weight": 1.0,
+      "required": true,
+      "source_id": "nba-com-team-free-throws-2024-25"
+    },
+    {
+      "metric": "field_goal_attempts_per_100_possessions",
+      "lower": 84.67720848271746,
+      "target": 89.13390366601838,
+      "upper": 93.5905988493193,
+      "weight": 1.0,
+      "required": true,
+      "source_id": "nba-com-team-core-2024-25"
+    }
+  ],
+  "planned_metrics": []
+}

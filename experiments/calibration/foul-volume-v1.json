@@ -1,0 +1,24 @@
+{
+  "format_version": 1,
+  "overlay_id": "foul-volume-v1",
+  "parameter_version": "demo-0.7.0-foul-volume",
+  "notes": "Raises shooting-foul volume toward the pinned NBA FTA/FGA target and centers synthetic-lineup free-throw accuracy.",
+  "overrides": [
+    {
+      "path": ["nodes", "shooting_foul", "base_probability_by_zone", "RIM"],
+      "value": 0.25
+    },
+    {
+      "path": ["nodes", "shooting_foul", "base_probability_by_zone", "MIDRANGE"],
+      "value": 0.13
+    },
+    {
+      "path": ["nodes", "shooting_foul", "base_probability_by_zone", "THREE"],
+      "value": 0.075
+    },
+    {
+      "path": ["nodes", "free_throw_make", "base_make_probability"],
+      "value": 0.7
+    }
+  ]
+}

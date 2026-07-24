@@ -1,0 +1,65 @@
+{
+  "format_version": 1,
+  "name": "model-audit-demo-1.0.0",
+  "purpose": "Team-level tempo changes bounded possession duration without changing possession outcomes",
+  "master_seed": 20260728,
+  "games": 100,
+  "start_index": 0,
+  "clock": {
+    "regulation_periods": 4,
+    "period_seconds": 720,
+    "possession_seconds": 15
+  },
+  "model": {
+    "schema_version": "demo-v1.8",
+    "parameter_version": "demo-1.0.0",
+    "schema_hash": "4c1470f3c53b9efcb43d1d3441ff82842140a7ebda51e899a243adbd88422ddb",
+    "schema_file_sha256": "d352f1ed6cb3ea7a7e0cc4b4ac8371fc9fc530c046ac327ca93e4f975d19aa30",
+    "parameter_hash": "625a535bded781f08cfe45accd70d2581cab32bdae24ee1e0cf4a49fe6bebe4e",
+    "parameter_file_sha256": "090129ea70f2fe982951bca789e0c4fe111addac59d8049e743cb2aa0c3e9dba"
+  },
+  "profile": {
+    "path": "examples/calibration_lineup_v1.json",
+    "sha256": "4cee166e79e82eb6c60614d156011eb5028e79be2e57590f330c21da4be4763c"
+  },
+  "calibration_pipeline": [
+    {
+      "operation": "parameters-add-tempo",
+      "path": "experiments/calibration/possession-duration-v1.json",
+      "sha256": "aa48a142ccf4ff6fd7fbfcba43c838fddaaf1a592aa432c5d760a1696a656087"
+    }
+  ],
+  "sensitivity_evidence": {
+    "matrix": "experiments/matrices/demo-1.0.0-team-tempo.json",
+    "contrasts": "experiments/contrasts/demo-1.0.0-team-tempo-v1.json",
+    "games_per_cell": 200,
+    "robustness_replicates": 3,
+    "comparisons": 3,
+    "direction_and_isolation_gates": 9,
+    "direction_and_isolation_gates_passed": 9,
+    "automatic_promotion": false
+  },
+  "realism_targets": [
+    {
+      "path": "experiments/nba-2024-25-regular-season-core-v1.json",
+      "metrics": 10,
+      "passed": true
+    },
+    {
+      "path": "experiments/nba-2024-25-regular-season-free-throws-v1.json",
+      "metrics": 3,
+      "passed": true
+    }
+  ],
+  "acceptance": {
+    "completed_games": 100,
+    "aborted_games": 0,
+    "manifest_verification": true,
+    "audit_sha256": "699f3fe1b004308b11cc0eeef15ac8e023c3cc3f9415ed5845d7a4d610bc5df0",
+    "games_sha256": "ed382f8e9437966d1f490bb66dc3ff8408daa6f6a93c01000655a6f7b00abfeb",
+    "realism_gate_passed": true,
+    "realism_required_failures": 0,
+    "realism_metrics_passed": 13,
+    "regression_gates_passed": 25
+  }
+}
