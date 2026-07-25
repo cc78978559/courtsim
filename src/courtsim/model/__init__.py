@@ -46,11 +46,13 @@ from courtsim.model.segment_sampler import (
     sample_action_segment,
 )
 from courtsim.model.trace_mode import TraceMode
+from courtsim.rotations import FatigueConfig, RotationPlan, RotationStint
 
 __all__ = [
     "ActionSetup",
     "CompiledParameterPolicy",
     "DefensiveMatchups",
+    "FatigueConfig",
     "GameBatchSample",
     "GameMatchups",
     "GameSample",
@@ -61,6 +63,8 @@ __all__ = [
     "PlayerAwareCompiledPolicy",
     "PossessionSample",
     "PreparedSegmentSample",
+    "RotationPlan",
+    "RotationStint",
     "SegmentProbabilityPolicy",
     "SegmentSample",
     "ShotOpportunity",

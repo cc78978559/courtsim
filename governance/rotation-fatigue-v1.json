@@ -1,0 +1,11 @@
+{
+  "fatigue": {
+    "active_load_per_second": 2,
+    "bench_recovery_per_second": 3,
+    "maximum_ability_penalty": 12,
+    "maximum_fatigue": 10000,
+    "version": "fatigue-v1"
+  },
+  "format_version": 1,
+  "rotation_version": "rotation-v1"
+}

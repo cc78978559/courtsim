@@ -111,3 +111,7 @@ Current engine work includes an opt-in, versioned [`nba-v1` complete-game rule l
 deterministic overtime, foul-out replacement, offensive fouls, final-two-minute team-foul
 penalties, and technical free throws. The promoted probability baseline remains
 `demo-v1.12 / demo-1.4.0`.
+
+The opt-in [`rotation-v1 / fatigue-v1` layer](docs/rotations-and-fatigue-v1.md) adds full
+rosters, clock-addressed rotations, canonical substitution and player-seconds ledgers, bounded
+fatigue/recovery, and explicit ability feedback without changing the frozen probability baseline.

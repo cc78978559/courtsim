@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from courtsim.domain.enums import GameEndReason
-from courtsim.domain.results import PossessionResult
+from courtsim.domain.enums import GameEndReason, SubstitutionReason
+from courtsim.domain.plans import Lineup, validate_lineup
+from courtsim.domain.results import PossessionResult, validate_possession_result
 from courtsim.stats.attribution import PlayerStatDelta, StatCode, attribute_segment
 
 
@@ -58,6 +59,74 @@ class GamePossessionRecord:
     offense_team_id: str
     defense_team_id: str
     result: PossessionResult
+    offense_lineup: Lineup | None = None
+    defense_lineup: Lineup | None = None
+    offense_fatigue: tuple[PlayerFatigueSnapshot, ...] = ()
+    defense_fatigue: tuple[PlayerFatigueSnapshot, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class PlayerFatigueSnapshot:
+    player_id: int
+    fatigue: int
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.player_id, int)
+            or isinstance(self.player_id, bool)
+            or self.player_id < 0
+        ):
+            raise ValueError("fatigue player_id must be non-negative")
+        if not isinstance(self.fatigue, int) or isinstance(self.fatigue, bool) or self.fatigue < 0:
+            raise ValueError("fatigue must be non-negative")
+
+
+@dataclass(frozen=True, slots=True)
+class SubstitutionRecord:
+    team_id: str
+    period: int
+    clock_seconds: int
+    reason: SubstitutionReason
+    outgoing_player_id: int
+    incoming_player_id: int
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.team_id, str) or not self.team_id.strip():
+            raise ValueError("substitution team_id must not be blank")
+        values = (
+            self.period,
+            self.clock_seconds,
+            self.outgoing_player_id,
+            self.incoming_player_id,
+        )
+        if any(not isinstance(value, int) or isinstance(value, bool) for value in values):
+            raise ValueError("substitution values must be integers")
+        if self.period < 1 or self.clock_seconds < 0:
+            raise ValueError("substitution period and clock are invalid")
+        if self.outgoing_player_id < 0 or self.incoming_player_id < 0:
+            raise ValueError("substitution player ids must be non-negative")
+        if not isinstance(self.reason, SubstitutionReason):
+            raise ValueError("substitution reason must be SubstitutionReason")
+        if self.outgoing_player_id == self.incoming_player_id:
+            raise ValueError("substitution players must be distinct")
+
+
+@dataclass(frozen=True, slots=True)
+class PlayerPlayingTime:
+    team_id: str
+    player_id: int
+    seconds: int
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.team_id, str) or not self.team_id.strip():
+            raise ValueError("playing-time team_id must not be blank")
+        if any(
+            not isinstance(value, int) or isinstance(value, bool)
+            for value in (self.player_id, self.seconds)
+        ):
+            raise ValueError("playing-time values must be integers")
+        if self.player_id < 0 or self.seconds < 0:
+            raise ValueError("playing-time values must be non-negative")
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +138,11 @@ class GameResult:
     away_score: int
     player_stats: tuple[PlayerStatDelta, ...]
     end_reason: GameEndReason
+    substitutions: tuple[SubstitutionRecord, ...] = ()
+    playing_time: tuple[PlayerPlayingTime, ...] = ()
+    final_fatigue: tuple[PlayerFatigueSnapshot, ...] = ()
+    rotation_version: str | None = None
+    fatigue_version: str | None = None
 
     @property
     def completed(self) -> bool:
@@ -104,6 +178,7 @@ def validate_game_result(
     expected_clock = config.period_seconds
     expected_score = {result.home_team_id: 0, result.away_team_id: 0}
     expected_stats: dict[tuple[int, StatCode], int] = {}
+    expected_playing_time: dict[tuple[str, int], int] = {}
     for index, possession in enumerate(result.possessions):
         if possession.possession_index != index:
             raise ValueError("possession indexes must be contiguous")
@@ -130,6 +205,35 @@ def validate_game_result(
         )
         if possession.defense_team_id != expected_defense:
             raise ValueError("defense team does not oppose the offense")
+        if (possession.offense_lineup is None) != (possession.defense_lineup is None):
+            raise ValueError("possession lineups must either both be present or both be absent")
+        if possession.offense_lineup is not None and possession.defense_lineup is not None:
+            validate_lineup(possession.offense_lineup)
+            validate_lineup(possession.defense_lineup)
+            if set(possession.offense_lineup) & set(possession.defense_lineup):
+                raise ValueError("possession lineups must be disjoint")
+            validate_possession_result(
+                possession.result,
+                possession.offense_lineup,
+                possession.defense_lineup,
+            )
+            duration = possession.clock_start_seconds - possession.clock_end_seconds
+            for player_id in possession.offense_lineup:
+                playing_key = (possession.offense_team_id, player_id)
+                expected_playing_time[playing_key] = (
+                    expected_playing_time.get(playing_key, 0) + duration
+                )
+            for player_id in possession.defense_lineup:
+                playing_key = (possession.defense_team_id, player_id)
+                expected_playing_time[playing_key] = (
+                    expected_playing_time.get(playing_key, 0) + duration
+                )
+            for snapshots, lineup in (
+                (possession.offense_fatigue, possession.offense_lineup),
+                (possession.defense_fatigue, possession.defense_lineup),
+            ):
+                if snapshots and {item.player_id for item in snapshots} != set(lineup):
+                    raise ValueError("fatigue snapshots must cover the active lineup")
         for segment in possession.result.segments:
             attribution = attribute_segment(segment)
             expected_score[possession.offense_team_id] += attribution.score_delta
@@ -179,3 +283,54 @@ def validate_game_result(
     actual_stats = {(delta.player_id, delta.stat): delta.amount for delta in result.player_stats}
     if len(actual_stats) != len(result.player_stats) or actual_stats != expected_stats:
         raise ValueError("player stats do not match the possession ledger")
+    if result.playing_time:
+        actual_playing_time = {
+            (item.team_id, item.player_id): item.seconds for item in result.playing_time
+        }
+        if (
+            len(actual_playing_time) != len(result.playing_time)
+            or actual_playing_time != expected_playing_time
+        ):
+            raise ValueError("playing time does not match the possession ledger")
+    substitution_addresses = tuple(
+        (item.period, -item.clock_seconds) for item in result.substitutions
+    )
+    if substitution_addresses != tuple(sorted(substitution_addresses)):
+        raise ValueError("substitutions must be in chronological order")
+    if any(
+        item.team_id not in {result.home_team_id, result.away_team_id}
+        or item.clock_seconds > config.seconds_for_period(item.period)
+        for item in result.substitutions
+    ):
+        raise ValueError("substitution team or clock is invalid")
+    substitution_facts = {
+        (
+            item.team_id,
+            item.period,
+            item.clock_seconds,
+            item.outgoing_player_id,
+            item.incoming_player_id,
+        )
+        for item in result.substitutions
+    }
+    if len(substitution_facts) != len(result.substitutions):
+        raise ValueError("substitution facts must be unique")
+    known_players = {item.player_id for item in result.playing_time}
+    if not known_players:
+        known_players = {
+            player_id
+            for possession in result.possessions
+            for lineup in (possession.offense_lineup, possession.defense_lineup)
+            if lineup is not None
+            for player_id in lineup
+        }
+    if known_players and any(
+        item.outgoing_player_id not in known_players or item.incoming_player_id not in known_players
+        for item in result.substitutions
+    ):
+        raise ValueError("substitution players must belong to the game roster")
+    if len({item.player_id for item in result.final_fatigue}) != len(result.final_fatigue):
+        raise ValueError("final fatigue player ids must be unique")
+    for version in (result.rotation_version, result.fatigue_version):
+        if version is not None and (not isinstance(version, str) or not version.strip()):
+            raise ValueError("state versions must be non-empty strings")

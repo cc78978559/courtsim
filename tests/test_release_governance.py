@@ -14,6 +14,7 @@ from courtsim.analysis.realism_targets import (
 )
 from courtsim.cli import DEFAULT_MODEL_PARAMETERS, DEFAULT_MODEL_SCHEMA
 from courtsim.parameters import load_model_parameters
+from courtsim.rotations import FATIGUE_VERSION, ROTATION_VERSION, FatigueConfig
 from courtsim.rules import GameRules
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,11 +32,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "status",
         "engine_version",
         "rules",
+        "rotation_fatigue",
         "model",
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 2
+    assert release["format_version"] == 3
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -56,6 +58,23 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "final_two_minute_threshold": GameRules().final_two_minute_threshold,
         "final_two_minute_seconds": GameRules().final_two_minute_seconds,
         "overtime_bonus_threshold": GameRules().overtime_bonus_threshold,
+    }
+    rotation_registry = release["rotation_fatigue"]
+    rotation_path = ROOT / rotation_registry["path"]
+    rotation_config = json.loads(rotation_path.read_text(encoding="utf-8"))
+    assert _sha256(rotation_path) == rotation_registry["file_sha256"]
+    assert rotation_registry["rotation_version"] == ROTATION_VERSION
+    assert rotation_registry["fatigue_version"] == FATIGUE_VERSION
+    assert rotation_config == {
+        "format_version": 1,
+        "rotation_version": ROTATION_VERSION,
+        "fatigue": {
+            "version": FatigueConfig().version,
+            "active_load_per_second": FatigueConfig().active_load_per_second,
+            "bench_recovery_per_second": FatigueConfig().bench_recovery_per_second,
+            "maximum_ability_penalty": FatigueConfig().maximum_ability_penalty,
+            "maximum_fatigue": FatigueConfig().maximum_fatigue,
+        },
     }
 
     model = release["model"]
