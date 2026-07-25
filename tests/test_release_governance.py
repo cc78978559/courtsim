@@ -92,7 +92,9 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "injury_version",
         "path",
         "file_sha256",
+        "source_pull_request",
     }
+    assert season_registry["source_pull_request"] == 25
     season_path = ROOT / season_registry["path"]
     season_config = json.loads(season_path.read_text(encoding="utf-8"))
     assert _sha256(season_path) == season_registry["file_sha256"]

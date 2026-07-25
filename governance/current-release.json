@@ -19,7 +19,8 @@
     "season_version": "season-v1",
     "injury_version": "injury-v1",
     "path": "governance/season-injury-v1.json",
-    "file_sha256": "140cad21a09c3f6c47e13915ac6634f65e89ff2334cedefaf41461df52207e7c"
+    "file_sha256": "140cad21a09c3f6c47e13915ac6634f65e89ff2334cedefaf41461df52207e7c",
+    "source_pull_request": 25
   },
   "model": {
     "schema_version": "demo-v1.12",
