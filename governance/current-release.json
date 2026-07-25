@@ -32,7 +32,8 @@
     "contract_version": "contract-v1",
     "free_agency_version": "free-agency-v1",
     "path": "governance/contracts-free-agency-v1.json",
-    "file_sha256": "80aa78c6ec9b33f332c4a763ed17a7f66b59c0e5ee8d93d9cb81315649506e23"
+    "file_sha256": "80aa78c6ec9b33f332c4a763ed17a7f66b59c0e5ee8d93d9cb81315649506e23",
+    "source_pull_request": 37
   },
   "model": {
     "schema_version": "demo-v1.12",

@@ -151,7 +151,9 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "free_agency_version",
         "path",
         "file_sha256",
+        "source_pull_request",
     }
+    assert management_registry["source_pull_request"] == 37
     management_path = ROOT / management_registry["path"]
     management_config = json.loads(management_path.read_text(encoding="utf-8"))
     assert _sha256(management_path) == management_registry["file_sha256"]
