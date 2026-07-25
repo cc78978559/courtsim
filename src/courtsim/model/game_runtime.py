@@ -15,9 +15,14 @@ from courtsim.domain.game import (
     validate_game_result,
 )
 from courtsim.domain.plans import Lineup
+from courtsim.domain.player import PlayerProfile
 from courtsim.domain.results import offense_retains_ball
 from courtsim.model.action_setup import TeamDefenseStrategy, TeamOffenseStrategy
-from courtsim.model.interaction_compiler import DefensiveMatchups, ProfileLineup
+from courtsim.model.interaction_compiler import (
+    DefensiveMatchups,
+    Matchup,
+    ProfileLineup,
+)
 from courtsim.model.late_game_strategy import (
     LateGameStrategyConfig,
     late_game_strategy_config,
@@ -29,6 +34,7 @@ from courtsim.parameters import ModelParameters
 from courtsim.player_features import scalar_tendency_bias
 from courtsim.probability import ProbabilityOption, sample_probability_value
 from courtsim.randomness import RandomFrame, RandomSlot
+from courtsim.rules import GameRules, ineligible_players, replace_ineligible_players
 from courtsim.stats.attribution import PlayerStatDelta, StatCode, attribute_possession
 
 
@@ -53,12 +59,42 @@ class GameTeam:
     offense_strategy: TeamOffenseStrategy = field(default_factory=TeamOffenseStrategy)
     defense_strategy: TeamDefenseStrategy = field(default_factory=TeamDefenseStrategy)
     tempo_strategy: TeamTempoStrategy = field(default_factory=TeamTempoStrategy)
+    bench_profiles: tuple[PlayerProfile, ...] = ()
+    substitution_order: tuple[int, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.team_id.strip():
             raise ValueError("team_id must not be blank")
         if {profile.player_id for profile in self.profiles} != set(self.lineup):
             raise ValueError("team profiles must match its lineup")
+        roster_ids = tuple(profile.player_id for profile in self.profiles + self.bench_profiles)
+        if len(roster_ids) != len(set(roster_ids)):
+            raise ValueError("team roster player ids must be unique")
+        if self.substitution_order and (
+            len(self.substitution_order) != len(set(self.substitution_order))
+            or set(self.substitution_order) != set(roster_ids)
+        ):
+            raise ValueError("substitution_order must cover the complete roster exactly once")
+
+    @property
+    def roster_order(self) -> tuple[int, ...]:
+        return self.substitution_order or tuple(
+            profile.player_id for profile in self.profiles + self.bench_profiles
+        )
+
+    def with_lineup(self, lineup: Lineup) -> GameTeam:
+        roster = {profile.player_id: profile for profile in self.profiles + self.bench_profiles}
+        active = cast(ProfileLineup, tuple(roster[player_id] for player_id in lineup))
+        bench = tuple(
+            roster[player_id] for player_id in self.roster_order if player_id not in lineup
+        )
+        return replace(
+            self,
+            lineup=lineup,
+            profiles=active,
+            bench_profiles=bench,
+            substitution_order=self.roster_order,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -246,6 +282,7 @@ def sample_game(
     frame: RandomFrame,
     max_segments_per_possession: int | None = None,
     trace_mode: TraceMode = TraceMode.FULL,
+    rules: GameRules | None = None,
 ) -> GameSample:
     if home.team_id == away.team_id:
         raise ValueError("home and away team ids must be distinct")
@@ -253,6 +290,8 @@ def sample_game(
         raise ValueError("home and away player ids must be disjoint")
 
     score = {home.team_id: 0, away.team_id: 0}
+    starting_home_lineup = home.lineup
+    starting_away_lineup = away.lineup
     stat_totals: dict[tuple[int, StatCode], int] = {}
     records: list[GamePossessionRecord] = []
     samples: list[PossessionSample] = []
@@ -262,10 +301,15 @@ def sample_game(
     possession_index = 0
     end_reason = GameEndReason.REGULATION
     team_fouls = {home.team_id: 0, away.team_id: 0}
+    final_two_minute_fouls = {home.team_id: 0, away.team_id: 0}
+    player_fouls = {player_id: 0 for player_id in home.roster_order + away.roster_order}
     bonus_foul_threshold = _bonus_foul_threshold(parameters)
     game_strategy_config = late_game_strategy_config(parameters)
 
-    while period <= config.regulation_periods:
+    last_scheduled_period = config.regulation_periods + (
+        config.max_overtimes if config.overtime_enabled else 0
+    )
+    while period <= last_scheduled_period:
         possession_frame = RandomFrame(
             frame.master_seed,
             replace(
@@ -274,7 +318,27 @@ def sample_game(
                 segment_index=0,
             ),
         )
-        directional_matchups = matchups.home_offense if offense is home else matchups.away_offense
+        home_on_offense = offense.team_id == home.team_id
+        original_matchups = matchups.home_offense if home_on_offense else matchups.away_offense
+        original_offense = starting_home_lineup if home_on_offense else starting_away_lineup
+        original_defense = starting_away_lineup if home_on_offense else starting_home_lineup
+        directional_matchups = (
+            original_matchups
+            if offense.lineup == original_offense and defense.lineup == original_defense
+            else DefensiveMatchups(
+                cast(
+                    tuple[Matchup, Matchup, Matchup, Matchup, Matchup],
+                    tuple(
+                        Matchup(offender_id, defender_id)
+                        for offender_id, defender_id in zip(
+                            offense.lineup,
+                            defense.lineup,
+                            strict=True,
+                        )
+                    ),
+                )
+            )
+        )
         strategy_state = (
             resolve_late_game_strategy(
                 game_strategy_config,
@@ -287,6 +351,22 @@ def sample_game(
             if game_strategy_config is not None
             else None
         )
+        possession_bonus_threshold = bonus_foul_threshold
+        if rules is not None:
+            possession_bonus_threshold = (
+                rules.overtime_bonus_threshold
+                if period > config.regulation_periods
+                else rules.regulation_bonus_threshold
+            )
+            if clock <= rules.final_two_minute_seconds:
+                fouls_needed = max(
+                    1,
+                    rules.final_two_minute_threshold - final_two_minute_fouls[defense.team_id],
+                )
+                possession_bonus_threshold = min(
+                    possession_bonus_threshold,
+                    team_fouls[defense.team_id] + fouls_needed,
+                )
         intentional_foul = (
             game_strategy_config is not None
             and game_strategy_config.intentional_foul_formal_enabled
@@ -295,8 +375,8 @@ def sample_game(
             and (
                 game_strategy_config.intentional_foul_non_bonus_enabled
                 or (
-                    bonus_foul_threshold is not None
-                    and team_fouls[defense.team_id] + 1 >= bonus_foul_threshold
+                    possession_bonus_threshold is not None
+                    and team_fouls[defense.team_id] + 1 >= possession_bonus_threshold
                 )
             )
         )
@@ -312,11 +392,13 @@ def sample_game(
             defense_strategy=defense.defense_strategy,
             max_segments=max_segments_per_possession,
             defense_team_fouls=team_fouls[defense.team_id],
-            bonus_foul_threshold=bonus_foul_threshold,
+            bonus_foul_threshold=possession_bonus_threshold,
             force_intentional_foul=intentional_foul,
             trace_mode=trace_mode,
         )
         team_fouls[defense.team_id] += sampled.defensive_fouls_committed
+        if rules is not None and clock <= rules.final_two_minute_seconds:
+            final_two_minute_fouls[defense.team_id] += sampled.defensive_fouls_committed
         normal_possession_seconds = _sample_possession_duration(
             parameters,
             offense,
@@ -355,20 +437,57 @@ def sample_game(
             defense.lineup,
         )
         score[offense.team_id] += attribution.score_delta
+        score[defense.team_id] += attribution.opponent_score_delta
         for delta in attribution.player_deltas:
             key = (delta.player_id, delta.stat)
             stat_totals[key] = stat_totals.get(key, 0) + delta.amount
+            if delta.stat is StatCode.PF:
+                player_fouls[delta.player_id] = player_fouls.get(delta.player_id, 0) + delta.amount
         if not sampled.result.completed:
             end_reason = GameEndReason.POSSESSION_TRUNCATED
             break
 
+        if rules is not None:
+            ineligible = ineligible_players(player_fouls, rules)
+            home_lineup = replace_ineligible_players(
+                active_lineup=home.lineup,
+                roster_order=home.roster_order,
+                ineligible=ineligible,
+            )
+            away_lineup = replace_ineligible_players(
+                active_lineup=away.lineup,
+                roster_order=away.roster_order,
+                ineligible=ineligible,
+            )
+            if home_lineup is None or away_lineup is None:
+                end_reason = GameEndReason.NO_LEGAL_LINEUP
+                break
+            home = home.with_lineup(home_lineup)
+            away = away.with_lineup(away_lineup)
+
         possession_index += 1
-        offense, defense = defense, offense
+        next_offense_id = defense.team_id
+        offense = home if home.team_id == next_offense_id else away
+        defense = away if offense is home else home
         clock = clock_end
         if clock == 0:
+            if period >= config.regulation_periods:
+                if score[home.team_id] != score[away.team_id]:
+                    end_reason = (
+                        GameEndReason.REGULATION
+                        if period == config.regulation_periods
+                        else GameEndReason.OVERTIME
+                    )
+                    break
+                if not config.overtime_enabled:
+                    break
+                if period == last_scheduled_period:
+                    end_reason = GameEndReason.OVERTIME_LIMIT
+                    break
             period += 1
-            clock = config.period_seconds
+            clock = config.seconds_for_period(period)
             team_fouls = {home.team_id: 0, away.team_id: 0}
+            final_two_minute_fouls = {home.team_id: 0, away.team_id: 0}
 
     player_stats = tuple(
         PlayerStatDelta(player_id, stat, amount)

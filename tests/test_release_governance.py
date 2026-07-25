@@ -14,6 +14,7 @@ from courtsim.analysis.realism_targets import (
 )
 from courtsim.cli import DEFAULT_MODEL_PARAMETERS, DEFAULT_MODEL_SCHEMA
 from courtsim.parameters import load_model_parameters
+from courtsim.rules import GameRules
 
 ROOT = Path(__file__).resolve().parents[1]
 RELEASE_PATH = ROOT / "governance" / "current-release.json"
@@ -29,13 +30,33 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "format_version",
         "status",
         "engine_version",
+        "rules",
         "model",
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 1
+    assert release["format_version"] == 2
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
+    rules_registry = release["rules"]
+    assert set(rules_registry) == {
+        "version",
+        "path",
+        "file_sha256",
+        "source_pull_request",
+    }
+    assert rules_registry["source_pull_request"] == 13
+    rules_path = ROOT / rules_registry["path"]
+    rules = json.loads(rules_path.read_text(encoding="utf-8"))
+    assert _sha256(rules_path) == rules_registry["file_sha256"]
+    assert rules == {
+        "version": GameRules().version,
+        "player_foul_limit": GameRules().player_foul_limit,
+        "regulation_bonus_threshold": GameRules().regulation_bonus_threshold,
+        "final_two_minute_threshold": GameRules().final_two_minute_threshold,
+        "final_two_minute_seconds": GameRules().final_two_minute_seconds,
+        "overtime_bonus_threshold": GameRules().overtime_bonus_threshold,
+    }
 
     model = release["model"]
     schema_path = ROOT / model["schema_path"]

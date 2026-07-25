@@ -1,0 +1,8 @@
+{
+  "final_two_minute_seconds": 120,
+  "final_two_minute_threshold": 2,
+  "overtime_bonus_threshold": 4,
+  "player_foul_limit": 6,
+  "regulation_bonus_threshold": 5,
+  "version": "nba-v1"
+}

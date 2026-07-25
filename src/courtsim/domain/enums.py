@@ -67,11 +67,27 @@ class PossessionEndReason(IntEnum):
     DEFENSIVE_REBOUND = 2
     SEGMENT_LIMIT = 3
     FREE_THROW_SEQUENCE = 4
+    OFFENSIVE_FOUL = 5
+    TECHNICAL_FREE_THROW = 6
 
 
 class GameEndReason(IntEnum):
     REGULATION = 0
     POSSESSION_TRUNCATED = 1
+    OVERTIME = 2
+    OVERTIME_LIMIT = 3
+    NO_LEGAL_LINEUP = 4
+
+
+class FoulTeamSide(IntEnum):
+    OFFENSE = 0
+    DEFENSE = 1
+
+
+class TechnicalFoulType(IntEnum):
+    PLAYER = 0
+    BENCH = 1
+    DELAY_OF_GAME = 2
 
 
 class LateGameOffenseMode(IntEnum):

@@ -39,6 +39,9 @@ def _clock(manifest: dict[str, Any]) -> GameClockConfig:
             raw["regulation_periods"],
             raw["period_seconds"],
             raw["possession_seconds"],
+            raw.get("overtime_seconds", 300),
+            raw.get("max_overtimes", 8),
+            raw.get("overtime_enabled", False),
         )
     except (KeyError, ValueError) as error:
         raise ShardMergeError("manifest clock is invalid") from error

@@ -8,9 +8,11 @@ from courtsim.domain.enums import (
     ContestLevel,
     Coverage,
     FinisherRoute,
+    FoulTeamSide,
     PlayFamily,
     PossessionEndReason,
     ShotZone,
+    TechnicalFoulType,
     TurnoverKind,
 )
 from courtsim.domain.interaction import FinisherSelection
@@ -28,11 +30,13 @@ from courtsim.domain.results import (
     MadeShotSegmentResult,
     MissedShotSegmentResult,
     NonShootingFoulSegmentResult,
+    OffensiveFoulSegmentResult,
     OffensiveRebound,
     PossessionResult,
     ReboundOutcome,
     ShootingFoulSegmentResult,
     StolenTurnover,
+    TechnicalFoulSegmentResult,
     TurnoverOutcome,
     TurnoverSegmentResult,
     UnforcedTurnover,
@@ -41,7 +45,7 @@ from courtsim.domain.results import (
     possession_end_reason,
 )
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 
 class SerializationError(ValueError):
@@ -201,6 +205,24 @@ def segment_result_to_dict(result: ActionSegmentResult) -> dict[str, object]:
             "free_throws": list(result.free_throws),
             "rebound": (_rebound_to_dict(result.rebound) if result.rebound is not None else None),
         }
+    if isinstance(result, OffensiveFoulSegmentResult):
+        return {
+            **base,
+            "kind": "offensive_foul",
+            "responsible_offender_id": result.responsible_offender_id,
+            "defender_id": result.defender_id,
+        }
+    if isinstance(result, TechnicalFoulSegmentResult):
+        return {
+            **base,
+            "kind": "technical_foul",
+            "foul_type": int(result.foul_type),
+            "responsible_side": int(result.responsible_side),
+            "responsible_player_id": result.responsible_player_id,
+            "shooter_id": result.shooter_id,
+            "free_throws": list(result.free_throws),
+            "offense_retains_possession": result.offense_retains_possession,
+        }
 
     shot: dict[str, object] = {
         **base,
@@ -244,7 +266,7 @@ def segment_result_from_dict(value: object) -> ActionSegmentResult:
     obj = _object(value, "segment result")
     common = {"schema_version", "kind", "plan", "coverage"}
     schema_version = _int(obj, "schema_version")
-    if schema_version not in {1, 2, 3, SCHEMA_VERSION}:
+    if schema_version not in {1, 2, 3, 4, SCHEMA_VERSION}:
         _fail("unsupported schema_version")
     kind = obj.get("kind")
     plan = _plan_from_dict(obj.get("plan"))
@@ -253,8 +275,8 @@ def segment_result_from_dict(value: object) -> ActionSegmentResult:
         _exact(obj, common | {"outcome"}, "segment result")
         return TurnoverSegmentResult(plan, coverage, _turnover_from_dict(obj["outcome"]))
     if kind == "non_shooting_foul":
-        if schema_version != SCHEMA_VERSION:
-            _fail("non_shooting_foul requires schema_version 4")
+        if schema_version not in {4, SCHEMA_VERSION}:
+            _fail("non_shooting_foul requires schema_version 4 or 5")
         _exact(
             obj,
             common
@@ -280,6 +302,54 @@ def segment_result_from_dict(value: object) -> ActionSegmentResult:
             _int(obj, "fouler_id"),
             tuple(raw_free_throws),
             rebound,
+        )
+    if kind == "offensive_foul":
+        if schema_version != SCHEMA_VERSION:
+            _fail("offensive_foul requires schema_version 5")
+        _exact(
+            obj,
+            common | {"responsible_offender_id", "defender_id"},
+            "segment result",
+        )
+        return OffensiveFoulSegmentResult(
+            plan,
+            coverage,
+            _int(obj, "responsible_offender_id"),
+            _int(obj, "defender_id"),
+        )
+    if kind == "technical_foul":
+        if schema_version != SCHEMA_VERSION:
+            _fail("technical_foul requires schema_version 5")
+        _exact(
+            obj,
+            common
+            | {
+                "foul_type",
+                "responsible_side",
+                "responsible_player_id",
+                "shooter_id",
+                "free_throws",
+                "offense_retains_possession",
+            },
+            "segment result",
+        )
+        raw_free_throws = obj["free_throws"]
+        if not isinstance(raw_free_throws, list) or any(
+            not isinstance(made, bool) for made in raw_free_throws
+        ):
+            _fail("free_throws must be a boolean list")
+        retained = obj["offense_retains_possession"]
+        if not isinstance(retained, bool):
+            _fail("offense_retains_possession must be a boolean")
+        return TechnicalFoulSegmentResult(
+            plan,
+            coverage,
+            cast(TechnicalFoulType, _enum(TechnicalFoulType, obj, "foul_type")),
+            cast(FoulTeamSide, _enum(FoulTeamSide, obj, "responsible_side")),
+            _nullable_int(obj, "responsible_player_id"),
+            _int(obj, "shooter_id"),
+            tuple(raw_free_throws),
+            retained,
         )
 
     selection = _selection_from_dict(obj.get("selection"))
@@ -312,8 +382,8 @@ def segment_result_from_dict(value: object) -> ActionSegmentResult:
             _rebound_from_dict(obj["rebound"]),
         )
     if kind == "shooting_foul":
-        if schema_version not in {3, SCHEMA_VERSION}:
-            _fail("shooting_foul requires schema_version 3 or 4")
+        if schema_version not in {3, 4, SCHEMA_VERSION}:
+            _fail("shooting_foul requires schema_version 3, 4, or 5")
         _exact(
             obj,
             shot
@@ -390,7 +460,7 @@ def possession_result_to_dict(result: PossessionResult) -> dict[str, object]:
 def possession_result_from_dict(value: object) -> PossessionResult:
     obj = _object(value, "possession result")
     _exact(obj, {"schema_version", "segments", "end_reason"}, "possession result")
-    if _int(obj, "schema_version") not in {1, 2, 3, SCHEMA_VERSION}:
+    if _int(obj, "schema_version") not in {1, 2, 3, 4, SCHEMA_VERSION}:
         _fail("unsupported schema_version")
     raw_segments = obj["segments"]
     if not isinstance(raw_segments, list) or not raw_segments:
