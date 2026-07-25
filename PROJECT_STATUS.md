@@ -1,6 +1,6 @@
 # CourtSim project status
 
-Status date: 2026-07-24
+Status date: 2026-07-25
 
 CourtSim is a local-first, no-UI basketball game simulator. It uses a layered
 conditional-probability model, deterministic state machines, and an event-sourced
@@ -9,13 +9,13 @@ statistics ledger rather than continuous court physics.
 ## Current versions
 
 - Latest mechanics: schema `demo-v1.12`, parameters `demo-1.4.0`.
-- Frozen realism baseline: `demo-1.2.0`.
+- Frozen realism baseline: `demo-1.4.0`.
 - Latest completed mechanic: formal late-game intentional fouls, including non-bonus
   inbound continuation and explicit clock cost.
 
-The distinction is intentional: newer mechanics are implemented and tested, but the
-formal realism baseline remains at 1.2 until the complete independent audit and
-regression-gate package is promoted.
+The latest mechanics are now the formal baseline after a complete independent
+100-game event audit, realism scoring, manifest verification, and regression-gate
+promotion.
 
 ## Implemented
 
@@ -35,9 +35,12 @@ regression-gate package is promoted.
 
 - Ruff formatting and lint: passed.
 - mypy strict: passed.
-- pytest: 265 passed; one Windows symlink test skipped when link privileges are absent.
+- pytest: 266 passed; one Windows symlink test skipped when link privileges are absent.
 - Coverage: 86%, with a required minimum of 85%.
 - Runtime dependencies: Python standard library only.
+- Frozen `demo-1.4.0` audit: 10 core realism targets, 3 free-throw targets, and
+  37 regression gates passed.
+- Linux and Windows run the same quality gate in GitHub Actions.
 
 Run the complete local gate with:
 

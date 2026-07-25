@@ -5,18 +5,18 @@
 
 ## 当前冻结版本
 
-- 模型结构：`data/model_schema_demo_v1_10.json`
-- 模型参数：`data/model_parameters_demo_1.2.0.json`
+- 模型结构：`data/model_schema_demo_v1_12.json`
+- 模型参数：`data/model_parameters_demo_1.4.0.json`
 - 球员夹具：`examples/calibration_lineup_v1.json`
-- 独立审计基线：`data/baselines/model-audit-demo-1.2.0.json`
-- 实验清单：`experiments/model-audit-demo-1.2.0.json`
-- 回归门禁：`experiments/model-audit-demo-1.2.0-regression-gates.json`
+- 独立审计基线：`data/baselines/model-audit-demo-1.4.0.json`
+- 实验清单：`experiments/model-audit-demo-1.4.0.json`
+- 回归门禁：`experiments/model-audit-demo-1.4.0-regression-gates.json`
 - NBA 核心目标：`experiments/nba-2024-25-regular-season-core-v1.json`
 - NBA 罚球目标：`experiments/nba-2024-25-regular-season-free-throws-v1.json`
 
 独立种子 `20260728` 的 100 场审计通过 10 项核心目标、3 项罚球目标和
-34 项回归门禁。冻结审计 SHA-256：
-`b5c08b4bd7177d7615bf24d23b5127f5e90bb64717174e68d19a70352f090ca8`。
+37 项回归门禁。冻结审计 SHA-256：
+`6a13f3b29afff85831d41d7a215902ba73a2e3d43cbccf287818a975c61c4c68`。
 
 ## 模型语义
 
@@ -155,8 +155,8 @@ OFF_BALL_ACTION
 固定对手和球队分侧审计已落地；球队级 `tempo` 已通过 12/15/18 秒有界分布改变
 回合数。v1.9 进一步在末节最后 120 秒按 6 分分差调整节奏：三个种子上落后球权
 平均缩短约 0.558 秒，领先球权延长约 0.488 秒，中性情境与全场效率保持隔离。
-v1.10 已把末节判断提升为显式攻防状态机；抢二打一会执行提速，故意犯规目前只记录
-机会而不生成犯规事件。
+v1.10 已把末节判断提升为显式攻防状态机；v1.11 正式执行 bonus 故意犯规，
+v1.12 进一步执行非 bonus 犯规并在进攻方保有球权时续接正常进攻阶段。
 实验矩阵的单种子结果必须再经过多种子稳健性审计；不要在单一平衡阵容
 通过总体指标后直接宣称球员分布或对位已经拟真。
 

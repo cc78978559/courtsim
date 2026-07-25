@@ -153,6 +153,30 @@ def test_model_audit_aggregate_only_writes_no_event_stream(tmp_path: Path) -> No
     assert main(["verify", str(output / "manifest.json")]) == 0
 
 
+def test_model_audit_defaults_to_latest_model(tmp_path: Path) -> None:
+    output = tmp_path / "model-audit-defaults"
+    assert (
+        main(
+            [
+                "model-audit",
+                "--games",
+                "1",
+                "--trace-mode",
+                "aggregate-only",
+                "--output",
+                str(output),
+            ]
+        )
+        == 0
+    )
+    manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["model"] == {
+        "parameter_hash": "3d935b77ec1239127aef824fc06f8a84cb11cb4c7ac8de30a997a37d32809950",
+        "schema_hash": "e32e210bfe6c672d2f214759603420d475342876491f400753452c9262950374",
+        "schema_version": "demo-v1.12",
+    }
+
+
 def test_model_benchmark_command_writes_repeatable_report(tmp_path: Path) -> None:
     output = tmp_path / "model-benchmark"
     assert (

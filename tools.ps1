@@ -36,10 +36,52 @@ function Invoke-QuietPython {
     Write-Output "${Label}: passed"
 }
 
+function Test-CompatiblePython {
+    param(
+        [string]$CommandPath,
+        [string[]]$PrefixArguments = @()
+    )
+    try {
+        & $CommandPath @PrefixArguments -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)" *> $null
+        return $LASTEXITCODE -eq 0
+    }
+    catch {
+        return $false
+    }
+}
+
 if ($Command -eq "bootstrap") {
     if (-not (Test-Path -LiteralPath $VenvPython)) {
-        & python -m venv (Join-Path $PSScriptRoot ".venv")
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        $EnvironmentCreated = $false
+        $PythonCommand = Get-Command python -ErrorAction SilentlyContinue
+        if (
+            $null -ne $PythonCommand -and
+            (Test-CompatiblePython -CommandPath $PythonCommand.Source)
+        ) {
+            & $PythonCommand.Source -m venv (Join-Path $PSScriptRoot ".venv")
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $EnvironmentCreated = $true
+        }
+        if (-not $EnvironmentCreated) {
+            $PythonLauncher = Get-Command py -ErrorAction SilentlyContinue
+            if ($null -ne $PythonLauncher) {
+                foreach ($Selector in @("-3.11", "-3.12", "-3.13", "-3.14", "-3")) {
+                    if (
+                        Test-CompatiblePython `
+                            -CommandPath $PythonLauncher.Source `
+                            -PrefixArguments @($Selector)
+                    ) {
+                        & $PythonLauncher.Source $Selector -m venv (Join-Path $PSScriptRoot ".venv")
+                        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+                        $EnvironmentCreated = $true
+                        break
+                    }
+                }
+            }
+        }
+        if (-not $EnvironmentCreated) {
+            throw "Python 3.11 or newer was not found through 'python' or the Windows 'py' launcher."
+        }
     }
     $script:Python = $VenvPython
     $LocalWheels = @(Get-ChildItem -LiteralPath $Wheelhouse -Filter "*.whl" -ErrorAction SilentlyContinue)

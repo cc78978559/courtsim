@@ -100,6 +100,8 @@ from courtsim.runner import run_batch_to_directory, run_to_directory
 from courtsim.verification import VerificationError, verify_manifest
 
 ParameterMigration = Callable[[str | Path, str | Path], dict[str, Any]]
+DEFAULT_MODEL_SCHEMA = Path("data/model_schema_demo_v1_12.json")
+DEFAULT_MODEL_PARAMETERS = Path("data/model_parameters_demo_1.4.0.json")
 PARAMETER_MIGRATIONS: dict[str, tuple[str, ParameterMigration]] = {
     "parameters-overlay": (
         "materialize and validate a numerical calibration overlay",
@@ -174,12 +176,12 @@ def _parser() -> argparse.ArgumentParser:
     model_audit.add_argument(
         "--schema",
         type=Path,
-        default=Path("data/model_schema_demo_v1_5.json"),
+        default=DEFAULT_MODEL_SCHEMA,
     )
     model_audit.add_argument(
         "--parameters",
         type=Path,
-        default=Path("data/model_parameters_demo_0.7.0.json"),
+        default=DEFAULT_MODEL_PARAMETERS,
     )
     model_audit.add_argument(
         "--profile",
@@ -215,12 +217,12 @@ def _parser() -> argparse.ArgumentParser:
     model_benchmark.add_argument(
         "--schema",
         type=Path,
-        default=Path("data/model_schema_demo_v1_5.json"),
+        default=DEFAULT_MODEL_SCHEMA,
     )
     model_benchmark.add_argument(
         "--parameters",
         type=Path,
-        default=Path("data/model_parameters_demo_0.7.0.json"),
+        default=DEFAULT_MODEL_PARAMETERS,
     )
     model_benchmark.add_argument(
         "--profile",

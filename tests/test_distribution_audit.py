@@ -245,9 +245,15 @@ def test_audit_bundle_is_hash_verified_and_byte_stable(tmp_path: Path) -> None:
 
 
 def test_checked_in_regression_baseline_matches_its_experiment_registry() -> None:
-    for version in ("0.4.0", "0.5.0", "0.6.0", "0.7.0", "0.8.0"):
-        baseline_path = ROOT / "data" / "baselines" / f"model-audit-demo-{version}.json"
-        experiment_path = ROOT / "experiments" / f"model-audit-demo-{version}.json"
+    experiment_paths = sorted(
+        path
+        for path in (ROOT / "experiments").glob("model-audit-demo-*.json")
+        if not path.name.endswith("-regression-gates.json")
+    )
+    assert experiment_paths
+    for experiment_path in experiment_paths:
+        baseline_path = ROOT / "data" / "baselines" / experiment_path.name
+        gates_path = experiment_path.with_name(f"{experiment_path.stem}-regression-gates.json")
         baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
         experiment = json.loads(experiment_path.read_text(encoding="utf-8"))
         assert (
@@ -256,6 +262,8 @@ def test_checked_in_regression_baseline_matches_its_experiment_registry() -> Non
         )
         assert baseline["completed_games"] == experiment["acceptance"]["completed_games"]
         assert baseline["aborted_games"] == experiment["acceptance"]["aborted_games"]
+        kind, gates = load_audit_gates(gates_path)
+        assert evaluate_audit_gates(load_distribution_audit(baseline_path), kind, gates).passed
     assert (
         json.loads(
             (ROOT / "experiments" / "model-audit-demo-0.4.0.json").read_text(encoding="utf-8")
