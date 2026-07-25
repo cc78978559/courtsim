@@ -1,0 +1,7 @@
+{
+  "format_version": 1,
+  "roster_version": "roster-v1",
+  "minimum_players": 5,
+  "maximum_players": 15,
+  "season_schema_version": 2
+}

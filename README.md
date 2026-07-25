@@ -119,3 +119,7 @@ fatigue/recovery, and explicit ability feedback without changing the frozen prob
 The [`season-v1 / injury-v1` layer](docs/season-and-injuries-v1.md) adds validated multi-team
 schedules, persistent fatigue, deterministic injuries and returns, availability-safe rotations,
 canonical standings, season audits, and strict JSON round trips.
+
+The [`roster-v1` transaction layer](docs/roster-transactions-v1.md) adds league-wide player
+ownership, roster limits, effective-day team transfers, player-state continuity, legal lineup
+rebuilding, and season schema-v2 roster ledgers.

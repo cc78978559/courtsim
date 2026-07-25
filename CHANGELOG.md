@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0] - 2026-07-25
+
+- Add league-wide unique player ownership and configurable roster-size contracts.
+- Add deterministic effective-day player transfers with complete preflight validation.
+- Preserve fatigue, injury, and return state when a player changes teams.
+- Rebuild source lineups and rotations while adding acquired players to destination roster order.
+- Add season schema v2 transfer ledgers and initial/final roster snapshots with v1 read support.
+
 ## [0.4.0] - 2026-07-25
 
 - Add immutable, validated multi-team schedules with stable game identifiers.
