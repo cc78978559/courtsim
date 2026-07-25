@@ -1,0 +1,39 @@
+name: Model promotion
+description: Track a candidate model from implementation through formal baseline promotion.
+title: "[Model] "
+body:
+  - type: input
+    id: versions
+    attributes:
+      label: Candidate versions
+      description: Schema and parameter versions, for example demo-v1.13 / demo-1.5.0.
+    validations:
+      required: true
+  - type: textarea
+    id: mechanism
+    attributes:
+      label: Mechanism and causal boundary
+      description: Describe the new behavior, affected nodes, events, states, and random slots.
+    validations:
+      required: true
+  - type: checkboxes
+    id: evidence
+    attributes:
+      label: Promotion evidence
+      options:
+        - label: Versioned schema, parameters, and migration specification
+        - label: Direction and isolation sensitivity evidence
+        - label: Independent-seed 100-game full audit
+        - label: Manifest verification
+        - label: Active realism targets passed
+        - label: Regression gates passed
+        - label: Prior-version compatibility passed
+        - label: Linux and Windows CI passed
+        - label: Current release registry, CLI defaults, and docs updated
+  - type: textarea
+    id: artifacts
+    attributes:
+      label: Versioned artifacts
+      description: List baseline, experiment, gate, target, and documentation paths.
+    validations:
+      required: true
