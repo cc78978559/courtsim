@@ -11,6 +11,7 @@
 - 独立审计基线：`data/baselines/model-audit-demo-1.4.0.json`
 - 实验清单：`experiments/model-audit-demo-1.4.0.json`
 - 回归门禁：`experiments/model-audit-demo-1.4.0-regression-gates.json`
+- 正式发布清单：`governance/current-release.json`
 - NBA 核心目标：`experiments/nba-2024-25-regular-season-core-v1.json`
 - NBA 罚球目标：`experiments/nba-2024-25-regular-season-free-throws-v1.json`
 
@@ -112,6 +113,7 @@ OFF_BALL_ACTION
 
 `check` 包含格式、静态检查、严格类型检查、测试和 85% 覆盖率门槛。
 大型校准运行不进入默认门禁，参数或概率结构改变后必须手动生成独立种子审计。
+版本轴、人工晋级和回退规则见 `docs/versioning-and-promotion-v1.md`。
 
 只需要分布指标时可以使用：
 

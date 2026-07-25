@@ -71,6 +71,10 @@ outputs/            需要交付给用户的成品
 当前工程进度、验证结果和已知缺口见
 [PROJECT_STATUS.md](PROJECT_STATUS.md)。
 
+引擎、模型结构、参数和正式基线的版本规则及晋级门禁见
+[docs/versioning-and-promotion-v1.md](docs/versioning-and-promotion-v1.md)；机器可读的
+当前正式入口是 [governance/current-release.json](governance/current-release.json)。
+
 开始阅读、向其他模型交接或准备下一阶段工作时，优先使用
 [docs/current-state.md](docs/current-state.md)。该文件是当前架构、正式产物、
 不变量和已知边界的精简入口；其他 `*-v1.md` 主要记录各阶段的详细契约和历史决策。
