@@ -25,7 +25,8 @@
   "roster_transactions": {
     "roster_version": "roster-v1",
     "path": "governance/roster-transactions-v1.json",
-    "file_sha256": "8fa97dd39c40c12785f339c037ea5e7f75c58f291aff9763f61176e4289991ef"
+    "file_sha256": "8fa97dd39c40c12785f339c037ea5e7f75c58f291aff9763f61176e4289991ef",
+    "source_pull_request": 31
   },
   "model": {
     "schema_version": "demo-v1.12",

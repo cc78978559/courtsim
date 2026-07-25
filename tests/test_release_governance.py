@@ -124,7 +124,9 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "roster_version",
         "path",
         "file_sha256",
+        "source_pull_request",
     }
+    assert roster_registry["source_pull_request"] == 31
     roster_path = ROOT / roster_registry["path"]
     roster_config = json.loads(roster_path.read_text(encoding="utf-8"))
     assert _sha256(roster_path) == roster_registry["file_sha256"]
