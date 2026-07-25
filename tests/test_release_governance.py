@@ -60,6 +60,14 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "overtime_bonus_threshold": GameRules().overtime_bonus_threshold,
     }
     rotation_registry = release["rotation_fatigue"]
+    assert set(rotation_registry) == {
+        "rotation_version",
+        "fatigue_version",
+        "path",
+        "file_sha256",
+        "source_pull_request",
+    }
+    assert rotation_registry["source_pull_request"] == 19
     rotation_path = ROOT / rotation_registry["path"]
     rotation_config = json.loads(rotation_path.read_text(encoding="utf-8"))
     assert _sha256(rotation_path) == rotation_registry["file_sha256"]

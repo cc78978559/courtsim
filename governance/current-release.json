@@ -12,7 +12,8 @@
     "rotation_version": "rotation-v1",
     "fatigue_version": "fatigue-v1",
     "path": "governance/rotation-fatigue-v1.json",
-    "file_sha256": "424667cc7fdfcf96a0e642217074583dd0a5644dd6f4a3ecc8f61e64c7857c3f"
+    "file_sha256": "424667cc7fdfcf96a0e642217074583dd0a5644dd6f4a3ecc8f61e64c7857c3f",
+    "source_pull_request": 19
   },
   "model": {
     "schema_version": "demo-v1.12",
