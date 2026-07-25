@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0
+## [0.2.0] - 2026-07-25
 
 - Add opt-in deterministic overtime with explicit completion and safety-limit reasons.
 - Add roster-order foul-out replacement and explicit no-legal-lineup termination.
