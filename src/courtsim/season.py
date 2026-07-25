@@ -16,12 +16,22 @@ from courtsim.model.interaction_compiler import DefensiveMatchups, Matchup, Prof
 from courtsim.model.trace_mode import TraceMode
 from courtsim.parameters import ModelParameters
 from courtsim.randomness import RandomFrame, derive_seed
+from courtsim.rosters import (
+    ROSTER_VERSION,
+    PlayerTransfer,
+    RosterRules,
+    RosterSnapshot,
+    TransferPlan,
+    apply_player_transfer,
+    roster_snapshots,
+    validate_league_rosters,
+)
 from courtsim.rotations import FatigueConfig, RotationPlan, RotationStint
 from courtsim.rules import GameRules
 
 SEASON_VERSION = "season-v1"
 INJURY_VERSION = "injury-v1"
-SEASON_SCHEMA_VERSION = 1
+SEASON_SCHEMA_VERSION = 2
 
 
 def _identifier(value: str, field: str) -> None:
@@ -225,10 +235,19 @@ class SeasonResult:
     final_player_states: tuple[PlayerSeasonState, ...]
     version: str = SEASON_VERSION
     injury_version: str = INJURY_VERSION
+    transfers: tuple[PlayerTransfer, ...] = ()
+    initial_rosters: tuple[RosterSnapshot, ...] = ()
+    final_rosters: tuple[RosterSnapshot, ...] = ()
+    roster_version: str | None = None
+    roster_rules: RosterRules | None = None
 
     def __post_init__(self) -> None:
         if self.version != SEASON_VERSION or self.injury_version != INJURY_VERSION:
             raise ValueError("season result versions are unsupported")
+        if self.roster_version not in {None, ROSTER_VERSION}:
+            raise ValueError("season roster version is unsupported")
+        if (self.roster_version is None) != (self.roster_rules is None):
+            raise ValueError("roster version and rules must either both be present or absent")
 
 
 @dataclass(frozen=True, slots=True)
@@ -240,6 +259,8 @@ class SeasonAudit:
     player_games_missed: int
     standings_wins: int
     standings_losses: int
+    transfers_applied: int = 0
+    final_roster_players: int = 0
 
 
 def _standing_rows(
@@ -278,7 +299,78 @@ def _standing_rows(
     )
 
 
-def validate_season_result(result: SeasonResult, game_config: GameClockConfig) -> None:
+def _validated_roster_ownership(
+    result: SeasonResult,
+    rules: RosterRules,
+) -> tuple[dict[int, str], dict[int, dict[int, str]]]:
+    if result.roster_version is None:
+        if result.transfers or result.initial_rosters or result.final_rosters:
+            raise ValueError("legacy season results cannot contain roster ledgers")
+        return (
+            {state.player_id: state.team_id for state in result.final_player_states},
+            {},
+        )
+    initial = {snapshot.team_id: list(snapshot.player_ids) for snapshot in result.initial_rosters}
+    final = {snapshot.team_id: snapshot.player_ids for snapshot in result.final_rosters}
+    if (
+        set(initial) != set(result.schedule.team_ids)
+        or set(final) != set(result.schedule.team_ids)
+        or len(initial) != len(result.initial_rosters)
+        or len(final) != len(result.final_rosters)
+    ):
+        raise ValueError("roster snapshots must cover scheduled teams exactly")
+    all_initial = [player_id for roster in initial.values() for player_id in roster]
+    if len(all_initial) != len(set(all_initial)):
+        raise ValueError("initial rosters must give every player exactly one owner")
+    if any(
+        not rules.minimum_players <= len(roster) <= rules.maximum_players
+        for roster in initial.values()
+    ):
+        raise ValueError("initial roster size is outside the configured bounds")
+    TransferPlan(result.transfers)
+    ownership = {player_id: team_id for team_id, roster in initial.items() for player_id in roster}
+    ownership_by_game: dict[int, dict[int, str]] = {}
+    transfer_index = 0
+    for game in result.schedule.games:
+        while (
+            transfer_index < len(result.transfers)
+            and result.transfers[transfer_index].effective_day <= game.day
+        ):
+            transfer = result.transfers[transfer_index]
+            if (
+                transfer.from_team_id not in initial
+                or transfer.to_team_id not in initial
+                or ownership.get(transfer.player_id) != transfer.from_team_id
+            ):
+                raise ValueError("transfer source ownership is invalid")
+            if len(initial[transfer.from_team_id]) - 1 < rules.minimum_players:
+                raise ValueError("transfer leaves source below roster minimum")
+            if len(initial[transfer.to_team_id]) + 1 > rules.maximum_players:
+                raise ValueError("transfer puts destination above roster maximum")
+            initial[transfer.from_team_id].remove(transfer.player_id)
+            initial[transfer.to_team_id].append(transfer.player_id)
+            ownership[transfer.player_id] = transfer.to_team_id
+            transfer_index += 1
+        ownership_by_game[game.game_id] = dict(ownership)
+    if transfer_index != len(result.transfers):
+        raise ValueError("transfer effective day must not follow the final scheduled game")
+    if any(tuple(initial[team_id]) != final[team_id] for team_id in initial):
+        raise ValueError("final rosters do not derive from transfers")
+    return ownership, ownership_by_game
+
+
+def validate_season_result(
+    result: SeasonResult,
+    game_config: GameClockConfig,
+    roster_rules: RosterRules | None = None,
+) -> None:
+    if (
+        roster_rules is not None
+        and result.roster_rules is not None
+        and roster_rules != result.roster_rules
+    ):
+        raise ValueError("supplied roster rules do not match the season result")
+    roster_rules = result.roster_rules or roster_rules or RosterRules()
     if result.version != SEASON_VERSION or result.injury_version != INJURY_VERSION:
         raise ValueError("season result versions are unsupported")
     if tuple(record.scheduled_game for record in result.games) != result.schedule.games:
@@ -288,16 +380,31 @@ def validate_season_result(result: SeasonResult, game_config: GameClockConfig) -
     state_keys = tuple((state.team_id, state.player_id) for state in result.final_player_states)
     if len(state_keys) != len(set(state_keys)):
         raise ValueError("final player states must be unique")
+    if len({player_id for _, player_id in state_keys}) != len(state_keys):
+        raise ValueError("final player ids must have exactly one team owner")
     if any(team_id not in result.schedule.team_ids for team_id, _ in state_keys):
         raise ValueError("final player states must reference scheduled teams")
+    final_ownership, ownership_by_game = _validated_roster_ownership(result, roster_rules)
+    if (
+        result.roster_version is not None
+        and {player_id: team_id for team_id, player_id in state_keys} != final_ownership
+    ):
+        raise ValueError("final player states must match final roster ownership")
     known_games = {game.game_id: game for game in result.schedule.games}
-    known_players = set(state_keys)
+    known_player_ids = {player_id for _, player_id in state_keys}
     for record in result.games:
+        ownership = ownership_by_game.get(record.scheduled_game.game_id)
         for player_id in record.home_unavailable:
-            if (record.scheduled_game.home_team_id, player_id) not in known_players:
+            if (
+                ownership is not None
+                and ownership.get(player_id) != record.scheduled_game.home_team_id
+            ) or (ownership is None and player_id not in known_player_ids):
                 raise ValueError("home unavailable player is missing from final state")
         for player_id in record.away_unavailable:
-            if (record.scheduled_game.away_team_id, player_id) not in known_players:
+            if (
+                ownership is not None
+                and ownership.get(player_id) != record.scheduled_game.away_team_id
+            ) or (ownership is None and player_id not in known_player_ids):
                 raise ValueError("away unavailable player is missing from final state")
         if record.result is not None:
             validate_game_result(record.result, game_config)
@@ -310,11 +417,13 @@ def validate_season_result(result: SeasonResult, game_config: GameClockConfig) -
                 raise ValueError("nested game result does not match its scheduled game")
     for injury in result.injuries:
         game = known_games.get(injury.game_id)
+        ownership = ownership_by_game.get(injury.game_id)
         if (
             game is None
             or game.day != injury.injury_day
             or injury.team_id not in {game.home_team_id, game.away_team_id}
-            or (injury.team_id, injury.player_id) not in known_players
+            or (ownership is not None and ownership.get(injury.player_id) != injury.team_id)
+            or (ownership is None and injury.player_id not in known_player_ids)
         ):
             raise ValueError("injury record does not match the season")
 
@@ -329,6 +438,8 @@ def audit_season(result: SeasonResult, game_config: GameClockConfig) -> SeasonAu
         sum(len(record.home_unavailable) + len(record.away_unavailable) for record in result.games),
         sum(row.wins for row in result.standings),
         sum(row.losses for row in result.standings),
+        len(result.transfers),
+        sum(len(snapshot.player_ids) for snapshot in result.final_rosters),
     )
 
 
@@ -407,27 +518,57 @@ def sample_season(
     rules: GameRules | None = None,
     fatigue_config: FatigueConfig | None = None,
     season_config: SeasonConfig | None = None,
+    transaction_plan: TransferPlan | None = None,
+    roster_rules: RosterRules | None = None,
     trace_mode: TraceMode = TraceMode.FULL,
 ) -> SeasonResult:
     season_config = season_config or SeasonConfig()
+    roster_rules = roster_rules or RosterRules()
+    transaction_plan = transaction_plan or TransferPlan(())
     team_map = {team.team_id: team for team in teams}
     if set(team_map) != set(schedule.team_ids) or len(team_map) != len(teams):
         raise ValueError("teams must cover schedule team ids exactly")
+    validate_league_rosters(team_map, roster_rules)
+    initial_roster_ledger = roster_snapshots(team_map)
+    if transaction_plan.transfers and (
+        not schedule.games or transaction_plan.transfers[-1].effective_day > schedule.games[-1].day
+    ):
+        raise ValueError("transfer effective day must not follow the final scheduled game")
+    validated_teams = team_map
+    for transfer in transaction_plan.transfers:
+        validated_teams = apply_player_transfer(validated_teams, transfer, roster_rules)
     player_teams = [(team.team_id, player_id) for team in teams for player_id in team.roster_order]
-    if len({player_id for _, player_id in player_teams}) != len(player_teams):
-        raise ValueError("season player ids must be globally unique")
     effective_fatigue = fatigue_config or FatigueConfig()
     states = {key: PlayerSeasonState(key[0], key[1], 0) for key in player_teams}
-    last_game_day: dict[str, int] = {}
+    last_game_day: dict[int, int] = {}
     records: list[SeasonGameRecord] = []
     injuries: list[InjuryRecord] = []
+    applied_transfers: list[PlayerTransfer] = []
+    transfer_index = 0
 
     for scheduled in schedule.games:
+        while (
+            transfer_index < len(transaction_plan.transfers)
+            and transaction_plan.transfers[transfer_index].effective_day <= scheduled.day
+        ):
+            transfer = transaction_plan.transfers[transfer_index]
+            team_map = apply_player_transfer(team_map, transfer, roster_rules)
+            old_key = (transfer.from_team_id, transfer.player_id)
+            state = states.pop(old_key)
+            states[(transfer.to_team_id, transfer.player_id)] = replace(
+                state,
+                team_id=transfer.to_team_id,
+            )
+            applied_transfers.append(transfer)
+            transfer_index += 1
         original_home = team_map[scheduled.home_team_id]
         original_away = team_map[scheduled.away_team_id]
         for team in (original_home, original_away):
-            rest_days = max(0, scheduled.day - last_game_day.get(team.team_id, scheduled.day) - 1)
             for player_id in team.roster_order:
+                rest_days = max(
+                    0,
+                    scheduled.day - last_game_day.get(player_id, scheduled.day) - 1,
+                )
                 key = (team.team_id, player_id)
                 state = states[key]
                 states[key] = replace(
@@ -455,6 +596,7 @@ def sample_season(
         )
         home = _available_team(original_home, frozenset(home_unavailable))
         away = _available_team(original_away, frozenset(away_unavailable))
+        game_participants: tuple[int, ...] = ()
         if home is None or away is None:
             if home is None and away is not None:
                 scores = (0, season_config.forfeit_score)
@@ -517,10 +659,10 @@ def sample_season(
                     sampled.result,
                 )
             )
-            participants = tuple(item.player_id for item in sampled.result.playing_time)
+            game_participants = tuple(item.player_id for item in sampled.result.playing_time)
             for team in (home, away):
                 for player_id in team.roster_order:
-                    if player_id not in participants:
+                    if player_id not in game_participants:
                         continue
                     roll = (
                         derive_seed(
@@ -556,8 +698,8 @@ def sample_season(
                     injuries.append(injury)
                     key = (team.team_id, player_id)
                     states[key] = replace(states[key], unavailable_until_day=return_day)
-        last_game_day[original_home.team_id] = scheduled.day
-        last_game_day[original_away.team_id] = scheduled.day
+        for player_id in game_participants:
+            last_game_day[player_id] = scheduled.day
 
     game_records = tuple(records)
     result = SeasonResult(
@@ -566,13 +708,18 @@ def sample_season(
         _standing_rows(schedule.team_ids, game_records),
         tuple(injuries),
         tuple(states[key] for key in sorted(states)),
+        transfers=tuple(applied_transfers),
+        initial_rosters=initial_roster_ledger,
+        final_rosters=roster_snapshots(team_map),
+        roster_version=ROSTER_VERSION,
+        roster_rules=roster_rules,
     )
-    validate_season_result(result, game_config)
+    validate_season_result(result, game_config, roster_rules)
     return result
 
 
 def season_result_to_dict(result: SeasonResult) -> dict[str, object]:
-    return {
+    payload: dict[str, object] = {
         "schema_version": SEASON_SCHEMA_VERSION,
         "version": result.version,
         "injury_version": result.injury_version,
@@ -634,7 +781,46 @@ def season_result_to_dict(result: SeasonResult) -> dict[str, object]:
             }
             for state in result.final_player_states
         ],
+        "transfers": [
+            {
+                "transaction_id": item.transaction_id,
+                "effective_day": item.effective_day,
+                "player_id": item.player_id,
+                "from_team_id": item.from_team_id,
+                "to_team_id": item.to_team_id,
+            }
+            for item in result.transfers
+        ],
+        "initial_rosters": [
+            {"team_id": item.team_id, "player_ids": list(item.player_ids)}
+            for item in result.initial_rosters
+        ],
+        "final_rosters": [
+            {"team_id": item.team_id, "player_ids": list(item.player_ids)}
+            for item in result.final_rosters
+        ],
+        "roster_version": result.roster_version,
+        "roster_rules": (
+            {
+                "version": result.roster_rules.version,
+                "minimum_players": result.roster_rules.minimum_players,
+                "maximum_players": result.roster_rules.maximum_players,
+            }
+            if result.roster_rules is not None
+            else None
+        ),
     }
+    if result.roster_version is None:
+        payload["schema_version"] = 1
+        for key in (
+            "transfers",
+            "initial_rosters",
+            "final_rosters",
+            "roster_version",
+            "roster_rules",
+        ):
+            payload.pop(key)
+    return payload
 
 
 def _fail(message: str) -> NoReturn:
@@ -676,6 +862,16 @@ def _integer_tuple(value: object, field: str) -> tuple[int, ...]:
 
 def season_result_from_dict(value: object, game_config: GameClockConfig) -> SeasonResult:
     raw = _object(value, "season result")
+    schema_version = _integer(raw, "schema_version")
+    if schema_version not in {1, SEASON_SCHEMA_VERSION}:
+        _fail("unsupported season schema_version")
+    version_two_keys = {
+        "transfers",
+        "initial_rosters",
+        "final_rosters",
+        "roster_version",
+        "roster_rules",
+    }
     _exact(
         raw,
         {
@@ -687,11 +883,10 @@ def season_result_from_dict(value: object, game_config: GameClockConfig) -> Seas
             "standings",
             "injuries",
             "final_player_states",
-        },
+        }
+        | (version_two_keys if schema_version == SEASON_SCHEMA_VERSION else set()),
         "season result",
     )
-    if _integer(raw, "schema_version") != SEASON_SCHEMA_VERSION:
-        _fail("unsupported season schema_version")
     schedule_raw = _object(raw["schedule"], "schedule")
     _exact(schedule_raw, {"version", "team_ids", "games"}, "schedule")
     team_ids_raw = schedule_raw["team_ids"]
@@ -822,6 +1017,73 @@ def season_result_from_dict(value: object, game_config: GameClockConfig) -> Seas
             )
         )
     states = tuple(states_list)
+    transfers: tuple[PlayerTransfer, ...] = ()
+    initial_rosters: tuple[RosterSnapshot, ...] = ()
+    final_rosters: tuple[RosterSnapshot, ...] = ()
+    roster_version: str | None = None
+    roster_rules: RosterRules | None = None
+    if schema_version == SEASON_SCHEMA_VERSION:
+        transfers_raw = raw["transfers"]
+        if not isinstance(transfers_raw, list):
+            _fail("transfers must be a list")
+        transfer_items: list[PlayerTransfer] = []
+        for transfer_raw in transfers_raw:
+            item = _object(transfer_raw, "transfer")
+            _exact(
+                item,
+                {
+                    "transaction_id",
+                    "effective_day",
+                    "player_id",
+                    "from_team_id",
+                    "to_team_id",
+                },
+                "transfer",
+            )
+            transfer_items.append(
+                PlayerTransfer(
+                    _integer(item, "transaction_id"),
+                    _integer(item, "effective_day"),
+                    _integer(item, "player_id"),
+                    _string(item, "from_team_id"),
+                    _string(item, "to_team_id"),
+                )
+            )
+        transfers = tuple(transfer_items)
+
+        def decode_rosters(key: str) -> tuple[RosterSnapshot, ...]:
+            rosters_raw = raw[key]
+            if not isinstance(rosters_raw, list):
+                _fail(f"{key} must be a list")
+            snapshots: list[RosterSnapshot] = []
+            for roster_raw in rosters_raw:
+                item = _object(roster_raw, key)
+                _exact(item, {"team_id", "player_ids"}, key)
+                snapshots.append(
+                    RosterSnapshot(
+                        _string(item, "team_id"),
+                        _integer_tuple(item["player_ids"], "player_ids"),
+                    )
+                )
+            return tuple(snapshots)
+
+        initial_rosters = decode_rosters("initial_rosters")
+        final_rosters = decode_rosters("final_rosters")
+        roster_version_raw = raw["roster_version"]
+        if not isinstance(roster_version_raw, str) or not roster_version_raw:
+            _fail("roster_version must be a non-empty string")
+        roster_version = roster_version_raw
+        roster_rules_raw = _object(raw["roster_rules"], "roster_rules")
+        _exact(
+            roster_rules_raw,
+            {"version", "minimum_players", "maximum_players"},
+            "roster_rules",
+        )
+        roster_rules = RosterRules(
+            _integer(roster_rules_raw, "minimum_players"),
+            _integer(roster_rules_raw, "maximum_players"),
+            _string(roster_rules_raw, "version"),
+        )
     result = SeasonResult(
         schedule,
         tuple(records),
@@ -830,6 +1092,11 @@ def season_result_from_dict(value: object, game_config: GameClockConfig) -> Seas
         states,
         _string(raw, "version"),
         _string(raw, "injury_version"),
+        transfers,
+        initial_rosters,
+        final_rosters,
+        roster_version,
+        roster_rules,
     )
     try:
         validate_season_result(result, game_config)

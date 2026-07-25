@@ -14,9 +14,15 @@ from courtsim.analysis.realism_targets import (
 )
 from courtsim.cli import DEFAULT_MODEL_PARAMETERS, DEFAULT_MODEL_SCHEMA
 from courtsim.parameters import load_model_parameters
+from courtsim.rosters import ROSTER_VERSION, RosterRules
 from courtsim.rotations import FATIGUE_VERSION, ROTATION_VERSION, FatigueConfig
 from courtsim.rules import GameRules
-from courtsim.season import INJURY_VERSION, SEASON_VERSION, SeasonConfig
+from courtsim.season import (
+    INJURY_VERSION,
+    SEASON_SCHEMA_VERSION,
+    SEASON_VERSION,
+    SeasonConfig,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 RELEASE_PATH = ROOT / "governance" / "current-release.json"
@@ -35,11 +41,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "rules",
         "rotation_fatigue",
         "season_injury",
+        "roster_transactions",
         "model",
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 4
+    assert release["format_version"] == 5
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -111,6 +118,23 @@ def test_current_release_registry_is_complete_and_verified() -> None:
             "daily_fatigue_recovery": SeasonConfig().daily_fatigue_recovery,
             "forfeit_score": SeasonConfig().forfeit_score,
         },
+    }
+    roster_registry = release["roster_transactions"]
+    assert set(roster_registry) == {
+        "roster_version",
+        "path",
+        "file_sha256",
+    }
+    roster_path = ROOT / roster_registry["path"]
+    roster_config = json.loads(roster_path.read_text(encoding="utf-8"))
+    assert _sha256(roster_path) == roster_registry["file_sha256"]
+    assert roster_registry["roster_version"] == ROSTER_VERSION
+    assert roster_config == {
+        "format_version": 1,
+        "roster_version": ROSTER_VERSION,
+        "minimum_players": RosterRules().minimum_players,
+        "maximum_players": RosterRules().maximum_players,
+        "season_schema_version": SEASON_SCHEMA_VERSION,
     }
 
     model = release["model"]
