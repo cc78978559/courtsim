@@ -1,0 +1,74 @@
+{
+  "format_version": 1,
+  "name": "model-audit-demo-1.4.0",
+  "purpose": "Formal late-game intentional fouls with bonus and non-bonus retained-ball continuation",
+  "master_seed": 20260728,
+  "games": 100,
+  "start_index": 0,
+  "clock": {
+    "regulation_periods": 4,
+    "period_seconds": 720,
+    "possession_seconds": 15
+  },
+  "model": {
+    "schema_version": "demo-v1.12",
+    "parameter_version": "demo-1.4.0",
+    "schema_hash": "e32e210bfe6c672d2f214759603420d475342876491f400753452c9262950374",
+    "schema_file_sha256": "a51ce2b630c215bc04e8d413620dcbb6213d9fb39ee50e2e90f78357df92c54f",
+    "parameter_hash": "3d935b77ec1239127aef824fc06f8a84cb11cb4c7ac8de30a997a37d32809950",
+    "parameter_file_sha256": "c113afcf3ed94a34734e0b6f8e5ac4c784946ac0a5afee88d849dfbf7020da82"
+  },
+  "profile": {
+    "path": "examples/calibration_lineup_v1.json",
+    "sha256": "4cee166e79e82eb6c60614d156011eb5028e79be2e57590f330c21da4be4763c"
+  },
+  "calibration_pipeline": [
+    {
+      "operation": "parameters-add-late-game-strategy",
+      "path": "experiments/calibration/late-game-strategy-v1.json",
+      "sha256": "98daf1b681722b2540ffcf6924dc33f1cb1079db4312b37bc6c5c2436dca0fd6"
+    },
+    {
+      "operation": "parameters-promote-intentional-foul",
+      "path": "experiments/calibration/intentional-foul-execution-v1.json",
+      "sha256": "4a8f2385518a596d4e5e3dce19eb2690d9acd4eb9376ce1e2c531bad3a6b164e"
+    },
+    {
+      "operation": "parameters-enable-non-bonus-intentional-foul",
+      "path": "experiments/calibration/intentional-foul-non-bonus-v1.json",
+      "sha256": "bb3511e9856a65786a67db420e6e70438a98998d26980ce2f01197117f37a702"
+    }
+  ],
+  "sensitivity_evidence": {
+    "independent_seeds": [20260728, 20260729, 20260730],
+    "games_per_seed": 100,
+    "intentional_foul_opportunities": [34, 33, 25],
+    "intentional_fouls_committed": [34, 33, 25],
+    "intentional_foul_continuations": [10, 9, 7],
+    "opportunities_equal_committed": true,
+    "automatic_promotion": false
+  },
+  "realism_targets": [
+    {
+      "path": "experiments/nba-2024-25-regular-season-core-v1.json",
+      "metrics": 10,
+      "passed": true
+    },
+    {
+      "path": "experiments/nba-2024-25-regular-season-free-throws-v1.json",
+      "metrics": 3,
+      "passed": true
+    }
+  ],
+  "acceptance": {
+    "completed_games": 100,
+    "aborted_games": 0,
+    "manifest_verification": true,
+    "audit_sha256": "6a13f3b29afff85831d41d7a215902ba73a2e3d43cbccf287818a975c61c4c68",
+    "games_sha256": "9bc57d5cf2e0716660019c2dabe40df1bde9f8980a9eb8f185238f8c3a8ed5e3",
+    "realism_gate_passed": true,
+    "realism_required_failures": 0,
+    "realism_metrics_passed": 13,
+    "regression_gates_passed": 37
+  }
+}

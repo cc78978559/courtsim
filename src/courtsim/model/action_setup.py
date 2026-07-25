@@ -251,9 +251,9 @@ def sample_action_setup(
         setter_options: tuple[ProbabilityOption[PlayerId | None], ...] = (
             ProbabilityOption("screen-setter:NONE", None, no_screen_probability),
             *tuple(
-                ProbabilityOption[PlayerId | None](
+                ProbabilityOption(
                     option.id,
-                    option.value,
+                    cast(PlayerId | None, option.value),
                     (1.0 - no_screen_probability) * option.weight / setter_total,
                 )
                 for option in setter_player_options

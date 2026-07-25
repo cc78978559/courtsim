@@ -16,7 +16,7 @@ class InvariantViolation(RuntimeError):
         super().__init__("; ".join(violations))
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class InvariantSuite(Generic[StateT]):
     checks: tuple[InvariantCheck[StateT], ...]
 
