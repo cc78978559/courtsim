@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0] - 2026-07-25
+
+- Add canonical multi-year player contracts with salary and term limits.
+- Add team payroll and salary-cap validation tied to roster ownership.
+- Add deterministic contract-year advancement and expiration into free agency.
+- Add ordered, atomic waiver and free-agent signing plans.
+- Add strict management JSON, payroll/action audits, and frozen contract governance.
+
 ## [0.5.0] - 2026-07-25
 
 - Add league-wide unique player ownership and configurable roster-size contracts.

@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "contract_version": "contract-v1",
+  "free_agency_version": "free-agency-v1",
+  "salary_cap": 140000000,
+  "minimum_salary": 1000000,
+  "maximum_salary": 60000000,
+  "maximum_years": 5,
+  "maximum_roster_players": 15,
+  "management_schema_version": 1
+}

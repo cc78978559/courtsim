@@ -123,3 +123,7 @@ canonical standings, season audits, and strict JSON round trips.
 The [`roster-v1` transaction layer](docs/roster-transactions-v1.md) adds league-wide player
 ownership, roster limits, effective-day team transfers, player-state continuity, legal lineup
 rebuilding, and season schema-v2 roster ledgers.
+
+The [`contract-v1 / free-agency-v1` layer](docs/contracts-and-free-agency-v1.md) adds
+multi-year contracts, salary-cap validation, deterministic expirations, canonical free-agent
+pools, atomic sign/waive plans, and strict management ledgers.
