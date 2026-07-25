@@ -115,3 +115,7 @@ penalties, and technical free throws. The promoted probability baseline remains
 The opt-in [`rotation-v1 / fatigue-v1` layer](docs/rotations-and-fatigue-v1.md) adds full
 rosters, clock-addressed rotations, canonical substitution and player-seconds ledgers, bounded
 fatigue/recovery, and explicit ability feedback without changing the frozen probability baseline.
+
+The [`season-v1 / injury-v1` layer](docs/season-and-injuries-v1.md) adds validated multi-team
+schedules, persistent fatigue, deterministic injuries and returns, availability-safe rotations,
+canonical standings, season audits, and strict JSON round trips.

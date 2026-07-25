@@ -16,6 +16,7 @@ from courtsim.cli import DEFAULT_MODEL_PARAMETERS, DEFAULT_MODEL_SCHEMA
 from courtsim.parameters import load_model_parameters
 from courtsim.rotations import FATIGUE_VERSION, ROTATION_VERSION, FatigueConfig
 from courtsim.rules import GameRules
+from courtsim.season import INJURY_VERSION, SEASON_VERSION, SeasonConfig
 
 ROOT = Path(__file__).resolve().parents[1]
 RELEASE_PATH = ROOT / "governance" / "current-release.json"
@@ -33,11 +34,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "engine_version",
         "rules",
         "rotation_fatigue",
+        "season_injury",
         "model",
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 3
+    assert release["format_version"] == 4
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -82,6 +84,32 @@ def test_current_release_registry_is_complete_and_verified() -> None:
             "bench_recovery_per_second": FatigueConfig().bench_recovery_per_second,
             "maximum_ability_penalty": FatigueConfig().maximum_ability_penalty,
             "maximum_fatigue": FatigueConfig().maximum_fatigue,
+        },
+    }
+    season_registry = release["season_injury"]
+    assert set(season_registry) == {
+        "season_version",
+        "injury_version",
+        "path",
+        "file_sha256",
+        "source_pull_request",
+    }
+    assert season_registry["source_pull_request"] == 25
+    season_path = ROOT / season_registry["path"]
+    season_config = json.loads(season_path.read_text(encoding="utf-8"))
+    assert _sha256(season_path) == season_registry["file_sha256"]
+    assert season_registry["season_version"] == SEASON_VERSION
+    assert season_registry["injury_version"] == INJURY_VERSION
+    assert season_config == {
+        "format_version": 1,
+        "season_version": SEASON_VERSION,
+        "injury": {
+            "version": SeasonConfig().version,
+            "injury_probability_bps": SeasonConfig().injury_probability_bps,
+            "minimum_days_out": SeasonConfig().minimum_days_out,
+            "maximum_days_out": SeasonConfig().maximum_days_out,
+            "daily_fatigue_recovery": SeasonConfig().daily_fatigue_recovery,
+            "forfeit_score": SeasonConfig().forfeit_score,
         },
     }
 

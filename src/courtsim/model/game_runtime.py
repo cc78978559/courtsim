@@ -397,6 +397,7 @@ def sample_game(
     trace_mode: TraceMode = TraceMode.FULL,
     rules: GameRules | None = None,
     fatigue_config: FatigueConfig | None = None,
+    initial_fatigue: Mapping[int, int] | None = None,
 ) -> GameSample:
     if home.team_id == away.team_id:
         raise ValueError("home and away team ids must be distinct")
@@ -419,7 +420,22 @@ def sample_game(
     team_fouls = {home.team_id: 0, away.team_id: 0}
     final_two_minute_fouls = {home.team_id: 0, away.team_id: 0}
     player_fouls = {player_id: 0 for player_id in home.roster_order + away.roster_order}
-    fatigue = {player_id: 0 for player_id in home.roster_order + away.roster_order}
+    roster_ids = home.roster_order + away.roster_order
+    if initial_fatigue is not None and fatigue_config is None:
+        raise ValueError("initial_fatigue requires fatigue_config")
+    if initial_fatigue is not None and set(initial_fatigue) != set(roster_ids):
+        raise ValueError("initial_fatigue must cover both active game rosters exactly")
+    fatigue = {
+        player_id: initial_fatigue[player_id] if initial_fatigue is not None else 0
+        for player_id in roster_ids
+    }
+    if fatigue_config is not None and any(
+        not isinstance(value, int)
+        or isinstance(value, bool)
+        or not 0 <= value <= fatigue_config.maximum_fatigue
+        for value in fatigue.values()
+    ):
+        raise ValueError("initial fatigue values must be within the configured range")
     bonus_foul_threshold = _bonus_foul_threshold(parameters)
     game_strategy_config = late_game_strategy_config(parameters)
 

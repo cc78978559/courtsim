@@ -8,11 +8,12 @@ statistics ledger rather than continuous court physics.
 
 ## Current versions
 
-- Engine release candidate: `0.3.0`.
+- Engine release candidate: `0.4.0`.
 - Latest mechanics: schema `demo-v1.12`, parameters `demo-1.4.0`.
 - Frozen realism baseline: `demo-1.4.0`.
 - Game rules: `nba-v1`.
 - Rotation and fatigue state: `rotation-v1 / fatigue-v1`.
+- Season and injury state: `season-v1 / injury-v1`.
 
 The latest mechanics are now the formal baseline after a complete independent
 100-game event audit, realism scoring, manifest verification, and regression-gate
@@ -30,6 +31,8 @@ promotion.
   substitution resolution, possession-level active lineups, and derived player seconds.
 - Bounded active-load fatigue, bench recovery, explicit ability feedback, fatigue snapshots,
   and rotation/fatigue audits.
+- Deterministic multi-team schedules, cross-game fatigue recovery, player availability,
+  injuries and return dates, forfeits, standings, season audits, and strict season JSON.
 - Canonical JSONL event ledgers, replay, SHA-256 manifests, and statistics attribution.
 - Parallel deterministic batches, resumable experiment matrices, paired-seed
   counterfactuals, multi-seed robustness checks, and realism/regression gates.
@@ -40,7 +43,7 @@ promotion.
 
 - Ruff formatting and lint: passed.
 - mypy strict: passed.
-- pytest: 290 passed; one Windows symlink test skipped when link privileges are absent.
+- pytest: 299 passed; one Windows symlink test skipped when link privileges are absent.
 - Coverage: 85%, meeting the required minimum of 85%.
 - Runtime dependencies: Python standard library only.
 - Frozen `demo-1.4.0` audit: 10 core realism targets, 3 free-throw targets, and
@@ -55,11 +58,9 @@ Run the complete local gate with:
 
 ## Known gaps
 
-- Injuries and availability across games.
 - Broader offensive vocabulary and stronger player-level usage calibration.
 - Multi-team and player-level real-data calibration beyond the current selected targets.
-- Season schedule, roster management, transactions, development, and fantasy-manager
-  gameplay.
+- Roster management, transactions, development, playoffs, and fantasy-manager gameplay.
 
 ## Repository boundary
 
