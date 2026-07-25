@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0] - 2026-07-25
+
+- Add immutable, validated multi-team schedules with stable game identifiers.
+- Carry bounded fatigue between games and apply deterministic off-day recovery.
+- Add isolated deterministic injury rolls, availability, return dates, and injury-safe rotations.
+- Derive canonical forfeits, standings, season audits, and strict season JSON artifacts.
+
 ## [0.3.0] - 2026-07-25
 
 - Add full-roster identity and active-lineup contracts.
