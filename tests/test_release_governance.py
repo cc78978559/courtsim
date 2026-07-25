@@ -13,6 +13,12 @@ from courtsim.analysis.realism_targets import (
     score_audit_against_realism_targets,
 )
 from courtsim.cli import DEFAULT_MODEL_PARAMETERS, DEFAULT_MODEL_SCHEMA
+from courtsim.management import (
+    CONTRACT_VERSION,
+    FREE_AGENCY_VERSION,
+    MANAGEMENT_SCHEMA_VERSION,
+    ContractRules,
+)
 from courtsim.parameters import load_model_parameters
 from courtsim.rosters import ROSTER_VERSION, RosterRules
 from courtsim.rotations import FATIGUE_VERSION, ROTATION_VERSION, FatigueConfig
@@ -42,11 +48,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "rotation_fatigue",
         "season_injury",
         "roster_transactions",
+        "contracts_free_agency",
         "model",
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 5
+    assert release["format_version"] == 6
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -137,6 +144,31 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "minimum_players": RosterRules().minimum_players,
         "maximum_players": RosterRules().maximum_players,
         "season_schema_version": SEASON_SCHEMA_VERSION,
+    }
+    management_registry = release["contracts_free_agency"]
+    assert set(management_registry) == {
+        "contract_version",
+        "free_agency_version",
+        "path",
+        "file_sha256",
+        "source_pull_request",
+    }
+    assert management_registry["source_pull_request"] == 37
+    management_path = ROOT / management_registry["path"]
+    management_config = json.loads(management_path.read_text(encoding="utf-8"))
+    assert _sha256(management_path) == management_registry["file_sha256"]
+    assert management_registry["contract_version"] == CONTRACT_VERSION
+    assert management_registry["free_agency_version"] == FREE_AGENCY_VERSION
+    assert management_config == {
+        "format_version": 1,
+        "contract_version": CONTRACT_VERSION,
+        "free_agency_version": FREE_AGENCY_VERSION,
+        "salary_cap": ContractRules().salary_cap,
+        "minimum_salary": ContractRules().minimum_salary,
+        "maximum_salary": ContractRules().maximum_salary,
+        "maximum_years": ContractRules().maximum_years,
+        "maximum_roster_players": ContractRules().maximum_roster_players,
+        "management_schema_version": MANAGEMENT_SCHEMA_VERSION,
     }
 
     model = release["model"]
