@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.0] - 2026-07-25
+
+- Add full-roster identity and active-lineup contracts.
+- Add deterministic clock-addressed rotation schedules and canonical substitution events.
+- Derive player seconds from possession lineups and serialize the complete ledger with game schema
+  v2 while retaining v1 decoding.
+- Add versioned, bounded fatigue load, bench recovery, explicit ability feedback, and rotation
+  audits.
+
 ## [0.2.0] - 2026-07-25
 
 - Add opt-in deterministic overtime with explicit completion and safety-limit reasons.

@@ -7,14 +7,22 @@ from dataclasses import dataclass, field, replace
 from math import exp
 from typing import Any, cast
 
-from courtsim.domain.enums import GameEndReason, LateGameDefenseMode, LateGameOffenseMode
+from courtsim.domain.enums import (
+    GameEndReason,
+    LateGameDefenseMode,
+    LateGameOffenseMode,
+    SubstitutionReason,
+)
 from courtsim.domain.game import (
     GameClockConfig,
     GamePossessionRecord,
     GameResult,
+    PlayerFatigueSnapshot,
+    PlayerPlayingTime,
+    SubstitutionRecord,
     validate_game_result,
 )
-from courtsim.domain.plans import Lineup
+from courtsim.domain.plans import Lineup, validate_lineup
 from courtsim.domain.player import PlayerProfile
 from courtsim.domain.results import offense_retains_ball
 from courtsim.model.action_setup import TeamDefenseStrategy, TeamOffenseStrategy
@@ -34,6 +42,13 @@ from courtsim.parameters import ModelParameters
 from courtsim.player_features import scalar_tendency_bias
 from courtsim.probability import ProbabilityOption, sample_probability_value
 from courtsim.randomness import RandomFrame, RandomSlot
+from courtsim.rotations import (
+    ROTATION_VERSION,
+    FatigueConfig,
+    RotationPlan,
+    fatigue_adjusted_profile,
+    update_fatigue,
+)
 from courtsim.rules import GameRules, ineligible_players, replace_ineligible_players
 from courtsim.stats.attribution import PlayerStatDelta, StatCode, attribute_possession
 
@@ -61,6 +76,7 @@ class GameTeam:
     tempo_strategy: TeamTempoStrategy = field(default_factory=TeamTempoStrategy)
     bench_profiles: tuple[PlayerProfile, ...] = ()
     substitution_order: tuple[int, ...] = ()
+    rotation_plan: RotationPlan | None = None
 
     def __post_init__(self) -> None:
         if not self.team_id.strip():
@@ -75,6 +91,15 @@ class GameTeam:
             or set(self.substitution_order) != set(roster_ids)
         ):
             raise ValueError("substitution_order must cover the complete roster exactly once")
+        if self.rotation_plan is not None:
+            unknown = {
+                player_id
+                for stint in self.rotation_plan.stints
+                for player_id in stint.lineup
+                if player_id not in roster_ids
+            }
+            if unknown:
+                raise ValueError("rotation plan contains players outside the roster")
 
     @property
     def roster_order(self) -> tuple[int, ...]:
@@ -82,8 +107,16 @@ class GameTeam:
             profile.player_id for profile in self.profiles + self.bench_profiles
         )
 
+    @property
+    def roster_profiles(self) -> tuple[PlayerProfile, ...]:
+        profiles = {profile.player_id: profile for profile in self.profiles + self.bench_profiles}
+        return tuple(profiles[player_id] for player_id in self.roster_order)
+
     def with_lineup(self, lineup: Lineup) -> GameTeam:
+        validate_lineup(lineup)
         roster = {profile.player_id: profile for profile in self.profiles + self.bench_profiles}
+        if not set(lineup) <= set(roster):
+            raise ValueError("active lineup contains a player outside the roster")
         active = cast(ProfileLineup, tuple(roster[player_id] for player_id in lineup))
         bench = tuple(
             roster[player_id] for player_id in self.roster_order if player_id not in lineup
@@ -107,6 +140,86 @@ class GameMatchups:
 class GameSample:
     result: GameResult
     possession_samples: tuple[PossessionSample, ...]
+
+
+def _substitution_records(
+    *,
+    team_id: str,
+    previous: Lineup,
+    current: Lineup,
+    period: int,
+    clock_seconds: int,
+    reason: SubstitutionReason,
+) -> tuple[SubstitutionRecord, ...]:
+    outgoing = tuple(player_id for player_id in previous if player_id not in current)
+    incoming = tuple(player_id for player_id in current if player_id not in previous)
+    if len(outgoing) != len(incoming):
+        raise ValueError("lineup transition must preserve five active players")
+    return tuple(
+        SubstitutionRecord(
+            team_id,
+            period,
+            clock_seconds,
+            reason,
+            outgoing_id,
+            incoming_id,
+        )
+        for outgoing_id, incoming_id in zip(outgoing, incoming, strict=True)
+    )
+
+
+def _scheduled_lineup(
+    team: GameTeam,
+    *,
+    period: int,
+    clock_seconds: int,
+    ineligible: frozenset[int],
+) -> tuple[GameTeam | None, tuple[SubstitutionRecord, ...]]:
+    if team.rotation_plan is None:
+        return team, ()
+    target = team.rotation_plan.target_lineup(period, clock_seconds, team.lineup)
+    legal = replace_ineligible_players(
+        active_lineup=target,
+        roster_order=team.roster_order,
+        ineligible=ineligible,
+    )
+    if legal is None:
+        return None, ()
+    records = _substitution_records(
+        team_id=team.team_id,
+        previous=team.lineup,
+        current=legal,
+        period=period,
+        clock_seconds=clock_seconds,
+        reason=SubstitutionReason.ROTATION,
+    )
+    return team.with_lineup(legal), records
+
+
+def _effective_profiles(
+    team: GameTeam,
+    fatigue: dict[int, int],
+    config: FatigueConfig | None,
+) -> ProfileLineup:
+    if config is None:
+        return team.profiles
+    return cast(
+        ProfileLineup,
+        tuple(
+            fatigue_adjusted_profile(profile, fatigue[profile.player_id], config)
+            for profile in team.profiles
+        ),
+    )
+
+
+def _fatigue_snapshots(
+    lineup: Lineup,
+    fatigue: dict[int, int],
+    enabled: bool,
+) -> tuple[PlayerFatigueSnapshot, ...]:
+    if not enabled:
+        return ()
+    return tuple(PlayerFatigueSnapshot(player_id, fatigue[player_id]) for player_id in lineup)
 
 
 def _bonus_foul_threshold(parameters: ModelParameters) -> int | None:
@@ -283,10 +396,11 @@ def sample_game(
     max_segments_per_possession: int | None = None,
     trace_mode: TraceMode = TraceMode.FULL,
     rules: GameRules | None = None,
+    fatigue_config: FatigueConfig | None = None,
 ) -> GameSample:
     if home.team_id == away.team_id:
         raise ValueError("home and away team ids must be distinct")
-    if set(home.lineup) & set(away.lineup):
+    if set(home.roster_order) & set(away.roster_order):
         raise ValueError("home and away player ids must be disjoint")
 
     score = {home.team_id: 0, away.team_id: 0}
@@ -295,6 +409,8 @@ def sample_game(
     stat_totals: dict[tuple[int, StatCode], int] = {}
     records: list[GamePossessionRecord] = []
     samples: list[PossessionSample] = []
+    substitutions: list[SubstitutionRecord] = []
+    playing_time_totals: dict[tuple[str, int], int] = {}
     offense, defense = home, away
     period = 1
     clock = config.period_seconds
@@ -303,6 +419,7 @@ def sample_game(
     team_fouls = {home.team_id: 0, away.team_id: 0}
     final_two_minute_fouls = {home.team_id: 0, away.team_id: 0}
     player_fouls = {player_id: 0 for player_id in home.roster_order + away.roster_order}
+    fatigue = {player_id: 0 for player_id in home.roster_order + away.roster_order}
     bonus_foul_threshold = _bonus_foul_threshold(parameters)
     game_strategy_config = late_game_strategy_config(parameters)
 
@@ -310,6 +427,29 @@ def sample_game(
         config.max_overtimes if config.overtime_enabled else 0
     )
     while period <= last_scheduled_period:
+        current_ineligible = (
+            ineligible_players(player_fouls, rules) if rules is not None else frozenset()
+        )
+        scheduled_home, home_substitutions = _scheduled_lineup(
+            home,
+            period=period,
+            clock_seconds=clock,
+            ineligible=current_ineligible,
+        )
+        scheduled_away, away_substitutions = _scheduled_lineup(
+            away,
+            period=period,
+            clock_seconds=clock,
+            ineligible=current_ineligible,
+        )
+        if scheduled_home is None or scheduled_away is None:
+            end_reason = GameEndReason.NO_LEGAL_LINEUP
+            break
+        home, away = scheduled_home, scheduled_away
+        substitutions.extend(home_substitutions)
+        substitutions.extend(away_substitutions)
+        offense = home if offense.team_id == home.team_id else away
+        defense = away if offense is home else home
         possession_frame = RandomFrame(
             frame.master_seed,
             replace(
@@ -384,8 +524,8 @@ def sample_game(
             parameters=parameters,
             offense_lineup=offense.lineup,
             defense_lineup=defense.lineup,
-            offense_profiles=offense.profiles,
-            defense_profiles=defense.profiles,
+            offense_profiles=_effective_profiles(offense, fatigue, fatigue_config),
+            defense_profiles=_effective_profiles(defense, fatigue, fatigue_config),
             matchups=directional_matchups,
             frame=possession_frame,
             offense_strategy=offense.offense_strategy,
@@ -427,8 +567,35 @@ def sample_game(
                 offense.team_id,
                 defense.team_id,
                 sampled.result,
+                offense.lineup,
+                defense.lineup,
+                _fatigue_snapshots(
+                    offense.lineup,
+                    fatigue,
+                    fatigue_config is not None,
+                ),
+                _fatigue_snapshots(
+                    defense.lineup,
+                    fatigue,
+                    fatigue_config is not None,
+                ),
             )
         )
+        actual_duration = clock - clock_end
+        for team in (offense, defense):
+            for player_id in team.lineup:
+                playing_key = (team.team_id, player_id)
+                playing_time_totals[playing_key] = (
+                    playing_time_totals.get(playing_key, 0) + actual_duration
+                )
+            if fatigue_config is not None:
+                fatigue = update_fatigue(
+                    fatigue,
+                    active_lineup=team.lineup,
+                    roster_order=team.roster_order,
+                    elapsed_seconds=actual_duration,
+                    config=fatigue_config,
+                )
         if trace_mode is TraceMode.FULL:
             samples.append(sampled)
         attribution = attribute_possession(
@@ -447,7 +614,16 @@ def sample_game(
             end_reason = GameEndReason.POSSESSION_TRUNCATED
             break
 
-        if rules is not None:
+        terminal_at_buzzer = (
+            clock_end == 0
+            and period >= config.regulation_periods
+            and (
+                score[home.team_id] != score[away.team_id]
+                or not config.overtime_enabled
+                or period == last_scheduled_period
+            )
+        )
+        if rules is not None and not terminal_at_buzzer:
             ineligible = ineligible_players(player_fouls, rules)
             home_lineup = replace_ineligible_players(
                 active_lineup=home.lineup,
@@ -462,6 +638,26 @@ def sample_game(
             if home_lineup is None or away_lineup is None:
                 end_reason = GameEndReason.NO_LEGAL_LINEUP
                 break
+            substitutions.extend(
+                _substitution_records(
+                    team_id=home.team_id,
+                    previous=home.lineup,
+                    current=home_lineup,
+                    period=period,
+                    clock_seconds=clock_end,
+                    reason=SubstitutionReason.FOUL_OUT,
+                )
+            )
+            substitutions.extend(
+                _substitution_records(
+                    team_id=away.team_id,
+                    previous=away.lineup,
+                    current=away_lineup,
+                    period=period,
+                    clock_seconds=clock_end,
+                    reason=SubstitutionReason.FOUL_OUT,
+                )
+            )
             home = home.with_lineup(home_lineup)
             away = away.with_lineup(away_lineup)
 
@@ -503,6 +699,25 @@ def sample_game(
         score[away.team_id],
         player_stats,
         end_reason,
+        tuple(substitutions),
+        tuple(
+            PlayerPlayingTime(team_id, player_id, seconds)
+            for (team_id, player_id), seconds in sorted(playing_time_totals.items())
+        ),
+        (
+            tuple(
+                PlayerFatigueSnapshot(player_id, value)
+                for player_id, value in sorted(fatigue.items())
+            )
+            if fatigue_config is not None
+            else ()
+        ),
+        (
+            ROTATION_VERSION
+            if home.rotation_plan is not None or away.rotation_plan is not None
+            else None
+        ),
+        fatigue_config.version if fatigue_config is not None else None,
     )
     validate_game_result(result, config, possession_duration_options(parameters))
     return GameSample(result, tuple(samples))

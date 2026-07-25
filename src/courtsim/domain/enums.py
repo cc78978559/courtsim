@@ -90,6 +90,11 @@ class TechnicalFoulType(IntEnum):
     DELAY_OF_GAME = 2
 
 
+class SubstitutionReason(IntEnum):
+    ROTATION = 0
+    FOUL_OUT = 1
+
+
 class LateGameOffenseMode(IntEnum):
     STANDARD = 0
     COMEBACK = 1

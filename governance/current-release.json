@@ -1,12 +1,19 @@
 {
-  "format_version": 2,
+  "format_version": 3,
   "status": "frozen",
-  "engine_version": "0.2.0",
+  "engine_version": "0.3.0",
   "rules": {
     "version": "nba-v1",
     "path": "governance/game-rules-nba-v1.json",
     "file_sha256": "bce4f6a6c6efc61170303010a15606131f5e8eb218daa535f6fbd0d5bab93662",
     "source_pull_request": 13
+  },
+  "rotation_fatigue": {
+    "rotation_version": "rotation-v1",
+    "fatigue_version": "fatigue-v1",
+    "path": "governance/rotation-fatigue-v1.json",
+    "file_sha256": "424667cc7fdfcf96a0e642217074583dd0a5644dd6f4a3ecc8f61e64c7857c3f",
+    "source_pull_request": 19
   },
   "model": {
     "schema_version": "demo-v1.12",

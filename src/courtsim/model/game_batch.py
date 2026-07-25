@@ -14,6 +14,8 @@ from courtsim.model.game_runtime import (
 from courtsim.model.trace_mode import TraceMode
 from courtsim.parameters import ModelParameters
 from courtsim.randomness import RandomFrame, derive_seed
+from courtsim.rotations import FatigueConfig
+from courtsim.rules import GameRules
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,6 +51,8 @@ def sample_game_batch(
     frame: RandomFrame,
     games: int,
     trace_mode: TraceMode = TraceMode.FULL,
+    rules: GameRules | None = None,
+    fatigue_config: FatigueConfig | None = None,
 ) -> GameBatchSample:
     planned_game_seeds(frame.master_seed, games)
     return sample_game_batch_indices(
@@ -60,6 +64,8 @@ def sample_game_batch(
         frame=frame,
         game_indices=tuple(range(games)),
         trace_mode=trace_mode,
+        rules=rules,
+        fatigue_config=fatigue_config,
     )
 
 
@@ -73,6 +79,8 @@ def sample_game_batch_indices(
     frame: RandomFrame,
     game_indices: tuple[int, ...],
     trace_mode: TraceMode = TraceMode.FULL,
+    rules: GameRules | None = None,
+    fatigue_config: FatigueConfig | None = None,
 ) -> GameBatchSample:
     _validate_indices(game_indices)
     seeds = tuple(derive_seed(frame.master_seed, "model-game", index) for index in game_indices)
@@ -93,6 +101,8 @@ def sample_game_batch_indices(
                 ),
             ),
             trace_mode=trace_mode,
+            rules=rules,
+            fatigue_config=fatigue_config,
         )
         for index, seed in zip(game_indices, seeds, strict=True)
     )
