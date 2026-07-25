@@ -107,3 +107,7 @@ NBA 2024-25 常规赛核心来源快照、分母映射与首次偏差报告详�
 
 投篮犯规、逐次罚球、末次罚球篮板、官方罚球目标和 `demo-0.7.0` 冻结结果详见
 [docs/foul-free-throw-calibration-v1.md](docs/foul-free-throw-calibration-v1.md)。
+Current engine work includes an opt-in, versioned [`nba-v1` complete-game rule layer](docs/complete-game-rules-v1.md):
+deterministic overtime, foul-out replacement, offensive fouls, final-two-minute team-foul
+penalties, and technical free throws. The promoted probability baseline remains
+`demo-v1.12 / demo-1.4.0`.

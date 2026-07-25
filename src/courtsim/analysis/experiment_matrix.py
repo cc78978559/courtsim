@@ -143,16 +143,28 @@ def load_experiment_matrix(path: str | Path) -> ExperimentMatrix:
     if not isinstance(clock, dict):
         raise ExperimentMatrixError("defaults.clock must be an object")
     clock = cast(dict[str, Any], clock)
-    _exact_keys(
-        clock,
-        {"regulation_periods", "period_seconds", "possession_seconds"},
-        "defaults.clock",
-    )
+    legacy_clock_keys = {"regulation_periods", "period_seconds", "possession_seconds"}
+    complete_clock_keys = legacy_clock_keys | {
+        "overtime_seconds",
+        "max_overtimes",
+        "overtime_enabled",
+    }
+    if frozenset(clock) not in {
+        frozenset(legacy_clock_keys),
+        frozenset(complete_clock_keys),
+    }:
+        raise ExperimentMatrixError(
+            f"defaults.clock keys must be exactly {sorted(legacy_clock_keys)} "
+            f"or {sorted(complete_clock_keys)}"
+        )
     try:
         clock_config = GameClockConfig(
             clock["regulation_periods"],
             clock["period_seconds"],
             clock["possession_seconds"],
+            clock.get("overtime_seconds", 300),
+            clock.get("max_overtimes", 8),
+            clock.get("overtime_enabled", False),
         )
     except (TypeError, ValueError) as error:
         raise ExperimentMatrixError("defaults.clock is invalid") from error

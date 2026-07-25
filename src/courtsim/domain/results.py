@@ -7,8 +7,10 @@ from courtsim.domain.enums import (
     ContestLevel,
     Coverage,
     CreationMode,
+    FoulTeamSide,
     PossessionEndReason,
     ShotZone,
+    TechnicalFoulType,
     TurnoverKind,
 )
 from courtsim.domain.interaction import FinisherSelection
@@ -111,6 +113,37 @@ class NonShootingFoulSegmentResult:
 
 
 @dataclass(frozen=True, slots=True)
+class OffensiveFoulSegmentResult:
+    plan: OffensivePlan
+    coverage: Coverage
+    responsible_offender_id: PlayerId
+    defender_id: PlayerId
+
+
+@dataclass(frozen=True, slots=True)
+class TechnicalFoulSegmentResult:
+    plan: OffensivePlan
+    coverage: Coverage
+    foul_type: TechnicalFoulType
+    responsible_side: FoulTeamSide
+    responsible_player_id: PlayerId | None
+    shooter_id: PlayerId
+    free_throws: tuple[bool, ...]
+    offense_retains_possession: bool
+
+    def __post_init__(self) -> None:
+        if len(self.free_throws) != 1 or not isinstance(self.free_throws[0], bool):
+            raise ValueError("a technical foul requires exactly one free throw")
+        if self.foul_type is TechnicalFoulType.PLAYER and self.responsible_player_id is None:
+            raise ValueError("a player technical requires a responsible player")
+        if (
+            self.foul_type is not TechnicalFoulType.PLAYER
+            and self.responsible_player_id is not None
+        ):
+            raise ValueError("a non-player technical cannot name a responsible player")
+
+
+@dataclass(frozen=True, slots=True)
 class MadeShotSegmentResult:
     plan: OffensivePlan
     coverage: Coverage
@@ -191,6 +224,8 @@ class ShootingFoulSegmentResult:
 ActionSegmentResult: TypeAlias = (
     TurnoverSegmentResult
     | NonShootingFoulSegmentResult
+    | OffensiveFoulSegmentResult
+    | TechnicalFoulSegmentResult
     | MadeShotSegmentResult
     | MissedShotSegmentResult
     | BlockedShotSegmentResult
@@ -253,6 +288,29 @@ def validate_action_segment_result(
             _validate_rebound(result.rebound, offense_lineup, defense_lineup)
         return
 
+    if isinstance(result, OffensiveFoulSegmentResult):
+        if result.responsible_offender_id != plan_ball_handler_id(result.plan):
+            raise ValueError("offensive foul belongs to the plan ball handler")
+        _validate_player(result.responsible_offender_id, offense_lineup, "offensive fouler")
+        _validate_player(result.defender_id, defense_lineup, "fouled defender")
+        return
+
+    if isinstance(result, TechnicalFoulSegmentResult):
+        responsible_lineup = (
+            offense_lineup if result.responsible_side is FoulTeamSide.OFFENSE else defense_lineup
+        )
+        shooter_lineup = (
+            defense_lineup if result.responsible_side is FoulTeamSide.OFFENSE else offense_lineup
+        )
+        if result.responsible_player_id is not None:
+            _validate_player(
+                result.responsible_player_id,
+                responsible_lineup,
+                "technical-foul responsible player",
+            )
+        _validate_player(result.shooter_id, shooter_lineup, "technical free-throw shooter")
+        return
+
     validate_finisher_identity(result.plan, result.selection.route, result.selection.finisher_id)
     _validate_player(result.selection.finisher_id, offense_lineup, "finisher")
     validate_zone(result.selection.route, result.zone)
@@ -284,6 +342,8 @@ def validate_action_segment_result(
 def offense_retains_ball(result: ActionSegmentResult) -> bool:
     if isinstance(result, NonShootingFoulSegmentResult):
         return not result.in_bonus or isinstance(result.rebound, OffensiveRebound)
+    if isinstance(result, TechnicalFoulSegmentResult):
+        return result.offense_retains_possession
     return isinstance(
         result,
         (MissedShotSegmentResult, BlockedShotSegmentResult, ShootingFoulSegmentResult),
@@ -309,6 +369,10 @@ def possession_end_reason(result: ActionSegmentResult) -> PossessionEndReason | 
         if not result.in_bonus:
             return None
         return PossessionEndReason.FREE_THROW_SEQUENCE
+    if isinstance(result, OffensiveFoulSegmentResult):
+        return PossessionEndReason.OFFENSIVE_FOUL
+    if isinstance(result, TechnicalFoulSegmentResult):
+        return PossessionEndReason.TECHNICAL_FREE_THROW
     if isinstance(result, ShootingFoulSegmentResult):
         return PossessionEndReason.FREE_THROW_SEQUENCE
     if isinstance(result, TurnoverSegmentResult):

@@ -14,12 +14,17 @@ class GameClockConfig:
     regulation_periods: int = 4
     period_seconds: int = 720
     possession_seconds: int = 15
+    overtime_seconds: int = 300
+    max_overtimes: int = 8
+    overtime_enabled: bool = False
 
     def __post_init__(self) -> None:
         values = (
             self.regulation_periods,
             self.period_seconds,
             self.possession_seconds,
+            self.overtime_seconds,
+            self.max_overtimes,
         )
         if any(not isinstance(value, int) or isinstance(value, bool) for value in values):
             raise ValueError("game clock values must be integers")
@@ -29,6 +34,19 @@ class GameClockConfig:
             raise ValueError("period_seconds must be positive")
         if not 1 <= self.possession_seconds <= self.period_seconds:
             raise ValueError("possession_seconds must be within the period")
+        if self.overtime_seconds < 1:
+            raise ValueError("overtime_seconds must be positive")
+        if self.possession_seconds > self.overtime_seconds:
+            raise ValueError("possession_seconds must be within overtime")
+        if self.max_overtimes < 1:
+            raise ValueError("max_overtimes must be positive")
+        if not isinstance(self.overtime_enabled, bool):
+            raise ValueError("overtime_enabled must be a boolean")
+
+    def seconds_for_period(self, period: int) -> int:
+        if period < 1:
+            raise ValueError("period must be positive")
+        return self.period_seconds if period <= self.regulation_periods else self.overtime_seconds
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,7 +72,7 @@ class GameResult:
 
     @property
     def completed(self) -> bool:
-        return self.end_reason is GameEndReason.REGULATION
+        return self.end_reason in {GameEndReason.REGULATION, GameEndReason.OVERTIME}
 
 
 def validate_game_result(
@@ -67,7 +85,7 @@ def validate_game_result(
         or any(
             not isinstance(value, int)
             or isinstance(value, bool)
-            or not 1 <= value <= config.period_seconds
+            or not 1 <= value <= max(config.period_seconds, config.overtime_seconds)
             for value in allowed_possession_seconds
         )
         or tuple(sorted(set(allowed_possession_seconds))) != allowed_possession_seconds
@@ -115,6 +133,7 @@ def validate_game_result(
         for segment in possession.result.segments:
             attribution = attribute_segment(segment)
             expected_score[possession.offense_team_id] += attribution.score_delta
+            expected_score[possession.defense_team_id] += attribution.opponent_score_delta
             for delta in attribution.player_deltas:
                 key = (delta.player_id, delta.stat)
                 expected_stats[key] = expected_stats.get(key, 0) + delta.amount
@@ -124,19 +143,34 @@ def validate_game_result(
             break
         expected_offense = expected_defense
         expected_clock = expected_end
-        if expected_clock == 0 and expected_period < config.regulation_periods:
+        if expected_clock == 0 and index < len(result.possessions) - 1:
             expected_period += 1
-            expected_clock = config.period_seconds
+            expected_clock = config.seconds_for_period(expected_period)
     last = result.possessions[-1]
     if result.end_reason is GameEndReason.POSSESSION_TRUNCATED:
         if last.result.completed:
             raise ValueError("truncated game requires a truncated final possession")
-    elif (
-        not last.result.completed
-        or last.period != config.regulation_periods
-        or last.clock_end_seconds != 0
-    ):
-        raise ValueError("regulation game must exhaust the final period")
+    elif result.end_reason is GameEndReason.NO_LEGAL_LINEUP:
+        if not last.result.completed:
+            raise ValueError("no-legal-lineup game requires a completed final possession")
+    else:
+        if not last.result.completed or last.clock_end_seconds != 0:
+            raise ValueError("completed game must exhaust its final period")
+        if result.end_reason is GameEndReason.REGULATION:
+            if last.period != config.regulation_periods:
+                raise ValueError("regulation game must end after regulation")
+            if config.overtime_enabled and result.home_score == result.away_score:
+                raise ValueError("a tied regulation game requires overtime")
+        elif result.end_reason is GameEndReason.OVERTIME:
+            if last.period <= config.regulation_periods:
+                raise ValueError("overtime game must contain an overtime period")
+            if result.home_score == result.away_score:
+                raise ValueError("a completed overtime game cannot remain tied")
+        elif result.end_reason is GameEndReason.OVERTIME_LIMIT:
+            if last.period != config.regulation_periods + config.max_overtimes:
+                raise ValueError("overtime-limit game must exhaust configured overtimes")
+            if result.home_score != result.away_score:
+                raise ValueError("overtime-limit game must remain tied")
     if (result.home_score, result.away_score) != (
         expected_score[result.home_team_id],
         expected_score[result.away_team_id],

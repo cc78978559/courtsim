@@ -87,10 +87,15 @@ def test_append_only_enum_ids_are_a_golden_contract() -> None:
         ("DEFENSIVE_REBOUND", 2),
         ("SEGMENT_LIMIT", 3),
         ("FREE_THROW_SEQUENCE", 4),
+        ("OFFENSIVE_FOUL", 5),
+        ("TECHNICAL_FREE_THROW", 6),
     ]
     assert [(item.name, item.value) for item in GameEndReason] == [
         ("REGULATION", 0),
         ("POSSESSION_TRUNCATED", 1),
+        ("OVERTIME", 2),
+        ("OVERTIME_LIMIT", 3),
+        ("NO_LEGAL_LINEUP", 4),
     ]
     assert [(item.name, item.value) for item in FinisherRoute] == [
         ("INITIATOR_SELF", 0),

@@ -372,6 +372,9 @@ def run_matrix_robustness(
                 clock_payload["regulation_periods"],
                 clock_payload["period_seconds"],
                 clock_payload["possession_seconds"],
+                clock_payload.get("overtime_seconds", 300),
+                clock_payload.get("max_overtimes", 8),
+                clock_payload.get("overtime_enabled", False),
             )
             base_seed = int(plan["seed"])
             games = int(plan["games"])

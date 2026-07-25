@@ -1,7 +1,12 @@
 {
-  "format_version": 1,
+  "format_version": 2,
   "status": "frozen",
-  "engine_version": "0.1.0",
+  "engine_version": "0.2.0",
+  "rules": {
+    "version": "nba-v1",
+    "path": "governance/game-rules-nba-v1.json",
+    "file_sha256": "bce4f6a6c6efc61170303010a15606131f5e8eb218daa535f6fbd0d5bab93662"
+  },
   "model": {
     "schema_version": "demo-v1.12",
     "schema_path": "data/model_schema_demo_v1_12.json",

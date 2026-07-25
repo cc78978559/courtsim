@@ -11,10 +11,12 @@ from courtsim.domain.results import (
     DefensiveRebound,
     MadeShotSegmentResult,
     NonShootingFoulSegmentResult,
+    OffensiveFoulSegmentResult,
     OffensiveRebound,
     PossessionResult,
     ShootingFoulSegmentResult,
     StolenTurnover,
+    TechnicalFoulSegmentResult,
     TurnoverSegmentResult,
     validate_possession_result,
 )
@@ -38,6 +40,7 @@ class StatCode(IntEnum):
     FTM = 14
     FTA = 15
     PF = 16
+    TF = 17
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,6 +55,7 @@ class StatAttribution:
     player_deltas: tuple[PlayerStatDelta, ...]
     score_delta: int
     possession_delta: int
+    opponent_score_delta: int = 0
 
 
 def attribute_segment(result: ActionSegmentResult) -> StatAttribution:
@@ -62,11 +66,28 @@ def attribute_segment(result: ActionSegmentResult) -> StatAttribution:
         totals[key] = totals.get(key, 0) + amount
 
     score_delta = 0
+    opponent_score_delta = 0
     possession_delta = 1
     if isinstance(result, TurnoverSegmentResult):
         add(result.outcome.responsible_offender_id, StatCode.TOV)
         if isinstance(result.outcome, StolenTurnover):
             add(result.outcome.stealer_id, StatCode.STL)
+    elif isinstance(result, OffensiveFoulSegmentResult):
+        add(result.responsible_offender_id, StatCode.PF)
+        add(result.responsible_offender_id, StatCode.TOV)
+    elif isinstance(result, TechnicalFoulSegmentResult):
+        free_throws_made = sum(result.free_throws)
+        add(result.shooter_id, StatCode.FTA)
+        if free_throws_made:
+            add(result.shooter_id, StatCode.FTM)
+            add(result.shooter_id, StatCode.PTS)
+            if result.responsible_side.value == 0:
+                opponent_score_delta = 1
+            else:
+                score_delta = 1
+        if result.responsible_player_id is not None:
+            add(result.responsible_player_id, StatCode.TF)
+        possession_delta = int(not result.offense_retains_possession)
     elif isinstance(result, NonShootingFoulSegmentResult):
         add(result.fouler_id, StatCode.PF)
         possession_delta = 0
@@ -158,7 +179,7 @@ def attribute_segment(result: ActionSegmentResult) -> StatAttribution:
             totals.items(), key=lambda item: (item[0][0], int(item[0][1]))
         )
     )
-    return StatAttribution(deltas, score_delta, possession_delta)
+    return StatAttribution(deltas, score_delta, possession_delta, opponent_score_delta)
 
 
 def attribute_possession(
@@ -169,9 +190,11 @@ def attribute_possession(
     validate_possession_result(result, offense_lineup, defense_lineup)
     totals: dict[tuple[int, StatCode], int] = {}
     score_delta = 0
+    opponent_score_delta = 0
     for segment in result.segments:
         attribution = attribute_segment(segment)
         score_delta += attribution.score_delta
+        opponent_score_delta += attribution.opponent_score_delta
         for delta in attribution.player_deltas:
             key = (delta.player_id, delta.stat)
             totals[key] = totals.get(key, 0) + delta.amount
@@ -181,4 +204,9 @@ def attribute_possession(
             totals.items(), key=lambda item: (item[0][0], int(item[0][1]))
         )
     )
-    return StatAttribution(deltas, score_delta, int(result.completed))
+    return StatAttribution(
+        deltas,
+        score_delta,
+        int(result.completed),
+        opponent_score_delta,
+    )

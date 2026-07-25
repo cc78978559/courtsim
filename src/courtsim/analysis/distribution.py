@@ -19,8 +19,10 @@ from courtsim.domain.results import (
     BlockedShotSegmentResult,
     MadeShotSegmentResult,
     NonShootingFoulSegmentResult,
+    OffensiveFoulSegmentResult,
     OffensiveRebound,
     ShootingFoulSegmentResult,
+    TechnicalFoulSegmentResult,
     TurnoverSegmentResult,
     offense_retains_ball,
 )
@@ -267,6 +269,21 @@ def audit_game_results(
                             offensive_rebounds += 1
                         else:
                             defensive_rebounds += 1
+                elif isinstance(segment, OffensiveFoulSegmentResult):
+                    turnovers += 1
+                    team_turnovers[offense_team] = team_turnovers.get(offense_team, 0) + 1
+                    foul_key = (offense_team, segment.responsible_offender_id)
+                    foul_counts[foul_key] = foul_counts.get(foul_key, 0) + 1
+                    team_foul_totals[offense_team] = team_foul_totals.get(offense_team, 0) + 1
+                    usage_player = segment.responsible_offender_id
+                elif isinstance(segment, TechnicalFoulSegmentResult):
+                    usage_player = segment.shooter_id
+                    free_throws_attempted += 1
+                    free_throws_made += sum(segment.free_throws)
+                    scoring_team = (
+                        defense_team if segment.responsible_side.value == 0 else offense_team
+                    )
+                    live_score[scoring_team] += sum(segment.free_throws)
                 else:
                     usage_player = segment.selection.finisher_id
                     if isinstance(segment, ShootingFoulSegmentResult):

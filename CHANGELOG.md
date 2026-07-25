@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0
+
+- Add opt-in deterministic overtime with explicit completion and safety-limit reasons.
+- Add roster-order foul-out replacement and explicit no-legal-lineup termination.
+- Add canonical offensive-foul and technical-foul events with schema-v5 compatibility.
+- Add the versioned `nba-v1` period, overtime, and final-two-minute team-foul rules.
+
 All notable user-visible changes are recorded here. CourtSim follows Semantic Versioning
 for the Python engine; model structure and parameter versions are tracked separately.
 

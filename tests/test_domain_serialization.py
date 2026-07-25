@@ -70,7 +70,7 @@ def test_representative_json_is_a_golden_contract() -> None:
     assert segment_result_to_json(RESULTS[1]) == (
         '{"assister_id":null,"contest_level":0,"coverage":1,"kind":"made_shot",'
         '"plan":{"family":0,"handler_id":1,"screener_id":5},'
-        '"schema_version":4,"selection":{"finisher_id":5,"route":2},"zone":2}'
+        '"schema_version":5,"selection":{"finisher_id":5,"route":2},"zone":2}'
     )
 
 
@@ -86,7 +86,7 @@ def test_decoder_rejects_unknown_keys_invalid_enum_and_version() -> None:
         segment_result_from_dict(raw)
 
     raw = json.loads(segment_result_to_json(RESULTS[1]))
-    raw["schema_version"] = 5
+    raw["schema_version"] = 6
     with pytest.raises(SerializationError):
         segment_result_from_dict(raw)
 
