@@ -50,6 +50,7 @@ from courtsim.season import (
     SEASON_VERSION,
     SeasonConfig,
 )
+from courtsim.trade_market import TRADE_MARKET_VERSION, TradeMarketRules
 from courtsim.trades import TRADE_VERSION, TradeRules
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -81,11 +82,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "manager_rotation",
         "trades",
         "manager_trade",
+        "trade_market",
         "model",
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 15
+    assert release["format_version"] == 16
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -349,6 +351,9 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "free_agency_engine": FREE_AGENCY_VERSION,
         "prospect_engine": PROSPECT_GENERATION_VERSION,
         "rotation_engine": MANAGER_ROTATION_VERSION,
+        "trade_engine": TRADE_VERSION,
+        "trade_market_engine": TRADE_MARKET_VERSION,
+        "trade_market_stage": "preseason-shadow",
         "playoff_safety_tiebreak": "derived-seed-v1",
         "automatic_activation": False,
     }
@@ -443,6 +448,32 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "minimum_rational_gain": manager_trade_rules.minimum_rational_gain,
         "independent_bilateral_approval": True,
         "automatic_execution": False,
+        "automatic_activation": False,
+    }
+    trade_market_registry = release["trade_market"]
+    assert set(trade_market_registry) == {
+        "trade_market_version",
+        "path",
+        "file_sha256",
+    }
+    trade_market_path = ROOT / trade_market_registry["path"]
+    trade_market_config = json.loads(trade_market_path.read_text(encoding="utf-8"))
+    assert _sha256(trade_market_path) == trade_market_registry["file_sha256"]
+    assert trade_market_registry["trade_market_version"] == TRADE_MARKET_VERSION
+    trade_market_rules = TradeMarketRules()
+    assert trade_market_config == {
+        "format_version": 1,
+        "trade_market_version": TRADE_MARKET_VERSION,
+        "trade_version": TRADE_VERSION,
+        "manager_trade_version": MANAGER_TRADE_VERSION,
+        "maximum_candidates_per_pair": trade_market_rules.maximum_candidates_per_pair,
+        "maximum_trades_per_team": trade_market_rules.maximum_trades_per_team,
+        "minimum_combined_rational_gain": trade_market_rules.minimum_combined_rational_gain,
+        "generate_pick_counteroffers": trade_market_rules.generate_pick_counteroffers,
+        "generate_player_for_pick_offers": trade_market_rules.generate_player_for_pick_offers,
+        "stable_candidate_order": True,
+        "team_and_asset_locking": True,
+        "default_mode": ManagerPolicyMode.SHADOW.name.lower(),
         "automatic_activation": False,
     }
 

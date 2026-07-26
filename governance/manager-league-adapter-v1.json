@@ -12,6 +12,9 @@
   "free_agency_engine": "free-agency-v1",
   "prospect_engine": "prospect-generation-v1",
   "rotation_engine": "manager-rotation-v1",
+  "trade_engine": "trade-v1",
+  "trade_market_engine": "trade-market-v1",
+  "trade_market_stage": "preseason-shadow",
   "playoff_safety_tiebreak": "derived-seed-v1",
   "automatic_activation": false
 }

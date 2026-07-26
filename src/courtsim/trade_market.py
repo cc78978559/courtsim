@@ -1,0 +1,353 @@
+"""Deterministic offer generation, counteroffers, and conflict-free trade clearing."""
+
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, replace
+
+from courtsim.career import CareerPlayer, DraftPickAsset
+from courtsim.management import ContractRules, LeagueManagementState
+from courtsim.manager_ai import (
+    ManagerDecisionLedger,
+    ManagerDecisionRecord,
+    ManagerPolicyMode,
+    ManagerProfile,
+)
+from courtsim.manager_trade import (
+    DEFAULT_MANAGER_TRADE_RULES,
+    ManagerTradeRules,
+    TradeShadowResult,
+    evaluate_trade_shadow,
+)
+from courtsim.trades import (
+    DEFAULT_TRADE_RULES,
+    TRADE_VERSION,
+    TradeAudit,
+    TradeOffer,
+    TradeRules,
+    apply_trade,
+    audit_trade,
+)
+
+TRADE_MARKET_VERSION = "trade-market-v1"
+
+
+@dataclass(frozen=True, slots=True)
+class TradeMarketRules:
+    maximum_candidates_per_pair: int = 64
+    maximum_trades_per_team: int = 1
+    minimum_combined_rational_gain: float = 0.001
+    generate_pick_counteroffers: bool = True
+    generate_player_for_pick_offers: bool = True
+    version: str = TRADE_MARKET_VERSION
+
+    def __post_init__(self) -> None:
+        values = (self.maximum_candidates_per_pair, self.maximum_trades_per_team)
+        if any(
+            not isinstance(value, int) or isinstance(value, bool) or value < 1 for value in values
+        ):
+            raise ValueError("trade market limits must be positive integers")
+        if self.maximum_trades_per_team != 1:
+            raise ValueError("trade-market-v1 permits one cleared trade per team")
+        if self.minimum_combined_rational_gain <= 0:
+            raise ValueError("minimum combined rational gain must be positive")
+        if self.version != TRADE_MARKET_VERSION:
+            raise ValueError(f"unsupported trade market version: {self.version}")
+
+
+DEFAULT_TRADE_MARKET_RULES = TradeMarketRules()
+
+
+@dataclass(frozen=True, slots=True)
+class TradeMarketEvaluation:
+    kind: str
+    parent_trade_id: int | None
+    shadow: TradeShadowResult
+
+    def __post_init__(self) -> None:
+        if self.kind not in {"direct", "pick-counter", "player-for-pick"}:
+            raise ValueError("unsupported trade market candidate kind")
+        if self.kind == "direct" and self.parent_trade_id is not None:
+            raise ValueError("a direct offer cannot reference a parent")
+        if self.kind != "direct" and self.parent_trade_id is None:
+            raise ValueError("a counteroffer must reference its parent")
+
+
+@dataclass(frozen=True, slots=True)
+class TradeMarketPlan:
+    offers: tuple[TradeOffer, ...]
+    version: str = TRADE_MARKET_VERSION
+
+    def __post_init__(self) -> None:
+        if self.version != TRADE_MARKET_VERSION:
+            raise ValueError("unsupported trade market plan version")
+        ids = tuple(offer.trade_id for offer in self.offers)
+        if ids != tuple(sorted(set(ids))):
+            raise ValueError("trade market plan offer ids must be ordered and unique")
+        teams = [team_id for offer in self.offers for team_id in (offer.team_a_id, offer.team_b_id)]
+        if len(teams) != len(set(teams)):
+            raise ValueError("trade market plan cannot reuse a participating team")
+
+
+@dataclass(frozen=True, slots=True)
+class TradeMarketShadowResult:
+    plan: TradeMarketPlan
+    evaluations: tuple[TradeMarketEvaluation, ...]
+    ledger: ManagerDecisionLedger
+    mode: ManagerPolicyMode = ManagerPolicyMode.SHADOW
+    version: str = TRADE_MARKET_VERSION
+
+
+@dataclass(frozen=True, slots=True)
+class TradeMarketExecution:
+    plan: TradeMarketPlan
+    initial_management: LeagueManagementState
+    initial_picks: tuple[DraftPickAsset, ...]
+    final_management: LeagueManagementState
+    final_picks: tuple[DraftPickAsset, ...]
+    audits: tuple[TradeAudit, ...]
+    trade_version: str = TRADE_VERSION
+    version: str = TRADE_MARKET_VERSION
+
+
+@dataclass(frozen=True, slots=True)
+class _RawOffer:
+    team_a_id: str
+    team_b_id: str
+    players_from_a: tuple[int, ...]
+    players_from_b: tuple[int, ...]
+    picks_from_a: tuple[int, ...]
+    picks_from_b: tuple[int, ...]
+    kind: str
+    parent_index: int | None
+
+
+def generate_trade_market_shadow(
+    *,
+    management: LeagueManagementState,
+    players: Sequence[CareerPlayer],
+    picks: tuple[DraftPickAsset, ...],
+    profiles: Mapping[str, ManagerProfile],
+    contract_rules: ContractRules,
+    trade_rules: TradeRules = DEFAULT_TRADE_RULES,
+    manager_rules: ManagerTradeRules = DEFAULT_MANAGER_TRADE_RULES,
+    market_rules: TradeMarketRules = DEFAULT_TRADE_MARKET_RULES,
+) -> TradeMarketShadowResult:
+    """Generate and independently approve a bounded, deterministic offer market."""
+    team_ids = tuple(roster.team_id for roster in management.rosters)
+    if set(profiles) != set(team_ids):
+        raise ValueError("trade market profiles must cover every team exactly")
+    if any(team_id != profile.team_id for team_id, profile in profiles.items()):
+        raise ValueError("trade market profile keys must match profile team ids")
+    raw_offers = _candidate_offers(management, picks, market_rules)
+    evaluations: list[TradeMarketEvaluation] = []
+    ledger_records: list[ManagerDecisionRecord] = []
+    direct_ids: dict[int, int] = {}
+    for index, raw in enumerate(raw_offers, start=1):
+        offer = TradeOffer(
+            index,
+            raw.team_a_id,
+            raw.team_b_id,
+            raw.players_from_a,
+            raw.players_from_b,
+            raw.picks_from_a,
+            raw.picks_from_b,
+        )
+        if raw.kind == "direct":
+            direct_ids[index - 1] = index
+        parent_trade_id = direct_ids[raw.parent_index] if raw.parent_index is not None else None
+        shadow = evaluate_trade_shadow(
+            management=management,
+            players=players,
+            picks=picks,
+            offer=offer,
+            profiles={
+                offer.team_a_id: profiles[offer.team_a_id],
+                offer.team_b_id: profiles[offer.team_b_id],
+            },
+            contract_rules=contract_rules,
+            trade_rules=trade_rules,
+            manager_rules=manager_rules,
+        )
+        evaluations.append(TradeMarketEvaluation(raw.kind, parent_trade_id, shadow))
+        for record in shadow.ledger.records:
+            ledger_records.append(replace(record, sequence=len(ledger_records) + 1))
+
+    approved = [
+        evaluation
+        for evaluation in evaluations
+        if evaluation.shadow.approved
+        and _combined_gain(evaluation.shadow) >= market_rules.minimum_combined_rational_gain
+    ]
+    approved.sort(
+        key=lambda evaluation: (
+            -_combined_gain(evaluation.shadow),
+            _offer_signature(evaluation.shadow.offer),
+        )
+    )
+    selected: list[TradeOffer] = []
+    locked_teams: set[str] = set()
+    locked_players: set[int] = set()
+    locked_picks: set[int] = set()
+    for evaluation in approved:
+        offer = evaluation.shadow.offer
+        teams = {offer.team_a_id, offer.team_b_id}
+        player_ids = set((*offer.players_from_a, *offer.players_from_b))
+        pick_ids = set((*offer.picks_from_a, *offer.picks_from_b))
+        if teams & locked_teams or player_ids & locked_players or pick_ids & locked_picks:
+            continue
+        selected.append(offer)
+        locked_teams.update(teams)
+        locked_players.update(player_ids)
+        locked_picks.update(pick_ids)
+    selected.sort(key=lambda offer: offer.trade_id)
+    return TradeMarketShadowResult(
+        TradeMarketPlan(tuple(selected)),
+        tuple(evaluations),
+        ManagerDecisionLedger(tuple(ledger_records)),
+    )
+
+
+def apply_trade_market_plan(
+    management: LeagueManagementState,
+    picks: tuple[DraftPickAsset, ...],
+    plan: TradeMarketPlan,
+    contract_rules: ContractRules,
+    trade_rules: TradeRules = DEFAULT_TRADE_RULES,
+) -> TradeMarketExecution:
+    """Replay a conflict-free approved plan through the canonical trade engine."""
+    final_management = management
+    final_picks = picks
+    audits: list[TradeAudit] = []
+    for offer in plan.offers:
+        result = apply_trade(
+            final_management,
+            final_picks,
+            offer,
+            contract_rules,
+            trade_rules,
+        )
+        audits.append(audit_trade(result))
+        final_management = result.final_management
+        final_picks = result.final_picks
+    return TradeMarketExecution(
+        plan,
+        management,
+        picks,
+        final_management,
+        final_picks,
+        tuple(audits),
+    )
+
+
+def _candidate_offers(
+    management: LeagueManagementState,
+    picks: tuple[DraftPickAsset, ...],
+    rules: TradeMarketRules,
+) -> tuple[_RawOffer, ...]:
+    rosters = {roster.team_id: roster.player_ids for roster in management.rosters}
+    picks_by_team: dict[str, list[int]] = {team_id: [] for team_id in rosters}
+    for pick in picks:
+        if pick.owner_team_id in picks_by_team:
+            picks_by_team[pick.owner_team_id].append(pick.selection_number)
+    result: list[_RawOffer] = []
+    team_ids = tuple(sorted(rosters))
+    for first_index, team_a_id in enumerate(team_ids):
+        for team_b_id in team_ids[first_index + 1 :]:
+            pair: list[_RawOffer] = []
+            for player_a in rosters[team_a_id]:
+                for player_b in rosters[team_b_id]:
+                    direct_index = len(result) + len(pair)
+                    pair.append(
+                        _RawOffer(
+                            team_a_id,
+                            team_b_id,
+                            (player_a,),
+                            (player_b,),
+                            (),
+                            (),
+                            "direct",
+                            None,
+                        )
+                    )
+                    if rules.generate_pick_counteroffers:
+                        pair.extend(
+                            _RawOffer(
+                                team_a_id,
+                                team_b_id,
+                                (player_a,),
+                                (player_b,),
+                                (pick_id,),
+                                (),
+                                "pick-counter",
+                                direct_index,
+                            )
+                            for pick_id in picks_by_team[team_a_id]
+                        )
+                        pair.extend(
+                            _RawOffer(
+                                team_a_id,
+                                team_b_id,
+                                (player_a,),
+                                (player_b,),
+                                (),
+                                (pick_id,),
+                                "pick-counter",
+                                direct_index,
+                            )
+                            for pick_id in picks_by_team[team_b_id]
+                        )
+            if rules.generate_player_for_pick_offers:
+                for player_a in rosters[team_a_id]:
+                    pair.extend(
+                        _RawOffer(
+                            team_a_id,
+                            team_b_id,
+                            (player_a,),
+                            (),
+                            (),
+                            (pick_id,),
+                            "player-for-pick",
+                            _nearest_direct_index(result, pair),
+                        )
+                        for pick_id in picks_by_team[team_b_id]
+                    )
+                for player_b in rosters[team_b_id]:
+                    pair.extend(
+                        _RawOffer(
+                            team_a_id,
+                            team_b_id,
+                            (),
+                            (player_b,),
+                            (pick_id,),
+                            (),
+                            "player-for-pick",
+                            _nearest_direct_index(result, pair),
+                        )
+                        for pick_id in picks_by_team[team_a_id]
+                    )
+            result.extend(pair[: rules.maximum_candidates_per_pair])
+    return tuple(result)
+
+
+def _nearest_direct_index(existing: list[_RawOffer], pair: list[_RawOffer]) -> int:
+    for offset in range(len(pair) - 1, -1, -1):
+        if pair[offset].kind == "direct":
+            return len(existing) + offset
+    raise ValueError("player-for-pick generation requires a direct parent")
+
+
+def _combined_gain(shadow: TradeShadowResult) -> float:
+    return sum(approval.rational_gain or 0.0 for approval in shadow.approvals)
+
+
+def _offer_signature(offer: TradeOffer) -> tuple[object, ...]:
+    return (
+        offer.team_a_id,
+        offer.team_b_id,
+        offer.players_from_a,
+        offer.players_from_b,
+        offer.picks_from_a,
+        offer.picks_from_b,
+        offer.trade_id,
+    )

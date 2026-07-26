@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.16.0] - 2026-07-26
+
+- Generate deterministic direct, pick-counter, and player-for-pick trade candidates.
+- Rank independently approved offers by combined rational gain and stable identity.
+- Lock teams, players, and picks to prevent conflicting simultaneous transactions.
+- Suppress zero-surplus trade churn and replay every cleared offer through the canonical engine.
+- Run the trade market in the Shadow arm of real multi-season league experiments.
+
 ## [0.15.0] - 2026-07-26
 
 - Add atomic bilateral trades for players, contracts, and draft-pick ownership.

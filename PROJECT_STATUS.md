@@ -8,7 +8,7 @@ statistics ledger rather than continuous court physics.
 
 ## Current versions
 
-- Engine release candidate: `0.15.0`.
+- Engine release candidate: `0.16.0`.
 - Latest mechanics: schema `demo-v1.12`, parameters `demo-1.4.0`.
 - Frozen realism baseline: `demo-1.4.0`.
 - Game rules: `nba-v1`.
@@ -28,6 +28,7 @@ statistics ledger rather than continuous court physics.
 - Annual deterministic draft classes: `prospect-generation-v1`.
 - White-box manager lineups and playing time: `manager-rotation-v1`.
 - Atomic bilateral trades and white-box approval: `trade-v1 / manager-trade-v1`.
+- Deterministic offer generation and conflict-free clearing: `trade-market-v1`.
 
 The latest mechanics are now the formal baseline after a complete independent
 100-game event audit, realism scoring, manifest verification, and regression-gate
@@ -70,6 +71,8 @@ promotion.
   official young-player playing time feeding the career loop.
 - Atomic player/contract/draft-pick trades with ownership, roster, cap, salary-matching, and
   replay gates, plus independent bilateral manager approval in Shadow mode.
+- Deterministic direct/counteroffer generation, positive-surplus ranking, asset locking, and
+  preseason Shadow-market execution inside real multi-season manager experiments.
 - Canonical JSONL event ledgers, replay, SHA-256 manifests, and statistics attribution.
 - Parallel deterministic batches, resumable experiment matrices, paired-seed
   counterfactuals, multi-seed robustness checks, and realism/regression gates.
@@ -80,7 +83,7 @@ promotion.
 
 - Ruff formatting and lint: passed.
 - mypy strict: passed.
-- pytest: 378 passed; one Windows symlink test skipped when link privileges are absent.
+- pytest: 384 passed; one Windows symlink test skipped when link privileges are absent.
 - Coverage: 85%, meeting the required minimum of 85%.
 - Runtime dependencies: Python standard library only.
 - Frozen `demo-1.4.0` audit: 10 core realism targets, 3 free-throw targets, and
@@ -97,7 +100,7 @@ Run the complete local gate with:
 
 - Broader offensive vocabulary and stronger player-level usage calibration.
 - Multi-team and player-level real-data calibration beyond the current selected targets.
-- Draft lottery/protections, scouting uncertainty, automated trade offer generation and
+- Draft lottery/protections, future-pick persistence, scouting uncertainty, multi-round trade
   negotiation, opponent-specific rotations, manager learning, playoff fatigue/injury
   continuity, human-approved promotion beyond Shadow mode, play-in/larger playoff formats,
   and fantasy-manager gameplay.

@@ -56,6 +56,7 @@ from courtsim.manager_rotation import (
     ManagerRotationRules,
     generate_manager_rotation,
 )
+from courtsim.manager_trade import ManagerTradeRules
 from courtsim.model.game_runtime import (
     GameMatchups,
     GameTeam,
@@ -93,6 +94,14 @@ from courtsim.season import (
     sample_season,
     season_result_to_dict,
 )
+from courtsim.trade_market import (
+    TradeMarketExecution,
+    TradeMarketRules,
+    TradeMarketShadowResult,
+    apply_trade_market_plan,
+    generate_trade_market_shadow,
+)
+from courtsim.trades import TradeRules
 
 MANAGER_LEAGUE_ADAPTER_VERSION = "manager-league-adapter-v1"
 
@@ -137,6 +146,9 @@ class CourtSimManagerLeagueAdapter:
     playoff_config: PlayoffConfig = field(default_factory=lambda: PlayoffConfig(1, (True,)))
     prospect_rules: ProspectGenerationRules = field(default_factory=ProspectGenerationRules)
     rotation_rules: ManagerRotationRules = field(default_factory=ManagerRotationRules)
+    trade_rules: TradeRules = field(default_factory=TradeRules)
+    manager_trade_rules: ManagerTradeRules = field(default_factory=ManagerTradeRules)
+    trade_market_rules: TradeMarketRules = field(default_factory=TradeMarketRules)
     games_per_pair: int = 2
     trace_mode: TraceMode = TraceMode.AGGREGATE_ONLY
     version: str = MANAGER_LEAGUE_ADAPTER_VERSION
@@ -178,6 +190,30 @@ class CourtSimManagerLeagueAdapter:
         profiles = {profile.team_id: profile for profile in self.manager_profiles}
         if team_ids != tuple(profiles):
             raise ManagerLeagueAdapterError("league state teams do not match manager profiles")
+
+        trade_audit: dict[str, object] | None = None
+        trade_ledger: dict[str, object] | None = None
+        if request.arm is ManagerExperimentArm.SHADOW:
+            trade_shadow = generate_trade_market_shadow(
+                management=state.management,
+                players=state.players,
+                picks=(),
+                profiles=profiles,
+                contract_rules=state.contract_rules,
+                trade_rules=self.trade_rules,
+                manager_rules=self.manager_trade_rules,
+                market_rules=self.trade_market_rules,
+            )
+            trade_execution = apply_trade_market_plan(
+                state.management,
+                (),
+                trade_shadow.plan,
+                state.contract_rules,
+                self.trade_rules,
+            )
+            state = replace(state, management=trade_execution.final_management)
+            trade_audit = _trade_market_audit(trade_shadow, trade_execution)
+            trade_ledger = asdict(trade_shadow.ledger)
 
         teams, rotation_audit = _game_teams(
             state,
@@ -237,6 +273,8 @@ class CourtSimManagerLeagueAdapter:
             career_rules=self.career_rules,
             draft_rules=self.draft_rules,
         )
+        if trade_ledger is not None:
+            manager_audit["trade"] = trade_ledger
         picks = _draft_picks(
             season,
             state,
@@ -273,12 +311,48 @@ class CourtSimManagerLeagueAdapter:
             "manager_decisions": manager_audit,
             "prospect_class": prospect_audit,
             "rotations": rotation_audit,
+            "trade_market": trade_audit,
         }
         return ManagerSeasonExecution(
             league_state_to_json(next_state),
             metrics,
             json.dumps(audit, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
         )
+
+
+def _trade_market_audit(
+    shadow: TradeMarketShadowResult,
+    execution: TradeMarketExecution,
+) -> dict[str, object]:
+    return {
+        "version": shadow.version,
+        "candidate_count": len(shadow.evaluations),
+        "approved_candidate_count": sum(
+            evaluation.shadow.approved for evaluation in shadow.evaluations
+        ),
+        "selected_offers": [asdict(offer) for offer in shadow.plan.offers],
+        "evaluations": [
+            {
+                "kind": evaluation.kind,
+                "parent_trade_id": evaluation.parent_trade_id,
+                "offer": asdict(evaluation.shadow.offer),
+                "legal": evaluation.shadow.legal,
+                "approved": evaluation.shadow.approved,
+                "hard_rejections": list(evaluation.shadow.hard_rejections),
+                "approvals": [
+                    {
+                        "team_id": approval.team_id,
+                        "manager_id": approval.manager_id,
+                        "accepted": approval.accepted,
+                        "rational_gain": approval.rational_gain,
+                    }
+                    for approval in evaluation.shadow.approvals
+                ],
+            }
+            for evaluation in shadow.evaluations
+        ],
+        "execution_audits": [asdict(audit) for audit in execution.audits],
+    }
 
 
 def league_state_to_json(state: CourtSimLeagueState) -> str:
