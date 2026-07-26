@@ -473,6 +473,7 @@ def _three_team_market_audit(
                 "kind": evaluation.kind,
                 "parent_trade_id": evaluation.parent_trade_id,
                 "negotiation_round": evaluation.negotiation_round,
+                "salary_imbalance": evaluation.salary_imbalance,
                 "offer": asdict(evaluation.shadow.offer),
                 "legal": evaluation.shadow.legal,
                 "approved": evaluation.shadow.approved,

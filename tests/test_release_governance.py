@@ -95,7 +95,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 21
+    assert release["format_version"] == 22
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -594,6 +594,9 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "maximum_negotiation_rounds": 2,
         "cyclic_orientations": 2,
         "hub_team_round_robin": True,
+        "salary_aware_hub_ordering": three_team_market_rules.salary_aware_hub_ordering,
+        "salary_imbalance_metric": "sum-absolute-net-player-salary",
+        "salary_imbalance_tiebreak": True,
         "candidate_kinds": [
             "cyclic",
             "hub",

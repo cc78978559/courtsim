@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.22.0] - 2026-07-26
+
+- Rank each hub team's bounded candidate lane by aggregate net player-salary imbalance.
+- Preserve round-robin hub coverage while prioritizing packages more likely to salary-match.
+- Record salary imbalance on every three-team evaluation and in league adapter audits.
+- Use lower salary imbalance as the stable tie-breaker between equal-gain approved offers.
+- Retain a governed switch for deterministic comparison with lexical candidate ordering.
+
 ## [0.21.0] - 2026-07-26
 
 - Add hub-and-spoke three-team packages with two incoming and two outgoing hub players.

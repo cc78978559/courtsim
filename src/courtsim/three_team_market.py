@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, replace
+from heapq import nsmallest
 from itertools import combinations, permutations, product
 
 from courtsim.career import CareerPlayer
@@ -43,6 +44,7 @@ class ThreeTeamMarketRules:
     minimum_combined_rational_gain: float = 0.001
     search_pick_compensation: bool = True
     maximum_compensation_picks: int = 2
+    salary_aware_hub_ordering: bool = True
     version: str = THREE_TEAM_MARKET_VERSION
 
     def __post_init__(self) -> None:
@@ -77,6 +79,7 @@ class ThreeTeamMarketEvaluation:
     kind: str
     parent_trade_id: int | None
     shadow: ThreeTeamTradeShadowResult
+    salary_imbalance: int = 0
 
     def __post_init__(self) -> None:
         if self.kind not in {
@@ -92,6 +95,12 @@ class ThreeTeamMarketEvaluation:
             self.parent_trade_id is None
         ):
             raise ValueError("pick compensation must reference its parent")
+        if (
+            not isinstance(self.salary_imbalance, int)
+            or isinstance(self.salary_imbalance, bool)
+            or self.salary_imbalance < 0
+        ):
+            raise ValueError("salary imbalance must be a non-negative integer")
 
     @property
     def negotiation_round(self) -> int:
@@ -155,6 +164,7 @@ def generate_three_team_market_shadow(
     if set(profiles) != set(team_ids):
         raise ValueError("three-team market profiles must cover every league team")
     rosters = {roster.team_id: roster.player_ids for roster in management.rosters}
+    salaries = {contract.player_id: contract.annual_salary for contract in management.contracts}
     evaluations: list[ThreeTeamMarketEvaluation] = []
     ledger_records: list[ManagerDecisionRecord] = []
     next_trade_id = 1
@@ -168,7 +178,13 @@ def generate_three_team_market_shadow(
             ),
             (
                 "hub",
-                _hub_routes(trio, rosters),
+                _hub_routes(
+                    trio,
+                    rosters,
+                    salaries,
+                    market_rules.maximum_hub_candidates_per_trio,
+                    market_rules.salary_aware_hub_ordering,
+                ),
                 market_rules.maximum_hub_candidates_per_trio,
             ),
         )
@@ -196,7 +212,15 @@ def generate_three_team_market_shadow(
                     trade_rules=trade_rules,
                     manager_rules=manager_rules,
                 )
-                evaluations.append(ThreeTeamMarketEvaluation(base_kind, None, shadow))
+                salary_imbalance = _salary_imbalance(routes, salaries)
+                evaluations.append(
+                    ThreeTeamMarketEvaluation(
+                        base_kind,
+                        None,
+                        shadow,
+                        salary_imbalance,
+                    )
+                )
                 _append_ledger(ledger_records, shadow)
                 trio_evaluations += 1
                 family_evaluations += 1
@@ -235,6 +259,7 @@ def generate_three_team_market_shadow(
                             ("pick-compensation" if pick_count == 1 else "multi-pick-compensation"),
                             parent_trade_id,
                             counter,
+                            salary_imbalance,
                         )
                     )
                     _append_ledger(ledger_records, counter)
@@ -252,6 +277,7 @@ def generate_three_team_market_shadow(
     approved.sort(
         key=lambda evaluation: (
             -three_team_shadow_gain(evaluation.shadow),
+            evaluation.salary_imbalance,
             _offer_signature(evaluation.shadow.offer),
         )
     )
@@ -333,8 +359,27 @@ def _cyclic_routes(
 def _hub_routes(
     trio: tuple[str, str, str],
     rosters: Mapping[str, tuple[int, ...]],
+    salaries: Mapping[int, int],
+    candidate_limit: int,
+    salary_aware: bool,
 ) -> Iterator[tuple[PlayerTradeRoute, ...]]:
-    iterators = tuple(iter(_hub_routes_for_team(trio, hub, rosters)) for hub in trio)
+    per_hub_limit = max(1, (candidate_limit + len(trio) - 1) // len(trio))
+    candidates_by_hub = []
+    for hub in trio:
+        candidates = _hub_routes_for_team(trio, hub, rosters)
+        if salary_aware:
+            ordered = nsmallest(
+                per_hub_limit,
+                candidates,
+                key=lambda routes: (
+                    _salary_imbalance(routes, salaries),
+                    tuple(_player_route_key(route) for route in routes),
+                ),
+            )
+        else:
+            ordered = list(_take(candidates, per_hub_limit))
+        candidates_by_hub.append(iter(ordered))
+    iterators = tuple(candidates_by_hub)
     active = list(iterators)
     while active:
         remaining: list[Iterator[tuple[PlayerTradeRoute, ...]]] = []
@@ -345,6 +390,16 @@ def _hub_routes(
             except StopIteration:
                 pass
         active = remaining
+
+
+def _take(
+    candidates: Iterator[tuple[PlayerTradeRoute, ...]],
+    limit: int,
+) -> Iterator[tuple[PlayerTradeRoute, ...]]:
+    for index, candidate in enumerate(candidates):
+        if index >= limit:
+            break
+        yield candidate
 
 
 def _hub_routes_for_team(
@@ -441,6 +496,18 @@ def _append_ledger(
 
 def _player_route_key(route: PlayerTradeRoute) -> tuple[str, str, int]:
     return route.from_team_id, route.to_team_id, route.player_id
+
+
+def _salary_imbalance(
+    routes: Sequence[PlayerTradeRoute],
+    salaries: Mapping[int, int],
+) -> int:
+    deltas: dict[str, int] = {}
+    for route in routes:
+        salary = salaries[route.player_id]
+        deltas[route.from_team_id] = deltas.get(route.from_team_id, 0) - salary
+        deltas[route.to_team_id] = deltas.get(route.to_team_id, 0) + salary
+    return sum(abs(delta) for delta in deltas.values())
 
 
 def _offer_signature(offer: ThreeTeamTradeOffer) -> tuple[object, ...]:

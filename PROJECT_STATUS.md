@@ -8,7 +8,7 @@ statistics ledger rather than continuous court physics.
 
 ## Current versions
 
-- Engine release candidate: `0.21.0`.
+- Engine release candidate: `0.22.0`.
 - Latest mechanics: schema `demo-v1.12`, parameters `demo-1.4.0`.
 - Frozen realism baseline: `demo-1.4.0`.
 - Game rules: `nba-v1`.
@@ -87,6 +87,8 @@ promotion.
   selection, team locking, and gain-based clearing against the bilateral market.
 - Round-robin hub-team packages and two-round, two-pick compensation chains with stable parent
   identifiers and fixed per-family search budgets.
+- Salary-aware hub candidate ordering based on aggregate net player-salary imbalance, with
+  stable low-imbalance tie-breaking and explicit audit values.
 - Canonical JSONL event ledgers, replay, SHA-256 manifests, and statistics attribution.
 - Parallel deterministic batches, resumable experiment matrices, paired-seed
   counterfactuals, multi-seed robustness checks, and realism/regression gates.
@@ -97,7 +99,7 @@ promotion.
 
 - Ruff formatting and lint: passed.
 - mypy strict: passed.
-- pytest: 410 passed; one Windows symlink test skipped when link privileges are absent.
+- pytest: 413 passed; one Windows symlink test skipped when link privileges are absent.
 - Coverage: 85%, meeting the required minimum of 85%.
 - Runtime dependencies: Python standard library only.
 - Frozen `demo-1.4.0` audit: 10 core realism targets, 3 free-throw targets, and
@@ -115,7 +117,7 @@ Run the complete local gate with:
 - Broader offensive vocabulary and stronger player-level usage calibration.
 - Multi-team and player-level real-data calibration beyond the current selected targets.
 - Full NBA lottery odds and advanced conditional-pick rules, seven-year Stepien edge cases,
-  scouting uncertainty, salary-driven package construction, three-plus-round negotiation,
+  scouting uncertainty, exception-aware salary matching, three-plus-round negotiation,
   opponent-specific rotations, manager learning, playoff fatigue/injury continuity,
   human-approved promotion beyond Shadow mode, play-in/larger playoff formats, and
   fantasy-manager gameplay.

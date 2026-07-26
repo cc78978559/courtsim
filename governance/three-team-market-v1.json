@@ -11,6 +11,9 @@
   "maximum_negotiation_rounds": 2,
   "cyclic_orientations": 2,
   "hub_team_round_robin": true,
+  "salary_aware_hub_ordering": true,
+  "salary_imbalance_metric": "sum-absolute-net-player-salary",
+  "salary_imbalance_tiebreak": true,
   "candidate_kinds": [
     "cyclic",
     "hub",

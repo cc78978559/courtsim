@@ -13,6 +13,12 @@ Cyclic and hub families each receive 32 evaluations inside a shared 64-evaluatio
 trio. Candidate generation is deterministic and lazy, so identical league state and manager
 profiles produce the same bounded offers, evaluations, and decision ledger.
 
+Within each hub team's lane, packages are ordered by aggregate salary imbalance: the sum of the
+absolute net incoming player salary for all three teams. The market retains round-robin hub
+coverage, but spends its bounded evaluations on the closest salary matches first. Salary
+imbalance is also the stable tie-breaker between equally valuable approved offers and is exposed
+in the league audit.
+
 Each candidate is evaluated by the native atomic three-team engine. It must satisfy roster,
 contract, cap, salary-matching, pick-ownership, and Stepien rules before all three white-box
 managers independently decide whether to approve it.
@@ -38,6 +44,6 @@ Incumbent mode remains unchanged, and automatic activation remains disabled.
 
 ## Current boundary
 
-Version 1 searches player cycles, two-in/two-out hub packages, and up to two compensation picks.
-Salary-driven package construction, three-plus-round bargaining, conditional conversions, and
+Version 1 searches player cycles, salary-ordered two-in/two-out hub packages, and up to two
+compensation picks. Trade exceptions, three-plus-round bargaining, conditional conversions, and
 learned opponent models remain later work.
