@@ -208,3 +208,63 @@ def _weighted(
 
 def _bounded(value: int) -> int:
     return max(-2_500, min(2_500, value))
+
+
+def manager_learning_to_dict(state: ManagerLearningState) -> dict[str, object]:
+    return {
+        "version": state.version,
+        "manager_id": state.manager_id,
+        "team_id": state.team_id,
+        "last_completed_season": state.last_completed_season,
+        "seasons_observed": state.seasons_observed,
+        "opponents": [
+            {
+                "opponent_team_id": item.opponent_team_id,
+                "games_observed": item.games_observed,
+                "offense_strength": item.offense_strength,
+                "defense_strength": item.defense_strength,
+                "pace": item.pace,
+                "three_point_rate": item.three_point_rate,
+                "rim_rate": item.rim_rate,
+            }
+            for item in state.opponents
+        ],
+    }
+
+
+def manager_learning_from_dict(value: object) -> ManagerLearningState:
+    if not isinstance(value, dict) or set(value) != {
+        "version",
+        "manager_id",
+        "team_id",
+        "last_completed_season",
+        "seasons_observed",
+        "opponents",
+    }:
+        raise ValueError("invalid manager learning object")
+    opponents_raw = value["opponents"]
+    if not isinstance(opponents_raw, list):
+        raise ValueError("manager learning opponents must be a list")
+    opponents = tuple(
+        OpponentMemory(
+            str(item["opponent_team_id"]),
+            int(item["games_observed"]),
+            int(item["offense_strength"]),
+            int(item["defense_strength"]),
+            int(item["pace"]),
+            int(item["three_point_rate"]),
+            int(item["rim_rate"]),
+        )
+        for item in opponents_raw
+        if isinstance(item, dict)
+    )
+    if len(opponents) != len(opponents_raw):
+        raise ValueError("manager learning opponents must be objects")
+    return ManagerLearningState(
+        str(value["manager_id"]),
+        str(value["team_id"]),
+        int(value["last_completed_season"]),
+        int(value["seasons_observed"]),
+        opponents,
+        str(value["version"]),
+    )

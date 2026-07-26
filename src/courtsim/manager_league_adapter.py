@@ -7,6 +7,12 @@ from collections import defaultdict
 from dataclasses import asdict, dataclass, field, fields, replace
 from typing import Any, cast
 
+from courtsim.cap_mechanics import (
+    CapLedger,
+    cap_ledger_from_dict,
+    cap_ledger_to_dict,
+    expire_cap_ledger,
+)
 from courtsim.career import (
     CareerPlayer,
     CareerRules,
@@ -66,6 +72,13 @@ from courtsim.manager_experiment import (
     ManagerSeasonMetrics,
     ManagerSeasonRequest,
 )
+from courtsim.manager_learning import (
+    ManagerLearningState,
+    OpponentObservation,
+    manager_learning_from_dict,
+    manager_learning_to_dict,
+    update_manager_learning,
+)
 from courtsim.manager_rotation import (
     ManagerRotationRules,
     generate_manager_rotation,
@@ -82,6 +95,11 @@ from courtsim.model.interaction_compiler import (
     ProfileLineup,
 )
 from courtsim.model.trace_mode import TraceMode
+from courtsim.nba_league import (
+    NBAConferenceAlignment,
+    nba_alignment_from_dict,
+    nba_alignment_to_dict,
+)
 from courtsim.parameters import ModelParameters
 from courtsim.playoffs import (
     PlayoffConfig,
@@ -145,6 +163,9 @@ class CourtSimLeagueState:
     management: LeagueManagementState
     players: tuple[CareerPlayer, ...]
     draft_assets: DraftAssetLedger = field(default_factory=DraftAssetLedger)
+    cap_ledger: CapLedger = field(default_factory=CapLedger)
+    manager_learning: tuple[ManagerLearningState, ...] = ()
+    nba_alignment: NBAConferenceAlignment | None = None
     version: str = MANAGER_LEAGUE_ADAPTER_VERSION
 
     def __post_init__(self) -> None:
@@ -172,6 +193,21 @@ class CourtSimLeagueState:
             for swap in self.draft_assets.swaps
         ):
             raise ValueError("manager league draft swaps reference unknown teams")
+        if any(item.team_id not in team_ids for item in self.cap_ledger.bird_rights) or any(
+            item.team_id not in team_ids for item in self.cap_ledger.trade_exceptions
+        ):
+            raise ValueError("manager league cap ledger references unknown teams")
+        if self.manager_learning != tuple(
+            sorted(self.manager_learning, key=lambda item: item.team_id)
+        ) or any(item.team_id not in team_ids for item in self.manager_learning):
+            raise ValueError("manager learning states must be ordered and reference league teams")
+        if len({item.team_id for item in self.manager_learning}) != len(self.manager_learning):
+            raise ValueError("manager learning states must have unique teams")
+        if self.nba_alignment is not None and (
+            set(self.nba_alignment.east_team_ids) | set(self.nba_alignment.west_team_ids)
+            != team_ids
+        ):
+            raise ValueError("NBA alignment must cover every league team exactly")
 
 
 @dataclass(frozen=True, slots=True)
@@ -400,11 +436,23 @@ class CourtSimManagerLeagueAdapter:
             contract_rules=state.contract_rules,
             draft_rules=self.draft_rules,
         )
+        next_learning = _advance_manager_learning(
+            season,
+            state.manager_learning,
+            profiles,
+            completed_season=request.season_year,
+        )
         next_state = CourtSimLeagueState(
             state.contract_rules,
             offseason.final_management,
             offseason.final_players,
             draft_settlement.final_ledger,
+            expire_cap_ledger(
+                state.cap_ledger,
+                season_year=offseason.final_management.season_year,
+            ),
+            next_learning,
+            state.nba_alignment,
         )
         metrics = _manager_metrics(season, playoffs, next_state)
         audit = {
@@ -419,6 +467,7 @@ class CourtSimManagerLeagueAdapter:
             "trade_market": trade_audit,
             "three_team_market": three_team_audit,
             "trade_clearing_choice": trade_clearing_choice,
+            "manager_learning": [manager_learning_to_dict(item) for item in next_learning],
             "draft_assets": asdict(draft_settlement),
             "draft_lottery": asdict(draft_lottery),
         }
@@ -529,11 +578,16 @@ def league_state_to_json(state: CourtSimLeagueState) -> str:
         )
     )
     payload = {
-        "schema_version": 2,
+        "schema_version": 3,
         "version": state.version,
         "management": management,
         "players": [_career_player_to_dict(player) for player in state.players],
         "draft_assets": draft_asset_ledger_to_dict(state.draft_assets),
+        "cap_ledger": cap_ledger_to_dict(state.cap_ledger),
+        "manager_learning": [manager_learning_to_dict(item) for item in state.manager_learning],
+        "nba_alignment": (
+            nba_alignment_to_dict(state.nba_alignment) if state.nba_alignment is not None else None
+        ),
     }
     return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
@@ -543,13 +597,29 @@ def league_state_from_json(payload: str) -> CourtSimLeagueState:
         value: object = json.loads(payload)
         raw = _object(value, "manager league state")
         schema_version = raw.get("schema_version")
-        expected_keys = (
-            {"schema_version", "version", "management", "players"}
-            if schema_version == 1
-            else {"schema_version", "version", "management", "players", "draft_assets"}
-        )
+        if schema_version == 1:
+            expected_keys = {"schema_version", "version", "management", "players"}
+        elif schema_version == 2:
+            expected_keys = {
+                "schema_version",
+                "version",
+                "management",
+                "players",
+                "draft_assets",
+            }
+        else:
+            expected_keys = {
+                "schema_version",
+                "version",
+                "management",
+                "players",
+                "draft_assets",
+                "cap_ledger",
+                "manager_learning",
+                "nba_alignment",
+            }
         _exact(raw, expected_keys, "manager league state")
-        if schema_version not in {1, 2} or raw["version"] != MANAGER_LEAGUE_ADAPTER_VERSION:
+        if schema_version not in {1, 2, 3} or raw["version"] != MANAGER_LEAGUE_ADAPTER_VERSION:
             raise ManagerLeagueAdapterError("unsupported manager league state")
         market = market_result_from_dict(raw["management"])
         if market.actions or market.initial_state != market.final_state:
@@ -563,7 +633,28 @@ def league_state_from_json(payload: str) -> CourtSimLeagueState:
             if schema_version == 1
             else draft_asset_ledger_from_dict(raw["draft_assets"])
         )
-        return CourtSimLeagueState(market.rules, market.final_state, players, draft_assets)
+        cap_ledger = cap_ledger_from_dict(raw["cap_ledger"]) if schema_version == 3 else CapLedger()
+        if schema_version == 3:
+            learning_raw = raw["manager_learning"]
+            if not isinstance(learning_raw, list):
+                raise ManagerLeagueAdapterError("manager learning must be a list")
+            manager_learning = tuple(manager_learning_from_dict(item) for item in learning_raw)
+            alignment_raw = raw["nba_alignment"]
+            nba_alignment = (
+                nba_alignment_from_dict(alignment_raw) if alignment_raw is not None else None
+            )
+        else:
+            manager_learning = ()
+            nba_alignment = None
+        return CourtSimLeagueState(
+            market.rules,
+            market.final_state,
+            players,
+            draft_assets,
+            cap_ledger,
+            manager_learning,
+            nba_alignment,
+        )
     except (KeyError, TypeError, ValueError) as error:
         if isinstance(error, ManagerLeagueAdapterError):
             raise
@@ -598,11 +689,11 @@ def _ensure_annual_prospects(
         existing_player_ids=frozenset(player.player_id for player in state.players),
         rules=rules,
     )
-    updated = CourtSimLeagueState(
-        state.contract_rules,
-        state.management,
-        tuple(sorted((*state.players, *generated.players), key=lambda item: item.player_id)),
-        state.draft_assets,
+    updated = replace(
+        state,
+        players=tuple(
+            sorted((*state.players, *generated.players), key=lambda item: item.player_id)
+        ),
     )
     return updated, prospect_class_to_dict(generated)
 
@@ -638,6 +729,71 @@ def _round_robin_schedule(
                 game_id += 1
                 day += 1
     return SeasonSchedule(team_ids, tuple(games))
+
+
+def _advance_manager_learning(
+    season: SeasonResult,
+    existing: tuple[ManagerLearningState, ...],
+    profiles: dict[str, ManagerProfile],
+    *,
+    completed_season: int,
+) -> tuple[ManagerLearningState, ...]:
+    existing_by_team = {item.team_id: item for item in existing}
+    result = []
+    for team_id in sorted(profiles):
+        totals: dict[str, list[int]] = defaultdict(lambda: [0, 0, 0])
+        for record in season.games:
+            scheduled = record.scheduled_game
+            if scheduled.home_team_id == team_id:
+                opponent = scheduled.away_team_id
+                team_points, opponent_points = record.home_score, record.away_score
+            elif scheduled.away_team_id == team_id:
+                opponent = scheduled.home_team_id
+                team_points, opponent_points = record.away_score, record.home_score
+            else:
+                continue
+            totals[opponent][0] += 1
+            totals[opponent][1] += opponent_points
+            totals[opponent][2] += team_points
+        observations = tuple(
+            OpponentObservation(
+                opponent,
+                values[0],
+                _bounded_rating(values[1] // max(1, values[0]) // 2),
+                _bounded_rating(100 - values[2] // max(1, values[0]) // 2),
+                _bounded_rating((values[1] + values[2]) // max(1, values[0]) // 4),
+                50,
+                50,
+            )
+            for opponent, values in sorted(totals.items())
+        )
+        profile = profiles[team_id]
+        prior = existing_by_team.get(
+            team_id,
+            ManagerLearningState(
+                profile.manager_id,
+                team_id,
+                completed_season - 1,
+            ),
+        )
+        if prior.manager_id != profile.manager_id:
+            prior = ManagerLearningState(
+                profile.manager_id,
+                team_id,
+                completed_season - 1,
+            )
+        result.append(
+            update_manager_learning(
+                prior,
+                observations,
+                completed_season=completed_season,
+            )
+        )
+    return tuple(result)
+
+
+def _bounded_rating(value: int) -> int:
+    return max(0, min(100, value))
 
 
 def _game_teams(

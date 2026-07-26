@@ -13,5 +13,7 @@
   "maximum_adjustment_bps": 2500,
   "rotation_integration": true,
   "white_box_contributions": true,
+  "league_state_persistence": true,
+  "automatic_season_observations": true,
   "automatic_activation": false
 }

@@ -1,7 +1,7 @@
 {
-  "format_version": 26,
+  "format_version": 27,
   "status": "frozen",
-  "engine_version": "0.26.0",
+  "engine_version": "0.27.0",
   "rules": {
     "version": "nba-v1",
     "path": "governance/game-rules-nba-v1.json",
@@ -67,7 +67,7 @@
   "manager_league_adapter": {
     "manager_league_adapter_version": "manager-league-adapter-v1",
     "path": "governance/manager-league-adapter-v1.json",
-    "file_sha256": "f57c36858932c77d3fb7f6caaf32bd37e6b191fe977943889b4241fdc07e52f4"
+    "file_sha256": "6a7bc42098feeeccfd78b5ae899ff5a51d95c65f215455a17302abc537067906"
   },
   "prospect_generation": {
     "prospect_generation_version": "prospect-generation-v1",
@@ -97,7 +97,7 @@
   "draft_assets": {
     "draft_asset_version": "draft-asset-v1",
     "path": "governance/draft-assets-v1.json",
-    "file_sha256": "9a7780f5227a396ae234c2789e2178e6f815deed4e55f3e6480130b384bbb375"
+    "file_sha256": "0ae73f7a47e0d20bef9fefd5600e9b0962b2ad325a8aafeea326acfcb748ca4a"
   },
   "draft_lottery": {
     "draft_lottery_version": "draft-lottery-v1",
@@ -122,17 +122,17 @@
   "cap_mechanics": {
     "cap_mechanics_version": "cap-mechanics-v1",
     "path": "governance/cap-mechanics-v1.json",
-    "file_sha256": "d55dbd810eb5ce1f6891f31de9a4cced817e58213e3fa1b535c51512bfae2027"
+    "file_sha256": "e79821ddc4cbe01b01b9d7e69b87ef9398006b1c26955168cd7b9afecf2d85d5"
   },
   "nba_league": {
     "nba_league_version": "nba-league-v1",
     "path": "governance/nba-league-v1.json",
-    "file_sha256": "5f62cfaf7640ca7cc3612b87a982f4711db59a7152c2a2b4586d1ad5729d7995"
+    "file_sha256": "3aad3eaf1eb62ec30d8e12399eeedc11513a2d052a3b9f1d364c719a6ad1482c"
   },
   "manager_learning": {
     "manager_learning_version": "manager-learning-v1",
     "path": "governance/manager-learning-v1.json",
-    "file_sha256": "f3e04bcf8944535ea65dc8f6880bf6d6eaf776efd2d80c1fdb559041df627705"
+    "file_sha256": "9c14d076ae299a181776882fbd05f758bc8b59c92a3059d4c9611a012224596f"
   },
   "model": {
     "schema_version": "demo-v1.12",

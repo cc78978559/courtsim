@@ -103,7 +103,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 26
+    assert release["format_version"] == 27
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -376,7 +376,9 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "trade_clearing": "highest-combined-rational-gain",
         "bilateral_tie_preference": True,
         "draft_asset_engine": DRAFT_ASSET_VERSION,
-        "league_state_schema_version": 2,
+        "league_state_schema_version": 3,
+        "legacy_state_schema_versions": [1, 2],
+        "advanced_state": ["cap-ledger", "manager-learning", "nba-alignment"],
         "future_pick_horizon": 3,
         "draft_lottery_engine": DRAFT_LOTTERY_VERSION,
         "draft_lottery_stage": "postseason-first-round",
@@ -524,7 +526,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "format_version": 1,
         "draft_asset_version": DRAFT_ASSET_VERSION,
         "schema_version": DRAFT_ASSET_SCHEMA_VERSION,
-        "league_state_schema_version": 2,
+        "league_state_schema_version": 3,
         "future_year_horizon": 3,
         "supported_protection": "top-n",
         "protection_rollover": True,
@@ -660,6 +662,8 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "exception_lifetime_years": cap_rules.exception_lifetime_years,
         "exception_aggregation": False,
         "atomic_exception_ledger": True,
+        "league_state_persistence": True,
+        "season_expiry_transition": True,
     }
     nba_registry = release["nba_league"]
     nba_path = ROOT / nba_registry["path"]
@@ -679,6 +683,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "playoff_series": 15,
         "series_best_of": 7,
         "deterministic_schedule": True,
+        "conference_alignment_persistence": True,
         "derived_bracket_validation": True,
     }
     learning_registry = release["manager_learning"]
@@ -701,6 +706,8 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "maximum_adjustment_bps": 2500,
         "rotation_integration": True,
         "white_box_contributions": True,
+        "league_state_persistence": True,
+        "automatic_season_observations": True,
         "automatic_activation": False,
     }
 

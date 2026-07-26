@@ -155,11 +155,13 @@ def test_adapter_runs_real_season_playoffs_and_offseason_deterministically() -> 
         "draft_lottery",
         "three_team_market",
         "trade_clearing_choice",
+        "manager_learning",
     }
     assert audit["prospect_class"] is None
     assert audit["trade_market"] is None
     assert audit["three_team_market"] is None
     assert audit["trade_clearing_choice"] is None
+    assert len(audit["manager_learning"]) == 4
     assert audit["draft_assets"]["draft_year"] == 2029
     assert len(audit["draft_lottery"]["draws"]) == 2
     assert audit["playoffs"]["champion_team_id"] in TEAM_IDS

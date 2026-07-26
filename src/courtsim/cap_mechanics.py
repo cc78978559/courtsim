@@ -281,3 +281,70 @@ def expire_cap_ledger(ledger: CapLedger, *, season_year: int) -> CapLedger:
             item for item in ledger.trade_exceptions if item.expires_after_season >= season_year
         ),
     )
+
+
+def cap_ledger_to_dict(ledger: CapLedger) -> dict[str, object]:
+    return {
+        "version": ledger.version,
+        "next_exception_id": ledger.next_exception_id,
+        "bird_rights": [
+            {
+                "team_id": item.team_id,
+                "player_id": item.player_id,
+                "consecutive_seasons": item.consecutive_seasons,
+                "previous_salary": item.previous_salary,
+            }
+            for item in ledger.bird_rights
+        ],
+        "trade_exceptions": [
+            {
+                "exception_id": item.exception_id,
+                "team_id": item.team_id,
+                "remaining_amount": item.remaining_amount,
+                "expires_after_season": item.expires_after_season,
+            }
+            for item in ledger.trade_exceptions
+        ],
+    }
+
+
+def cap_ledger_from_dict(value: object) -> CapLedger:
+    if not isinstance(value, dict) or set(value) != {
+        "version",
+        "next_exception_id",
+        "bird_rights",
+        "trade_exceptions",
+    }:
+        raise ValueError("invalid cap ledger object")
+    rights_raw = value["bird_rights"]
+    exceptions_raw = value["trade_exceptions"]
+    if not isinstance(rights_raw, list) or not isinstance(exceptions_raw, list):
+        raise ValueError("cap ledger collections must be lists")
+    rights = tuple(
+        BirdRights(
+            str(item["team_id"]),
+            int(item["player_id"]),
+            int(item["consecutive_seasons"]),
+            int(item["previous_salary"]),
+        )
+        for item in rights_raw
+        if isinstance(item, dict)
+    )
+    exceptions = tuple(
+        TradeException(
+            int(item["exception_id"]),
+            str(item["team_id"]),
+            int(item["remaining_amount"]),
+            int(item["expires_after_season"]),
+        )
+        for item in exceptions_raw
+        if isinstance(item, dict)
+    )
+    if len(rights) != len(rights_raw) or len(exceptions) != len(exceptions_raw):
+        raise ValueError("cap ledger entries must be objects")
+    return CapLedger(
+        rights,
+        exceptions,
+        int(value["next_exception_id"]),
+        str(value["version"]),
+    )

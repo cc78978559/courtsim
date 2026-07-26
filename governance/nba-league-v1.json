@@ -10,5 +10,6 @@
   "playoff_series": 15,
   "series_best_of": 7,
   "deterministic_schedule": true,
+  "conference_alignment_persistence": true,
   "derived_bracket_validation": true
 }

@@ -8,3 +8,6 @@ Trade salary matching uses small, medium, and large outgoing-salary tiers. A leg
 trade can create an expiring exception; later transactions may consume it partially. Exceptions
 cannot be aggregated with outgoing salary, expired exceptions are rejected, and all changes
 return a new immutable ledger.
+
+The complete cap ledger is stored in manager league schema 3. Advancing a real adapter season
+automatically removes exceptions that have passed their governed expiry season.

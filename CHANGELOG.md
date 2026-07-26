@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.27.0] - 2026-07-26
+
+- Upgrade manager league saves to schema 3 with cap, learning, and NBA alignment state.
+- Preserve read compatibility with schema 1 and 2 saves through deterministic empty migration.
+- Serialize Bird rights and trade exceptions and expire exceptions during season transitions.
+- Persist per-manager opponent memories and automatically append games-weighted season observations.
+- Preserve optional thirty-team conference alignment through exact league-state round trips.
+
 ## [0.26.0] - 2026-07-26
 
 - Hide true prospect potential behind deterministic, team-specific field-level scouting reports.

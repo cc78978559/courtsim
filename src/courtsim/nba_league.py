@@ -25,6 +25,51 @@ class NBARegularSeasonRules:
 
 
 @dataclass(frozen=True, slots=True)
+class NBAConferenceAlignment:
+    east_team_ids: tuple[str, ...]
+    west_team_ids: tuple[str, ...]
+    version: str = NBA_LEAGUE_VERSION
+
+    def __post_init__(self) -> None:
+        if (
+            len(self.east_team_ids) != 15
+            or len(self.west_team_ids) != 15
+            or self.east_team_ids != tuple(sorted(set(self.east_team_ids)))
+            or self.west_team_ids != tuple(sorted(set(self.west_team_ids)))
+            or set(self.east_team_ids) & set(self.west_team_ids)
+        ):
+            raise ValueError("NBA alignment requires two distinct ordered 15-team conferences")
+        if self.version != NBA_LEAGUE_VERSION:
+            raise ValueError("unsupported NBA alignment version")
+
+
+def nba_alignment_to_dict(value: NBAConferenceAlignment) -> dict[str, object]:
+    return {
+        "version": value.version,
+        "east_team_ids": list(value.east_team_ids),
+        "west_team_ids": list(value.west_team_ids),
+    }
+
+
+def nba_alignment_from_dict(value: object) -> NBAConferenceAlignment:
+    if not isinstance(value, dict) or set(value) != {
+        "version",
+        "east_team_ids",
+        "west_team_ids",
+    }:
+        raise ValueError("invalid NBA alignment object")
+    east = value["east_team_ids"]
+    west = value["west_team_ids"]
+    if (
+        not isinstance(east, list)
+        or not isinstance(west, list)
+        or any(not isinstance(item, str) for item in (*east, *west))
+    ):
+        raise ValueError("NBA alignment teams must be string lists")
+    return NBAConferenceAlignment(tuple(east), tuple(west), str(value["version"]))
+
+
+@dataclass(frozen=True, slots=True)
 class PlayInGame:
     game_number: int
     home_team_id: str
