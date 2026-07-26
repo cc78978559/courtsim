@@ -1,3 +1,4 @@
+from dataclasses import replace
 from typing import cast
 
 from test_game_runtime import PARAMETERS, player
@@ -45,7 +46,30 @@ def test_executor_runs_complete_nba_path_deterministically() -> None:
     assert len(first.east_play_in.games) == 3
     assert len(first.west_play_in.games) == 3
     assert len(first.postseason.series) == 15
+    assert first.postseason_state.initial_player_states == first.season.final_player_states
+    assert len(first.postseason_state.games) >= 66
+    assert all(
+        game.day < following.day
+        for game, following in zip(
+            first.postseason_state.games,
+            first.postseason_state.games[1:],
+            strict=False,
+        )
+    )
     assert first.summary.team_count == 30
     assert first.summary.games == 1_230
     assert first.summary.champion_seed is not None
     assert executor("nba-season", 20260726) == first.summary
+
+    injury_run = replace(
+        executor,
+        season_config=SeasonConfig(
+            injury_probability_bps=10_000,
+            minimum_days_out=2,
+            maximum_days_out=2,
+        ),
+    ).execute("injury-season", 77)
+    assert injury_run.postseason_state.injuries
+    assert any(
+        game.home_unavailable or game.away_unavailable for game in injury_run.postseason_state.games
+    )

@@ -118,7 +118,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 41
+    assert release["format_version"] == 42
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -1004,8 +1004,15 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "postseason_decisive_retry_limit": 100,
         "deterministic_addressed_randomness": True,
         "league_unique_player_ids": True,
-        "postseason_fatigue_continuity": False,
-        "postseason_injury_continuity": False,
+        "postseason_fatigue_continuity": True,
+        "postseason_injury_continuity": True,
+        "postseason_new_injuries": True,
+        "default_postseason_rest_days": 2,
+        "default_game_rest_days": 1,
+        "default_round_rest_days": 2,
+        "postseason_game_availability_ledger": True,
+        "postseason_initial_final_state_audit": True,
+        "deterministic_forfeit_resolution": True,
     }
 
     model = release["model"]

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.42.0] - 2026-07-26
+
+- Carry regular-season fatigue and unresolved injuries into the 30-team postseason.
+- Recover player fatigue and availability using explicit postseason calendar days.
+- Generate deterministic play-in and playoff injuries that affect later games.
+- Record postseason scores, unavailable players, forfeits, and bracket addresses.
+- Retain auditable initial and final postseason player-state snapshots.
+
 ## [0.41.0] - 2026-07-26
 
 - Add a callable 30-team quick-simulation executor.

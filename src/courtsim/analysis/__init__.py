@@ -46,6 +46,8 @@ from courtsim.analysis.distribution import (
 from courtsim.analysis.nba_quick_sim_executor import (
     NBAQuickSimExecution,
     NBAQuickSimExecutor,
+    NBAQuickSimPostseasonGame,
+    NBAQuickSimPostseasonState,
 )
 from courtsim.analysis.nba_reference import (
     NbaReferenceError,
@@ -105,6 +107,8 @@ __all__ = [
     "DistributionAudit",
     "NBAQuickSimExecution",
     "NBAQuickSimExecutor",
+    "NBAQuickSimPostseasonGame",
+    "NBAQuickSimPostseasonState",
     "NbaReferenceError",
     "PlayerFoulShare",
     "PlayerUsageShare",
