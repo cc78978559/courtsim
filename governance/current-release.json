@@ -1,7 +1,7 @@
 {
-  "format_version": 33,
+  "format_version": 34,
   "status": "frozen",
-  "engine_version": "0.33.0",
+  "engine_version": "0.34.0",
   "rules": {
     "version": "nba-v1",
     "path": "governance/game-rules-nba-v1.json",
@@ -53,6 +53,11 @@
     "path": "governance/manager-ai-v1.json",
     "file_sha256": "b6617b516a2e7beabd5c1b2f97923004d8a06d90494d131859d00dbec1f2dce5"
   },
+  "manager_authority": {
+    "manager_authority_version": "manager-authority-v1",
+    "path": "governance/manager-authority-v1.json",
+    "file_sha256": "4ea16f596dbdd0693c2c142c4e96789b1ed81bbab1407bebcc062f1338fd0fa7"
+  },
   "manager_evidence": {
     "manager_evidence_version": "manager-evidence-v1",
     "release_registry_version": "manager-release-registry-v1",
@@ -67,7 +72,7 @@
   "manager_league_adapter": {
     "manager_league_adapter_version": "manager-league-adapter-v1",
     "path": "governance/manager-league-adapter-v1.json",
-    "file_sha256": "6a5b5723141cfecd554fde4fd7c0eef78d9a35e4e9501a468d48431e63feb002"
+    "file_sha256": "e149d8e2464ce01302309b03e4a1232a2628faf21306ca8cc629559ac482e4d6"
   },
   "prospect_generation": {
     "prospect_generation_version": "prospect-generation-v1",

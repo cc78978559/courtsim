@@ -1,0 +1,24 @@
+{
+  "format_version": 1,
+  "manager_authority_version": "manager-authority-v1",
+  "canonical_stages": [
+    "draft",
+    "free-agency",
+    "trade",
+    "rotation",
+    "tactics"
+  ],
+  "default_stage_modes": {
+    "draft": "shadow",
+    "free-agency": "shadow",
+    "trade": "shadow",
+    "rotation": "active",
+    "tactics": "active"
+  },
+  "shadow_execution_scope": "isolated-experiment-only",
+  "assist_execution_requirement": "human-approval",
+  "active_execution": "authorized",
+  "unauthorized_execution_rejected": true,
+  "canonical_execution_receipts": true,
+  "automatic_activation": false
+}

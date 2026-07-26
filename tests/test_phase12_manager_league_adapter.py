@@ -144,6 +144,7 @@ def test_adapter_runs_real_season_playoffs_and_offseason_deterministically() -> 
     assert set(audit) == {
         "adapter_version",
         "arm",
+        "manager_authority",
         "season",
         "playoffs",
         "postseason_continuity",

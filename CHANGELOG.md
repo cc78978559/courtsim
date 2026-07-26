@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.34.0] - 2026-07-26
+
+- Add one canonical Shadow, Assist, and Active authority model for manager stages.
+- Register draft, free agency, trade, rotation, and tactics in canonical stage order.
+- Restrict Shadow execution to isolated experiments and Assist execution to human approval.
+- Reject execution receipts that claim an unauthorized recommendation was applied.
+- Add complete per-stage authority and execution receipts to manager league audits.
+
 ## [0.33.0] - 2026-07-26
 
 - Derive automatic opponent observations from canonical possession and shot-event ledgers.

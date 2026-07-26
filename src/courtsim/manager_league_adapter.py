@@ -75,6 +75,12 @@ from courtsim.manager_ai import (
     generate_draft_shadow,
     generate_market_shadow,
 )
+from courtsim.manager_authority import (
+    ManagerDecisionStage,
+    default_manager_authority_policy,
+    manager_authority_to_dict,
+    manager_execution_receipt,
+)
 from courtsim.manager_experiment import (
     ManagerExperimentArm,
     ManagerSeasonExecution,
@@ -344,6 +350,7 @@ class CourtSimManagerLeagueAdapter:
         trade_clearing_choice: str | None = None
         trade_ledger: dict[str, object] | None = None
         three_team_ledger: dict[str, object] | None = None
+        trade_recommendations = 0
         if request.arm is ManagerExperimentArm.SHADOW:
             trade_shadow = generate_trade_market_shadow(
                 management=state.management,
@@ -374,6 +381,7 @@ class CourtSimManagerLeagueAdapter:
             three_team_plan = (
                 three_team_shadow.plan if choose_three_team else ThreeTeamMarketPlan(())
             )
+            trade_recommendations = len(bilateral_plan.offers) + len(three_team_plan.offers)
             trade_execution = apply_trade_market_plan(
                 state.management,
                 state.draft_assets.picks,
@@ -487,7 +495,7 @@ class CourtSimManagerLeagueAdapter:
             lottery_rules=self.lottery_rules,
         )
         picks = draft_settlement.picks
-        draft_plan, market_plan, manager_audit = _offseason_plans(
+        draft_plan, market_plan, manager_audit, offseason_authority = _offseason_plans(
             state,
             summaries,
             profiles,
@@ -539,9 +547,63 @@ class CourtSimManagerLeagueAdapter:
             state.nba_alignment,
         )
         metrics = _manager_metrics(season, playoffs, next_state)
+        authority_policy = default_manager_authority_policy()
+        isolated_shadow = request.arm is ManagerExperimentArm.SHADOW
+        tactical_recommendations = sum(
+            matchup["tactics"] is not None
+            for team in rotation_audit.values()
+            for matchup in cast(
+                dict[str, dict[str, object]],
+                cast(dict[str, object], team)["opponents"],
+            ).values()
+        )
+        authority_receipts = (
+            manager_execution_receipt(
+                authority_policy,
+                ManagerDecisionStage.DRAFT,
+                evaluated=bool(offseason_authority["draft_evaluated"]),
+                recommendation_count=int(offseason_authority["draft_recommendations"]),
+                executed_count=int(offseason_authority["draft_executed"]),
+                isolated_shadow=isolated_shadow,
+            ),
+            manager_execution_receipt(
+                authority_policy,
+                ManagerDecisionStage.FREE_AGENCY,
+                evaluated=bool(offseason_authority["market_evaluated"]),
+                recommendation_count=int(offseason_authority["market_recommendations"]),
+                executed_count=int(offseason_authority["market_executed"]),
+                isolated_shadow=isolated_shadow,
+            ),
+            manager_execution_receipt(
+                authority_policy,
+                ManagerDecisionStage.TRADE,
+                evaluated=isolated_shadow,
+                recommendation_count=trade_recommendations,
+                executed_count=trade_recommendations,
+                isolated_shadow=isolated_shadow,
+            ),
+            manager_execution_receipt(
+                authority_policy,
+                ManagerDecisionStage.ROTATION,
+                evaluated=True,
+                recommendation_count=len(teams),
+                executed_count=len(teams),
+            ),
+            manager_execution_receipt(
+                authority_policy,
+                ManagerDecisionStage.TACTICS,
+                evaluated=True,
+                recommendation_count=tactical_recommendations,
+                executed_count=tactical_recommendations,
+            ),
+        )
         audit = {
             "adapter_version": self.version,
             "arm": request.arm.name.lower(),
+            "manager_authority": manager_authority_to_dict(
+                authority_policy,
+                authority_receipts,
+            ),
             "season": season_result_to_dict(season),
             "playoffs": playoff_result_to_dict(playoffs),
             "postseason_continuity": _postseason_audit(postseason),
@@ -1592,7 +1654,7 @@ def _offseason_plans(
     scouting_rules: ScoutingRules,
     cap_ledger: CapLedger,
     cap_rules: CapMechanicsRules,
-) -> tuple[DraftPlan, MarketPlan, dict[str, object]]:
+) -> tuple[DraftPlan, MarketPlan, dict[str, object], dict[str, int | bool]]:
     management, players = _transition_preview(
         state,
         summaries,
@@ -1600,6 +1662,14 @@ def _offseason_plans(
         career_rules=career_rules,
     )
     decision_audit: dict[str, object] = {}
+    authority: dict[str, int | bool] = {
+        "draft_evaluated": False,
+        "draft_recommendations": 0,
+        "draft_executed": 0,
+        "market_evaluated": False,
+        "market_recommendations": 0,
+        "market_executed": 0,
+    }
     if arm is ManagerExperimentArm.SHADOW and picks:
         scouting_reports = generate_scouting_reports(
             prospects=tuple(player for player in players if player.status is CareerStatus.PROSPECT),
@@ -1620,6 +1690,9 @@ def _offseason_plans(
             },
         )
         draft_plan = shadow_draft.plan
+        authority["draft_evaluated"] = True
+        authority["draft_recommendations"] = len(shadow_draft.plan.selections)
+        authority["draft_executed"] = len(shadow_draft.plan.selections)
         decision_audit["draft"] = asdict(shadow_draft.ledger)
         decision_audit["scouting"] = scouting_reports_to_dict(scouting_reports)
     else:
@@ -1649,6 +1722,9 @@ def _offseason_plans(
             cap_ledger,
             cap_rules,
         )
+        authority["market_evaluated"] = True
+        authority["market_recommendations"] = len(shadow_market.plan.actions)
+        authority["market_executed"] = len(shadow_market.plan.actions)
         decision_audit["market"] = asdict(shadow_market.ledger)
     else:
         market_plan = _ensure_playable_market(
@@ -1659,7 +1735,7 @@ def _offseason_plans(
             cap_ledger,
             cap_rules,
         )
-    return draft_plan, market_plan, decision_audit
+    return draft_plan, market_plan, decision_audit, authority
 
 
 def _incumbent_draft_plan(

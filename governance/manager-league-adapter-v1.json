@@ -1,6 +1,8 @@
 {
   "format_version": 1,
   "manager_league_adapter_version": "manager-league-adapter-v1",
+  "manager_authority_engine": "manager-authority-v1",
+  "manager_authority_receipts": true,
   "team_count": 4,
   "schedule": "round-robin",
   "paired_common_random_numbers": true,

@@ -31,6 +31,7 @@ from courtsim.management import (
     ContractRules,
 )
 from courtsim.manager_ai import MANAGER_AI_VERSION, ManagerPolicyMode
+from courtsim.manager_authority import MANAGER_AUTHORITY_VERSION, ManagerDecisionStage
 from courtsim.manager_evaluation import (
     MANAGER_EVIDENCE_VERSION,
     MANAGER_RELEASE_REGISTRY_VERSION,
@@ -83,6 +84,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "playoffs",
         "career_draft",
         "manager_ai",
+        "manager_authority",
         "manager_evidence",
         "manager_experiment",
         "manager_league_adapter",
@@ -103,7 +105,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 33
+    assert release["format_version"] == 34
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -301,6 +303,47 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "style_contribution_limit": 0.04,
         "supported_stages": ["draft", "market"],
     }
+    authority_registry = release["manager_authority"]
+    assert set(authority_registry) == {
+        "manager_authority_version",
+        "path",
+        "file_sha256",
+    }
+    authority_path = ROOT / authority_registry["path"]
+    authority_config = json.loads(authority_path.read_text(encoding="utf-8"))
+    assert _sha256(authority_path) == authority_registry["file_sha256"]
+    assert authority_registry["manager_authority_version"] == MANAGER_AUTHORITY_VERSION
+    assert authority_config == {
+        "format_version": 1,
+        "manager_authority_version": MANAGER_AUTHORITY_VERSION,
+        "canonical_stages": [
+            "draft",
+            "free-agency",
+            "trade",
+            "rotation",
+            "tactics",
+        ],
+        "default_stage_modes": {
+            "draft": ManagerPolicyMode.SHADOW.name.lower(),
+            "free-agency": ManagerPolicyMode.SHADOW.name.lower(),
+            "trade": ManagerPolicyMode.SHADOW.name.lower(),
+            "rotation": ManagerPolicyMode.ACTIVE.name.lower(),
+            "tactics": ManagerPolicyMode.ACTIVE.name.lower(),
+        },
+        "shadow_execution_scope": "isolated-experiment-only",
+        "assist_execution_requirement": "human-approval",
+        "active_execution": "authorized",
+        "unauthorized_execution_rejected": True,
+        "canonical_execution_receipts": True,
+        "automatic_activation": False,
+    }
+    assert tuple(ManagerDecisionStage) == (
+        ManagerDecisionStage.DRAFT,
+        ManagerDecisionStage.FREE_AGENCY,
+        ManagerDecisionStage.TRADE,
+        ManagerDecisionStage.ROTATION,
+        ManagerDecisionStage.TACTICS,
+    )
     evidence_registry = release["manager_evidence"]
     assert set(evidence_registry) == {
         "manager_evidence_version",
@@ -369,6 +412,8 @@ def test_current_release_registry_is_complete_and_verified() -> None:
     assert adapter_config == {
         "format_version": 1,
         "manager_league_adapter_version": MANAGER_LEAGUE_ADAPTER_VERSION,
+        "manager_authority_engine": MANAGER_AUTHORITY_VERSION,
+        "manager_authority_receipts": True,
         "team_count": 4,
         "schedule": "round-robin",
         "paired_common_random_numbers": True,

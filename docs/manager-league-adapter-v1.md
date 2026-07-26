@@ -18,6 +18,10 @@ The adapter state contains:
 - full immutable player profiles, potential, development traits, age, draft history, injury
   burden, and career status.
 
+Every execution also emits `manager-authority-v1` receipts for draft, free agency, trade,
+rotation, and tactics. These distinguish isolated Shadow execution from canonical Active
+runtime policy and reject any reported execution that lacks authority.
+
 State JSON is strict and deterministic. Management snapshots reuse the existing audited
 management serializer. Every experiment arm carries its own returned state into the following
 season.
