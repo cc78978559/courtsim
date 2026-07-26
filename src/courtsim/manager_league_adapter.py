@@ -52,6 +52,10 @@ from courtsim.manager_experiment import (
     ManagerSeasonMetrics,
     ManagerSeasonRequest,
 )
+from courtsim.manager_rotation import (
+    ManagerRotationRules,
+    generate_manager_rotation,
+)
 from courtsim.model.game_runtime import (
     GameMatchups,
     GameTeam,
@@ -132,6 +136,7 @@ class CourtSimManagerLeagueAdapter:
     game_rules: GameRules = field(default_factory=GameRules)
     playoff_config: PlayoffConfig = field(default_factory=lambda: PlayoffConfig(1, (True,)))
     prospect_rules: ProspectGenerationRules = field(default_factory=ProspectGenerationRules)
+    rotation_rules: ManagerRotationRules = field(default_factory=ManagerRotationRules)
     games_per_pair: int = 2
     trace_mode: TraceMode = TraceMode.AGGREGATE_ONLY
     version: str = MANAGER_LEAGUE_ADAPTER_VERSION
@@ -174,7 +179,12 @@ class CourtSimManagerLeagueAdapter:
         if team_ids != tuple(profiles):
             raise ManagerLeagueAdapterError("league state teams do not match manager profiles")
 
-        teams = _game_teams(state)
+        teams, rotation_audit = _game_teams(
+            state,
+            profiles,
+            self.game_config,
+            self.rotation_rules,
+        )
         schedule = _round_robin_schedule(team_ids, self.games_per_pair)
         season_seed = derive_seed(
             request.master_seed,
@@ -262,6 +272,7 @@ class CourtSimManagerLeagueAdapter:
             "offseason": offseason_result_to_dict(offseason),
             "manager_decisions": manager_audit,
             "prospect_class": prospect_audit,
+            "rotations": rotation_audit,
         }
         return ManagerSeasonExecution(
             league_state_to_json(next_state),
@@ -366,9 +377,15 @@ def _round_robin_schedule(
     return SeasonSchedule(team_ids, tuple(games))
 
 
-def _game_teams(state: CourtSimLeagueState) -> tuple[GameTeam, ...]:
+def _game_teams(
+    state: CourtSimLeagueState,
+    manager_profiles: dict[str, ManagerProfile],
+    game_config: GameClockConfig,
+    rotation_rules: ManagerRotationRules,
+) -> tuple[tuple[GameTeam, ...], dict[str, object]]:
     player_map = {player.player_id: player for player in state.players}
     teams: list[GameTeam] = []
+    audit: dict[str, object] = {}
     for roster in state.management.rosters:
         if len(roster.player_ids) < 5:
             raise ManagerLeagueAdapterError("league roster has fewer than five playable players")
@@ -376,18 +393,36 @@ def _game_teams(state: CourtSimLeagueState) -> tuple[GameTeam, ...]:
             profiles = tuple(player_map[player_id].profile for player_id in roster.player_ids)
         except KeyError as error:
             raise ManagerLeagueAdapterError("league roster references an unknown player") from error
-        lineup = cast(tuple[int, int, int, int, int], roster.player_ids[:5])
-        active = cast(ProfileLineup, profiles[:5])
+        rotation = generate_manager_rotation(
+            team_id=roster.team_id,
+            roster=tuple(player_map[player_id] for player_id in roster.player_ids),
+            profile=manager_profiles[roster.team_id],
+            game_config=game_config,
+            rules=rotation_rules,
+        )
+        profile_map = {profile.player_id: profile for profile in profiles}
+        lineup = rotation.lineup
+        active = cast(
+            ProfileLineup,
+            tuple(profile_map[player_id] for player_id in lineup),
+        )
+        bench = tuple(
+            profile_map[player_id]
+            for player_id in rotation.substitution_order
+            if player_id not in lineup
+        )
         teams.append(
             GameTeam(
                 roster.team_id,
                 lineup,
                 active,
-                bench_profiles=profiles[5:],
-                substitution_order=roster.player_ids,
+                bench_profiles=bench,
+                substitution_order=rotation.substitution_order,
+                rotation_plan=rotation.plan,
             )
         )
-    return tuple(teams)
+        audit[roster.team_id] = asdict(rotation)
+    return tuple(teams), audit
 
 
 def _matchups(home: GameTeam, away: GameTeam) -> GameMatchups:

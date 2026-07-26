@@ -36,6 +36,7 @@ from courtsim.manager_evaluation import (
 )
 from courtsim.manager_experiment import MANAGER_EXPERIMENT_VERSION
 from courtsim.manager_league_adapter import MANAGER_LEAGUE_ADAPTER_VERSION
+from courtsim.manager_rotation import MANAGER_ROTATION_VERSION, ManagerRotationRules
 from courtsim.parameters import load_model_parameters
 from courtsim.playoffs import PLAYOFF_SCHEMA_VERSION, PLAYOFF_VERSION, PlayoffConfig
 from courtsim.prospects import PROSPECT_GENERATION_VERSION, ProspectGenerationRules
@@ -75,11 +76,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "manager_experiment",
         "manager_league_adapter",
         "prospect_generation",
+        "manager_rotation",
         "model",
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 13
+    assert release["format_version"] == 14
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -342,6 +344,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "contract_engine": CONTRACT_VERSION,
         "free_agency_engine": FREE_AGENCY_VERSION,
         "prospect_engine": PROSPECT_GENERATION_VERSION,
+        "rotation_engine": MANAGER_ROTATION_VERSION,
         "playoff_safety_tiebreak": "derived-seed-v1",
         "automatic_activation": False,
     }
@@ -369,6 +372,28 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "player_id_base": prospect_rules.player_id_base,
         "field_level_potential": True,
         "addressed_randomness": True,
+    }
+    rotation_registry = release["manager_rotation"]
+    assert set(rotation_registry) == {
+        "manager_rotation_version",
+        "path",
+        "file_sha256",
+    }
+    rotation_path = ROOT / rotation_registry["path"]
+    rotation_config = json.loads(rotation_path.read_text(encoding="utf-8"))
+    assert _sha256(rotation_path) == rotation_registry["file_sha256"]
+    assert rotation_registry["manager_rotation_version"] == MANAGER_ROTATION_VERSION
+    rotation_rules = ManagerRotationRules()
+    assert rotation_config == {
+        "format_version": 1,
+        "manager_rotation_version": MANAGER_ROTATION_VERSION,
+        "maximum_rotation_players": rotation_rules.maximum_rotation_players,
+        "segments_per_period": rotation_rules.segments_per_period,
+        "reasonable_band": 0.08,
+        "style_contribution_limit": 0.04,
+        "clock_addressed": True,
+        "emergency_substitutes_retained": True,
+        "development_feedback": True,
     }
 
     model = release["model"]

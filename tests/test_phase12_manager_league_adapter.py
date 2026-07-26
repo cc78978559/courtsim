@@ -148,10 +148,12 @@ def test_adapter_runs_real_season_playoffs_and_offseason_deterministically() -> 
         "offseason",
         "manager_decisions",
         "prospect_class",
+        "rotations",
     }
     assert audit["prospect_class"] is None
     assert audit["playoffs"]["champion_team_id"] in TEAM_IDS
     assert len(audit["offseason"]["selections"]) == 4
+    assert set(audit["rotations"]) == set(TEAM_IDS)
     following = adapter()(
         replace(
             request(ManagerExperimentArm.INCUMBENT),
@@ -163,6 +165,13 @@ def test_adapter_runs_real_season_playoffs_and_offseason_deterministically() -> 
     following_audit = json.loads(following.audit_payload)
     assert following_audit["prospect_class"]["draft_year"] == 2030
     assert len(following_audit["offseason"]["selections"]) == 4
+    playing_ids = {
+        item["player_id"]
+        for game in following_audit["season"]["games"]
+        if game["result"] is not None
+        for item in game["result"]["playing_time"]
+    }
+    assert {100, 101, 102, 103} <= playing_ids
 
 
 def test_shadow_uses_white_box_draft_and_market_ledgers() -> None:

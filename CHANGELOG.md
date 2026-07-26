@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.0] - 2026-07-26
+
+- Add white-box starter and rotation-player selection with bounded manager personality.
+- Add clock-addressed legal lineup segments, complete substitution order, and target seconds.
+- Preserve non-rotation roster players as emergency substitutes.
+- Apply manager rotations to regular-season and playoff teams in real league experiments.
+- Feed official rookie and bench playing time back into career growth and retirement summaries.
+
 ## [0.13.0] - 2026-07-26
 
 - Add deterministic annual prospect classes with reserved stable player identities.

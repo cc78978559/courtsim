@@ -22,6 +22,10 @@ State JSON is strict and deterministic. Management snapshots reuse the existing 
 management serializer. Every experiment arm carries its own returned state into the following
 season.
 
+Before each season, `manager-rotation-v1` converts every roster and manager profile into
+starters, a normal rotation group, emergency depth and an official clock-addressed plan. These
+plans are used by both the regular-season and playoff game samplers.
+
 When the state has no waiting prospects, `prospect-generation-v1` adds an identical addressed
 class to both policy arms for the following draft. A supplied complete class is preserved.
 
@@ -72,7 +76,6 @@ These values feed `manager-evidence-v1`; they are not simulation-level overall r
 
 - Version 1 supports four teams and a generated round-robin schedule.
 - Playoff fatigue and injuries do not yet carry between playoff games.
-- Default lineups use the first five roster entries; a manager-driven rotation layer is not yet
-  included.
+- Rotations are season-level and do not yet adapt to opponents or playoff series.
 - Trades, lottery/protections, negotiation, scouting uncertainty, and owner objectives remain
   outside the adapter.

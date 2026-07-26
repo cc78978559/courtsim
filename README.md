@@ -155,3 +155,7 @@ white-box manager decisions, and complete next-season league state.
 The [`prospect-generation-v1` layer](docs/prospect-generation-v1.md) creates identical,
 address-stable annual draft classes for both manager-policy arms, with field-level abilities,
 potential and development traits.
+
+The [`manager-rotation-v1` layer](docs/manager-rotation-v1.md) turns manager preferences into
+auditable starters, rotation groups, substitution order and clock-addressed playing time, so
+young-player minutes feed back into career development.
