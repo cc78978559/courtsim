@@ -29,7 +29,7 @@ from courtsim.career import (
     offseason_result_to_dict,
 )
 from courtsim.domain.game import GameClockConfig
-from courtsim.domain.player import AbilityRatings
+from courtsim.domain.player import AbilityRatings, PlayerProfile
 from courtsim.domain.player_serialization import (
     player_profile_from_dict,
     player_profile_to_dict,
@@ -77,9 +77,11 @@ from courtsim.manager_learning import (
     OpponentObservation,
     manager_learning_from_dict,
     manager_learning_to_dict,
+    opponent_rotation_adjustment,
     update_manager_learning,
 )
 from courtsim.manager_rotation import (
+    ManagerRotationResult,
     ManagerRotationRules,
     generate_manager_rotation,
 )
@@ -350,7 +352,7 @@ class CourtSimManagerLeagueAdapter:
             trade_ledger = asdict(trade_shadow.ledger)
             three_team_ledger = asdict(three_team_shadow.ledger)
 
-        teams, rotation_audit = _game_teams(
+        teams, rotation_audit, matchup_teams = _game_teams(
             state,
             profiles,
             self.game_config,
@@ -379,10 +381,15 @@ class CourtSimManagerLeagueAdapter:
             season_config=self.season_config,
             roster_rules=roster_rules,
             trace_mode=self.trace_mode,
+            team_resolver=lambda scheduled, _: (
+                matchup_teams[(scheduled.home_team_id, scheduled.away_team_id)],
+                matchup_teams[(scheduled.away_team_id, scheduled.home_team_id)],
+            ),
         )
         playoffs = _sample_playoffs(
             season,
             teams,
+            matchup_teams=matchup_teams,
             request=request,
             parameters=self.parameters,
             game_config=self.game_config,
@@ -801,10 +808,16 @@ def _game_teams(
     manager_profiles: dict[str, ManagerProfile],
     game_config: GameClockConfig,
     rotation_rules: ManagerRotationRules,
-) -> tuple[tuple[GameTeam, ...], dict[str, object]]:
+) -> tuple[
+    tuple[GameTeam, ...],
+    dict[str, object],
+    dict[tuple[str, str], GameTeam],
+]:
     player_map = {player.player_id: player for player in state.players}
     teams: list[GameTeam] = []
     audit: dict[str, object] = {}
+    matchup_teams: dict[tuple[str, str], GameTeam] = {}
+    learning = {item.team_id: item for item in state.manager_learning}
     for roster in state.management.rosters:
         if len(roster.player_ids) < 5:
             raise ManagerLeagueAdapterError("league roster has fewer than five playable players")
@@ -812,36 +825,78 @@ def _game_teams(
             profiles = tuple(player_map[player_id].profile for player_id in roster.player_ids)
         except KeyError as error:
             raise ManagerLeagueAdapterError("league roster references an unknown player") from error
-        rotation = generate_manager_rotation(
+        career_roster = tuple(player_map[player_id] for player_id in roster.player_ids)
+        base_rotation = generate_manager_rotation(
             team_id=roster.team_id,
-            roster=tuple(player_map[player_id] for player_id in roster.player_ids),
+            roster=career_roster,
             profile=manager_profiles[roster.team_id],
             game_config=game_config,
             rules=rotation_rules,
         )
-        profile_map = {profile.player_id: profile for profile in profiles}
-        lineup = rotation.lineup
-        active = cast(
-            ProfileLineup,
-            tuple(profile_map[player_id] for player_id in lineup),
-        )
-        bench = tuple(
-            profile_map[player_id]
-            for player_id in rotation.substitution_order
-            if player_id not in lineup
-        )
-        teams.append(
-            GameTeam(
-                roster.team_id,
-                lineup,
-                active,
-                bench_profiles=bench,
-                substitution_order=rotation.substitution_order,
-                rotation_plan=rotation.plan,
+        base_team = _game_team_from_rotation(roster.team_id, profiles, base_rotation)
+        teams.append(base_team)
+        opponent_audit: dict[str, object] = {}
+        for opponent_team_id in sorted(
+            team_id for team_id in manager_profiles if team_id != roster.team_id
+        ):
+            adjustment = (
+                opponent_rotation_adjustment(
+                    learning[roster.team_id],
+                    opponent_team_id,
+                )
+                if roster.team_id in learning
+                else None
             )
-        )
-        audit[roster.team_id] = asdict(rotation)
-    return tuple(teams), audit
+            rotation = (
+                base_rotation
+                if adjustment is None
+                else generate_manager_rotation(
+                    team_id=roster.team_id,
+                    roster=career_roster,
+                    profile=manager_profiles[roster.team_id],
+                    game_config=game_config,
+                    rules=rotation_rules,
+                    opponent_adjustment=adjustment,
+                )
+            )
+            matchup_teams[(roster.team_id, opponent_team_id)] = _game_team_from_rotation(
+                roster.team_id, profiles, rotation
+            )
+            opponent_audit[opponent_team_id] = {
+                "adjustment": asdict(adjustment) if adjustment is not None else None,
+                "rotation": asdict(rotation),
+            }
+        audit[roster.team_id] = {
+            "base": asdict(base_rotation),
+            "opponents": opponent_audit,
+        }
+    return tuple(teams), audit, matchup_teams
+
+
+def _game_team_from_rotation(
+    team_id: str,
+    profiles: tuple[PlayerProfile, ...],
+    rotation: ManagerRotationResult,
+) -> GameTeam:
+    profile_map = {profile.player_id: profile for profile in profiles}
+    lineup = rotation.lineup
+    active = cast(
+        ProfileLineup,
+        tuple(profile_map[player_id] for player_id in lineup),
+    )
+    bench = tuple(
+        profile_map[player_id]
+        for player_id in rotation.substitution_order
+        if player_id not in lineup
+    )
+    return GameTeam(
+        team_id,
+        lineup,
+        active,
+        bench_profiles=bench,
+        substitution_order=rotation.substitution_order,
+        rotation_plan=rotation.plan,
+    )
 
 
 def _matchups(home: GameTeam, away: GameTeam) -> GameMatchups:
@@ -871,6 +926,7 @@ def _sample_playoffs(
     season: SeasonResult,
     teams: tuple[GameTeam, ...],
     *,
+    matchup_teams: dict[tuple[str, str], GameTeam],
     request: ManagerSeasonRequest,
     parameters: ModelParameters,
     game_config: GameClockConfig,
@@ -898,8 +954,14 @@ def _sample_playoffs(
         while max(wins.values()) < config.wins_required:
             home_seed = higher if config.higher_seed_home[game_number - 1] else lower
             away_seed = lower if home_seed is higher else higher
-            home = team_map[home_seed.team_id]
-            away = team_map[away_seed.team_id]
+            home = matchup_teams.get(
+                (home_seed.team_id, away_seed.team_id),
+                team_map[home_seed.team_id],
+            )
+            away = matchup_teams.get(
+                (away_seed.team_id, home_seed.team_id),
+                team_map[away_seed.team_id],
+            )
             game_seed = derive_seed(
                 request.master_seed,
                 MANAGER_LEAGUE_ADAPTER_VERSION,

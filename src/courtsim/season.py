@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from typing import Any, NoReturn, cast
 
@@ -521,6 +521,13 @@ def sample_season(
     transaction_plan: TransferPlan | None = None,
     roster_rules: RosterRules | None = None,
     trace_mode: TraceMode = TraceMode.FULL,
+    team_resolver: (
+        Callable[
+            [ScheduledGame, Mapping[str, GameTeam]],
+            tuple[GameTeam, GameTeam],
+        ]
+        | None
+    ) = None,
 ) -> SeasonResult:
     season_config = season_config or SeasonConfig()
     roster_rules = roster_rules or RosterRules()
@@ -561,8 +568,20 @@ def sample_season(
             )
             applied_transfers.append(transfer)
             transfer_index += 1
-        original_home = team_map[scheduled.home_team_id]
-        original_away = team_map[scheduled.away_team_id]
+        if team_resolver is None:
+            original_home = team_map[scheduled.home_team_id]
+            original_away = team_map[scheduled.away_team_id]
+        else:
+            original_home, original_away = team_resolver(scheduled, team_map)
+            if (
+                original_home.team_id != scheduled.home_team_id
+                or original_away.team_id != scheduled.away_team_id
+                or set(original_home.roster_order)
+                != set(team_map[scheduled.home_team_id].roster_order)
+                or set(original_away.roster_order)
+                != set(team_map[scheduled.away_team_id].roster_order)
+            ):
+                raise ValueError("resolved game teams must preserve scheduled identity and roster")
         for team in (original_home, original_away):
             for player_id in team.roster_order:
                 rest_days = max(

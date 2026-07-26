@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.28.0] - 2026-07-26
+
+- Add a roster-preserving per-game team resolver to the canonical season sampler.
+- Compile persisted opponent memories into one white-box rotation per team/opponent pairing.
+- Use matchup-specific rotations in both regular-season games and playoff series.
+- Preserve the historical base rotation whenever no opponent sample exists.
+- Expand rotation audits with the applied opponent adjustment and complete decision traces.
+
 ## [0.27.0] - 2026-07-26
 
 - Upgrade manager league saves to schema 3 with cap, learning, and NBA alignment state.

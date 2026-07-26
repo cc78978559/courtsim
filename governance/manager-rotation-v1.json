@@ -9,5 +9,6 @@
   "emergency_substitutes_retained": true,
   "development_feedback": true,
   "opponent_model_engine": "manager-learning-v1",
-  "opponent_specific_adjustments": true
+  "opponent_specific_adjustments": true,
+  "per_game_matchup_resolution": true
 }

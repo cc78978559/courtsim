@@ -11,3 +11,8 @@ effects as `opponent-model` contributions, so matchup-driven lineup changes rema
 Manager league schema 3 persists one learning state per team. At the end of each simulated
 season, the adapter derives games-weighted opponent offense, defense, and pace observations from
 the canonical game ledger and advances every manager memory monotonically.
+
+Before every regular-season game and playoff series game, the adapter resolves a separate
+rotation for the scheduled opponent. The season engine verifies that this resolver changes only
+lineups and substitution policy—not team identity or roster ownership. Unseen opponents reuse
+the historical base rotation exactly.

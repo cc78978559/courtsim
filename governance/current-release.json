@@ -1,7 +1,7 @@
 {
-  "format_version": 27,
+  "format_version": 28,
   "status": "frozen",
-  "engine_version": "0.27.0",
+  "engine_version": "0.28.0",
   "rules": {
     "version": "nba-v1",
     "path": "governance/game-rules-nba-v1.json",
@@ -19,7 +19,7 @@
     "season_version": "season-v1",
     "injury_version": "injury-v1",
     "path": "governance/season-injury-v1.json",
-    "file_sha256": "140cad21a09c3f6c47e13915ac6634f65e89ff2334cedefaf41461df52207e7c",
+    "file_sha256": "4a915a5a34bd94c993c884e61f66313907b47920a76ac2837292969e545a9e49",
     "source_pull_request": 25
   },
   "roster_transactions": {
@@ -67,7 +67,7 @@
   "manager_league_adapter": {
     "manager_league_adapter_version": "manager-league-adapter-v1",
     "path": "governance/manager-league-adapter-v1.json",
-    "file_sha256": "6a7bc42098feeeccfd78b5ae899ff5a51d95c65f215455a17302abc537067906"
+    "file_sha256": "de00e8dd6156c95895bc5912f0aec3b1391dfd1d38f9eaf7a94ddfc32c789ac4"
   },
   "prospect_generation": {
     "prospect_generation_version": "prospect-generation-v1",
@@ -77,7 +77,7 @@
   "manager_rotation": {
     "manager_rotation_version": "manager-rotation-v1",
     "path": "governance/manager-rotation-v1.json",
-    "file_sha256": "cd62121dd5a10c8169aca6a6beb5df425db3e827bfc13fb7d72231a080d9e974"
+    "file_sha256": "1f6d3ca9540b0aeee3f2d57c6d5a4c5a3423afec08fc02aa27a2a31331fcd51e"
   },
   "trades": {
     "trade_version": "trade-v1",

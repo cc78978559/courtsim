@@ -103,7 +103,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 27
+    assert release["format_version"] == 28
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -175,6 +175,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
             "daily_fatigue_recovery": SeasonConfig().daily_fatigue_recovery,
             "forfeit_score": SeasonConfig().forfeit_score,
         },
+        "game_specific_team_resolver": True,
     }
     roster_registry = release["roster_transactions"]
     assert set(roster_registry) == {
@@ -369,6 +370,8 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "scouting_engine": SCOUTING_VERSION,
         "scouting_stage": "predraft-shadow",
         "rotation_engine": MANAGER_ROTATION_VERSION,
+        "regular_season_matchup_rotations": True,
+        "postseason_matchup_rotations": True,
         "trade_engine": TRADE_VERSION,
         "trade_market_engine": TRADE_MARKET_VERSION,
         "three_team_market_engine": THREE_TEAM_MARKET_VERSION,
@@ -433,6 +436,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "development_feedback": True,
         "opponent_model_engine": MANAGER_LEARNING_VERSION,
         "opponent_specific_adjustments": True,
+        "per_game_matchup_resolution": True,
     }
     trade_registry = release["trades"]
     assert set(trade_registry) == {

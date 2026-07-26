@@ -14,6 +14,8 @@
   "scouting_engine": "scouting-v1",
   "scouting_stage": "predraft-shadow",
   "rotation_engine": "manager-rotation-v1",
+  "regular_season_matchup_rotations": true,
+  "postseason_matchup_rotations": true,
   "trade_engine": "trade-v1",
   "trade_market_engine": "trade-market-v1",
   "three_team_market_engine": "three-team-market-v1",
