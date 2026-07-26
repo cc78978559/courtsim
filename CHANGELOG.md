@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.48.0] - 2026-07-26
+
+- Compose the complete 30-team season, postseason, lottery, and offseason pipeline.
+- Generate a deterministic annual 30-player prospect class when one is not supplied.
+- Rebuild legal game teams, benches, and manager rotations from final rosters.
+- Return an incremented franchise state that can execute the following season directly.
+- Verify real two-season continuity across 2,460 regular-season games and two postseasons.
+
 ## [0.47.0] - 2026-07-26
 
 - Attribute play-in and playoff seconds and appearances to every player.

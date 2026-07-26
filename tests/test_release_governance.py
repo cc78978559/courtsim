@@ -57,6 +57,7 @@ from courtsim.nba_draft_lottery import (
     NBA_DRAFT_LOTTERY_VERSION,
 )
 from courtsim.nba_draft_offseason import NBA_DRAFT_OFFSEASON_VERSION
+from courtsim.nba_franchise import NBA_FRANCHISE_VERSION
 from courtsim.nba_league import NBA_LEAGUE_VERSION, NBARegularSeasonRules
 from courtsim.nba_offseason import NBA_OFFSEASON_VERSION
 from courtsim.parameters import load_model_parameters
@@ -115,6 +116,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "nba_draft_asset_settlement",
         "nba_draft_offseason",
         "nba_offseason",
+        "nba_franchise",
         "three_team_trades",
         "three_team_market",
         "scouting",
@@ -129,7 +131,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 47
+    assert release["format_version"] == 48
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -1152,6 +1154,46 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "postseason_team_games": True,
         "career_summary_regular_and_postseason": True,
         "deterministic_forfeit_resolution": True,
+    }
+    nba_franchise_registry = release["nba_franchise"]
+    assert set(nba_franchise_registry) == {
+        "nba_franchise_version",
+        "path",
+        "file_sha256",
+    }
+    nba_franchise_path = ROOT / nba_franchise_registry["path"]
+    nba_franchise_config = json.loads(nba_franchise_path.read_text(encoding="utf-8"))
+    assert _sha256(nba_franchise_path) == nba_franchise_registry["file_sha256"]
+    assert nba_franchise_registry["nba_franchise_version"] == NBA_FRANCHISE_VERSION
+    assert nba_franchise_config == {
+        "format_version": 1,
+        "nba_franchise_version": NBA_FRANCHISE_VERSION,
+        "nba_quick_sim_executor_version": NBA_QUICK_SIM_EXECUTOR_VERSION,
+        "nba_draft_lottery_version": NBA_DRAFT_LOTTERY_VERSION,
+        "nba_draft_asset_settlement_version": NBA_DRAFT_ASSET_SETTLEMENT_VERSION,
+        "nba_offseason_version": NBA_OFFSEASON_VERSION,
+        "prospect_generation_version": PROSPECT_GENERATION_VERSION,
+        "manager_rotation_version": MANAGER_ROTATION_VERSION,
+        "team_count": 30,
+        "stage_order": [
+            "regular-season",
+            "play-in",
+            "playoffs",
+            "career-summary",
+            "lottery",
+            "draft-asset-settlement",
+            "offseason",
+            "rotation-rebuild",
+        ],
+        "annual_prospect_class_size": 30,
+        "management_year_increment": 1,
+        "completed_seasons_increment": 1,
+        "roster_identity_rebuilt_from_management": True,
+        "deterministic_addressed_randomness": True,
+        "composable_next_season_state": True,
+        "persistent_manager_learning_integration": False,
+        "opponent_specific_rotation_rebuild": False,
+        "disk_resume": False,
     }
 
     model = release["model"]

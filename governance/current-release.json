@@ -1,7 +1,7 @@
 {
-  "format_version": 47,
+  "format_version": 48,
   "status": "frozen",
-  "engine_version": "0.47.0",
+  "engine_version": "0.48.0",
   "rules": {
     "version": "nba-v1",
     "path": "governance/game-rules-nba-v1.json",
@@ -133,6 +133,11 @@
     "nba_offseason_version": "nba-offseason-v1",
     "path": "governance/nba-offseason-v1.json",
     "file_sha256": "00aa3bbc33cf96489cc89d05a3bd83ec58d3286278b5561cfecb800614688568"
+  },
+  "nba_franchise": {
+    "nba_franchise_version": "nba-franchise-v1",
+    "path": "governance/nba-franchise-v1.json",
+    "file_sha256": "190dd22251df418c87038281fafa7ef757721b4c1ab603b54a1f818c65c37c5f"
   },
   "three_team_trades": {
     "three_team_trade_version": "three-team-trade-v1",
