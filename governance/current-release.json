@@ -1,7 +1,7 @@
 {
-  "format_version": 14,
+  "format_version": 15,
   "status": "frozen",
-  "engine_version": "0.14.0",
+  "engine_version": "0.15.0",
   "rules": {
     "version": "nba-v1",
     "path": "governance/game-rules-nba-v1.json",
@@ -78,6 +78,16 @@
     "manager_rotation_version": "manager-rotation-v1",
     "path": "governance/manager-rotation-v1.json",
     "file_sha256": "f24c576e766102f90b6bda6c9fa166760c279b8d19ee85a87773b647a4a85b20"
+  },
+  "trades": {
+    "trade_version": "trade-v1",
+    "path": "governance/trades-v1.json",
+    "file_sha256": "f92233ee93b5286b068ca90e9bced98217f5490667aad1d5941626b83eba6e9b"
+  },
+  "manager_trade": {
+    "manager_trade_version": "manager-trade-v1",
+    "path": "governance/manager-trade-v1.json",
+    "file_sha256": "2f343f93cf6faa70da88c57b023aaa08238e9e6872721279bf104d7589fd5409"
   },
   "model": {
     "schema_version": "demo-v1.12",

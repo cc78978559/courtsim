@@ -1,0 +1,15 @@
+{
+  "format_version": 1,
+  "trade_version": "trade-v1",
+  "minimum_roster_players": 5,
+  "salary_matching_threshold": 100000000,
+  "maximum_incoming_salary_bps": 12500,
+  "salary_matching_buffer": 250000,
+  "supported_assets": [
+    "player",
+    "draft-pick"
+  ],
+  "contract_follows_player": true,
+  "atomic_state_transition": true,
+  "replay_audit_required": true
+}

@@ -37,6 +37,7 @@ from courtsim.manager_evaluation import (
 from courtsim.manager_experiment import MANAGER_EXPERIMENT_VERSION
 from courtsim.manager_league_adapter import MANAGER_LEAGUE_ADAPTER_VERSION
 from courtsim.manager_rotation import MANAGER_ROTATION_VERSION, ManagerRotationRules
+from courtsim.manager_trade import MANAGER_TRADE_VERSION, ManagerTradeRules
 from courtsim.parameters import load_model_parameters
 from courtsim.playoffs import PLAYOFF_SCHEMA_VERSION, PLAYOFF_VERSION, PlayoffConfig
 from courtsim.prospects import PROSPECT_GENERATION_VERSION, ProspectGenerationRules
@@ -49,6 +50,7 @@ from courtsim.season import (
     SEASON_VERSION,
     SeasonConfig,
 )
+from courtsim.trades import TRADE_VERSION, TradeRules
 
 ROOT = Path(__file__).resolve().parents[1]
 RELEASE_PATH = ROOT / "governance" / "current-release.json"
@@ -77,11 +79,13 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "manager_league_adapter",
         "prospect_generation",
         "manager_rotation",
+        "trades",
+        "manager_trade",
         "model",
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 14
+    assert release["format_version"] == 15
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -394,6 +398,52 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "clock_addressed": True,
         "emergency_substitutes_retained": True,
         "development_feedback": True,
+    }
+    trade_registry = release["trades"]
+    assert set(trade_registry) == {
+        "trade_version",
+        "path",
+        "file_sha256",
+    }
+    trade_path = ROOT / trade_registry["path"]
+    trade_config = json.loads(trade_path.read_text(encoding="utf-8"))
+    assert _sha256(trade_path) == trade_registry["file_sha256"]
+    assert trade_registry["trade_version"] == TRADE_VERSION
+    trade_rules = TradeRules()
+    assert trade_config == {
+        "format_version": 1,
+        "trade_version": TRADE_VERSION,
+        "minimum_roster_players": trade_rules.minimum_roster_players,
+        "salary_matching_threshold": trade_rules.salary_matching_threshold,
+        "maximum_incoming_salary_bps": trade_rules.maximum_incoming_salary_bps,
+        "salary_matching_buffer": trade_rules.salary_matching_buffer,
+        "supported_assets": ["player", "draft-pick"],
+        "contract_follows_player": True,
+        "atomic_state_transition": True,
+        "replay_audit_required": True,
+    }
+    manager_trade_registry = release["manager_trade"]
+    assert set(manager_trade_registry) == {
+        "manager_trade_version",
+        "path",
+        "file_sha256",
+    }
+    manager_trade_path = ROOT / manager_trade_registry["path"]
+    manager_trade_config = json.loads(manager_trade_path.read_text(encoding="utf-8"))
+    assert _sha256(manager_trade_path) == manager_trade_registry["file_sha256"]
+    assert manager_trade_registry["manager_trade_version"] == MANAGER_TRADE_VERSION
+    manager_trade_rules = ManagerTradeRules()
+    assert manager_trade_config == {
+        "format_version": 1,
+        "manager_trade_version": MANAGER_TRADE_VERSION,
+        "trade_version": TRADE_VERSION,
+        "default_mode": ManagerPolicyMode.SHADOW.name.lower(),
+        "reasonable_band": manager_trade_rules.reasonable_band,
+        "style_contribution_limit": manager_trade_rules.style_contribution_limit,
+        "minimum_rational_gain": manager_trade_rules.minimum_rational_gain,
+        "independent_bilateral_approval": True,
+        "automatic_execution": False,
+        "automatic_activation": False,
     }
 
     model = release["model"]

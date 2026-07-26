@@ -65,6 +65,7 @@ remain outside both contracts.
 - Player value is a transparent rating composite rather than calibrated wins or contract value.
 - Roster fit currently uses size-class scarcity, not rotations or tactical role demand.
 - Free agency supports one proposed signing per team and fixed offered terms.
-- Trades, waivers, draft lottery/protections, scouting uncertainty, negotiation, and owner
-  objectives are outside v1.
+- Automated trade offers, waivers, draft lottery/protections, scouting uncertainty,
+  negotiation, and owner objectives are outside v1. Bilateral trade Shadow approval is
+  specified separately by `manager-trade-v1`.
 - Decision-ledger persistence remains future work.

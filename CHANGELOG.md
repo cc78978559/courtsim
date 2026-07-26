@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.15.0] - 2026-07-26
+
+- Add atomic bilateral trades for players, contracts, and draft-pick ownership.
+- Enforce asset ownership, roster bounds, salary caps, and configurable salary matching.
+- Add replay-derived trade audits with no partial state transitions.
+- Add independent white-box approval by both managers with a rational-gain floor.
+- Reuse MythicMons market architecture while replacing all domain-specific valuation signals.
+
 ## [0.14.0] - 2026-07-26
 
 - Add white-box starter and rotation-player selection with bounded manager personality.
