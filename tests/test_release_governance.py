@@ -95,7 +95,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 20
+    assert release["format_version"] == 21
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -582,9 +582,24 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "three_team_market_version": THREE_TEAM_MARKET_VERSION,
         "three_team_trade_version": THREE_TEAM_TRADE_VERSION,
         "maximum_candidates_per_trio": (three_team_market_rules.maximum_candidates_per_trio),
+        "maximum_cyclic_candidates_per_trio": (
+            three_team_market_rules.maximum_cyclic_candidates_per_trio
+        ),
+        "maximum_hub_candidates_per_trio": (
+            three_team_market_rules.maximum_hub_candidates_per_trio
+        ),
         "minimum_combined_rational_gain": (three_team_market_rules.minimum_combined_rational_gain),
         "search_pick_compensation": three_team_market_rules.search_pick_compensation,
+        "maximum_compensation_picks": three_team_market_rules.maximum_compensation_picks,
+        "maximum_negotiation_rounds": 2,
         "cyclic_orientations": 2,
+        "hub_team_round_robin": True,
+        "candidate_kinds": [
+            "cyclic",
+            "hub",
+            "pick-compensation",
+            "multi-pick-compensation",
+        ],
         "stable_candidate_order": True,
         "team_locking": True,
         "unified_bilateral_comparison": True,

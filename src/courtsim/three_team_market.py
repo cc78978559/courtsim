@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, replace
-from itertools import combinations, product
+from itertools import combinations, permutations, product
 
 from courtsim.career import CareerPlayer
 from courtsim.draft_assets import TradableDraftPick
@@ -38,17 +38,31 @@ THREE_TEAM_MARKET_VERSION = "three-team-market-v1"
 @dataclass(frozen=True, slots=True)
 class ThreeTeamMarketRules:
     maximum_candidates_per_trio: int = 64
+    maximum_cyclic_candidates_per_trio: int = 32
+    maximum_hub_candidates_per_trio: int = 32
     minimum_combined_rational_gain: float = 0.001
     search_pick_compensation: bool = True
+    maximum_compensation_picks: int = 2
     version: str = THREE_TEAM_MARKET_VERSION
 
     def __post_init__(self) -> None:
-        if (
-            not isinstance(self.maximum_candidates_per_trio, int)
-            or isinstance(self.maximum_candidates_per_trio, bool)
-            or self.maximum_candidates_per_trio < 1
+        limits = (
+            self.maximum_candidates_per_trio,
+            self.maximum_cyclic_candidates_per_trio,
+            self.maximum_hub_candidates_per_trio,
+            self.maximum_compensation_picks,
+        )
+        if any(
+            not isinstance(value, int) or isinstance(value, bool) or value < 1 for value in limits
         ):
             raise ValueError("three-team candidate limit must be a positive integer")
+        if (
+            self.maximum_cyclic_candidates_per_trio + self.maximum_hub_candidates_per_trio
+            > self.maximum_candidates_per_trio
+        ):
+            raise ValueError("three-team candidate family budgets exceed the trio limit")
+        if self.maximum_compensation_picks > 2:
+            raise ValueError("three-team-market-v1 supports at most two compensation picks")
         if self.minimum_combined_rational_gain <= 0:
             raise ValueError("three-team minimum combined gain must be positive")
         if self.version != THREE_TEAM_MARKET_VERSION:
@@ -65,12 +79,28 @@ class ThreeTeamMarketEvaluation:
     shadow: ThreeTeamTradeShadowResult
 
     def __post_init__(self) -> None:
-        if self.kind not in {"cyclic", "pick-compensation"}:
+        if self.kind not in {
+            "cyclic",
+            "hub",
+            "pick-compensation",
+            "multi-pick-compensation",
+        }:
             raise ValueError("unsupported three-team market candidate kind")
-        if self.kind == "cyclic" and self.parent_trade_id is not None:
-            raise ValueError("cyclic offer cannot reference a parent")
-        if self.kind == "pick-compensation" and self.parent_trade_id is None:
+        if self.kind in {"cyclic", "hub"} and self.parent_trade_id is not None:
+            raise ValueError("base three-team offer cannot reference a parent")
+        if self.kind in {"pick-compensation", "multi-pick-compensation"} and (
+            self.parent_trade_id is None
+        ):
             raise ValueError("pick compensation must reference its parent")
+
+    @property
+    def negotiation_round(self) -> int:
+        return {
+            "cyclic": 0,
+            "hub": 0,
+            "pick-compensation": 1,
+            "multi-pick-compensation": 2,
+        }[self.kind]
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,39 +160,65 @@ def generate_three_team_market_shadow(
     next_trade_id = 1
     for trio in combinations(tuple(sorted(team_ids)), 3):
         trio_evaluations = 0
-        for routes in _cyclic_routes(trio, rosters):
-            if trio_evaluations >= market_rules.maximum_candidates_per_trio:
-                break
-            offer = ThreeTeamTradeOffer(
-                next_trade_id,
-                trio,
-                routes,
-            )
-            next_trade_id += 1
-            shadow = evaluate_three_team_trade_shadow(
-                management=management,
-                players=players,
-                picks=picks,
-                offer=offer,
-                profiles={team_id: profiles[team_id] for team_id in trio},
-                contract_rules=contract_rules,
-                trade_rules=trade_rules,
-                manager_rules=manager_rules,
-            )
-            evaluations.append(ThreeTeamMarketEvaluation("cyclic", None, shadow))
-            _append_ledger(ledger_records, shadow)
-            trio_evaluations += 1
-            if (
-                market_rules.search_pick_compensation
-                and not shadow.approved
-                and trio_evaluations < market_rules.maximum_candidates_per_trio
-            ):
-                compensation = _compensation_offer(
+        families = (
+            (
+                "cyclic",
+                _cyclic_routes(trio, rosters),
+                market_rules.maximum_cyclic_candidates_per_trio,
+            ),
+            (
+                "hub",
+                _hub_routes(trio, rosters),
+                market_rules.maximum_hub_candidates_per_trio,
+            ),
+        )
+        for base_kind, route_candidates, family_budget in families:
+            family_evaluations = 0
+            for routes in route_candidates:
+                if (
+                    trio_evaluations >= market_rules.maximum_candidates_per_trio
+                    or family_evaluations >= family_budget
+                ):
+                    break
+                offer = ThreeTeamTradeOffer(
                     next_trade_id,
-                    shadow,
-                    picks,
+                    trio,
+                    routes,
                 )
-                if compensation is not None:
+                next_trade_id += 1
+                shadow = evaluate_three_team_trade_shadow(
+                    management=management,
+                    players=players,
+                    picks=picks,
+                    offer=offer,
+                    profiles={team_id: profiles[team_id] for team_id in trio},
+                    contract_rules=contract_rules,
+                    trade_rules=trade_rules,
+                    manager_rules=manager_rules,
+                )
+                evaluations.append(ThreeTeamMarketEvaluation(base_kind, None, shadow))
+                _append_ledger(ledger_records, shadow)
+                trio_evaluations += 1
+                family_evaluations += 1
+                if not market_rules.search_pick_compensation or not shadow.legal:
+                    continue
+                parent_trade_id = offer.trade_id
+                previous_shadow = shadow
+                for pick_count in range(1, market_rules.maximum_compensation_picks + 1):
+                    if (
+                        previous_shadow.approved
+                        or trio_evaluations >= market_rules.maximum_candidates_per_trio
+                        or family_evaluations >= family_budget
+                    ):
+                        break
+                    compensation = _compensation_offer(
+                        next_trade_id,
+                        shadow,
+                        picks,
+                        pick_count,
+                    )
+                    if compensation is None:
+                        break
                     next_trade_id += 1
                     counter = evaluate_three_team_trade_shadow(
                         management=management,
@@ -176,13 +232,16 @@ def generate_three_team_market_shadow(
                     )
                     evaluations.append(
                         ThreeTeamMarketEvaluation(
-                            "pick-compensation",
-                            offer.trade_id,
+                            ("pick-compensation" if pick_count == 1 else "multi-pick-compensation"),
+                            parent_trade_id,
                             counter,
                         )
                     )
                     _append_ledger(ledger_records, counter)
                     trio_evaluations += 1
+                    family_evaluations += 1
+                    parent_trade_id = compensation.trade_id
+                    previous_shadow = counter
 
     approved = [
         evaluation
@@ -271,10 +330,48 @@ def _cyclic_routes(
         yield tuple(sorted(counterclockwise, key=_player_route_key))
 
 
+def _hub_routes(
+    trio: tuple[str, str, str],
+    rosters: Mapping[str, tuple[int, ...]],
+) -> Iterator[tuple[PlayerTradeRoute, ...]]:
+    iterators = tuple(iter(_hub_routes_for_team(trio, hub, rosters)) for hub in trio)
+    active = list(iterators)
+    while active:
+        remaining: list[Iterator[tuple[PlayerTradeRoute, ...]]] = []
+        for candidates in active:
+            try:
+                yield next(candidates)
+                remaining.append(candidates)
+            except StopIteration:
+                pass
+        active = remaining
+
+
+def _hub_routes_for_team(
+    trio: tuple[str, str, str],
+    hub: str,
+    rosters: Mapping[str, tuple[int, ...]],
+) -> Iterator[tuple[PlayerTradeRoute, ...]]:
+    first_spoke, second_spoke = tuple(team_id for team_id in trio if team_id != hub)
+    for hub_players in permutations(rosters[hub], 2):
+        for first_player, second_player in product(
+            rosters[first_spoke],
+            rosters[second_spoke],
+        ):
+            routes = (
+                PlayerTradeRoute(hub_players[0], hub, first_spoke),
+                PlayerTradeRoute(hub_players[1], hub, second_spoke),
+                PlayerTradeRoute(first_player, first_spoke, hub),
+                PlayerTradeRoute(second_player, second_spoke, hub),
+            )
+            yield tuple(sorted(routes, key=_player_route_key))
+
+
 def _compensation_offer(
     trade_id: int,
     parent: ThreeTeamTradeShadowResult,
     picks: tuple[TradableDraftPick, ...],
+    pick_count: int,
 ) -> ThreeTeamTradeOffer | None:
     ordered = sorted(
         parent.approvals,
@@ -307,12 +404,15 @@ def _compensation_offer(
             pick.selection_number,
         ),
     )
-    if not available:
+    if len(available) < pick_count:
         return None
-    route = PickTradeRoute(
-        available[0].selection_number,
-        donor.team_id,
-        recipient.team_id,
+    routes = tuple(
+        PickTradeRoute(
+            pick.selection_number,
+            donor.team_id,
+            recipient.team_id,
+        )
+        for pick in available[:pick_count]
     )
     return ThreeTeamTradeOffer(
         trade_id,
@@ -320,7 +420,7 @@ def _compensation_offer(
         parent.offer.player_routes,
         tuple(
             sorted(
-                (*parent.offer.pick_routes, route),
+                (*parent.offer.pick_routes, *routes),
                 key=lambda item: (
                     item.from_team_id,
                     item.to_team_id,

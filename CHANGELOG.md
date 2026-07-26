@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.21.0] - 2026-07-26
+
+- Add hub-and-spoke three-team packages with two incoming and two outgoing hub players.
+- Allocate separate bounded cyclic and hub candidate budgets with round-robin hub coverage.
+- Escalate rejected proposals through traceable one-pick and two-pick counteroffer rounds.
+- Preserve the 64-evaluation per-trio ceiling while mixing all candidate families.
+- Expose negotiation rounds and parent-offer chains in league adapter audits.
+
 ## [0.20.0] - 2026-07-26
 
 - Discover deterministic cyclic player routes across every three-team combination.

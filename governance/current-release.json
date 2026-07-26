@@ -1,7 +1,7 @@
 {
-  "format_version": 20,
+  "format_version": 21,
   "status": "frozen",
-  "engine_version": "0.20.0",
+  "engine_version": "0.21.0",
   "rules": {
     "version": "nba-v1",
     "path": "governance/game-rules-nba-v1.json",
@@ -112,7 +112,7 @@
   "three_team_market": {
     "three_team_market_version": "three-team-market-v1",
     "path": "governance/three-team-market-v1.json",
-    "file_sha256": "335f2d6fbd4dd13c79975985b9e3a054d4c4b934d4726028067ef5c566a90ae5"
+    "file_sha256": "14bc93c2e034f5b4ae68cd5c8742ae662cdc217b971662edc9296db7edd678d6"
   },
   "model": {
     "schema_version": "demo-v1.12",
