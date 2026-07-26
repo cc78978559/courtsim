@@ -451,7 +451,7 @@ def _filled_lineup(target: Lineup, available_order: tuple[int, ...]) -> Lineup:
     return cast(Lineup, tuple(selected[:5]))
 
 
-def _available_team(team: GameTeam, unavailable: frozenset[int]) -> GameTeam | None:
+def available_game_team(team: GameTeam, unavailable: frozenset[int]) -> GameTeam | None:
     available_order = tuple(
         player_id for player_id in team.roster_order if player_id not in unavailable
     )
@@ -613,8 +613,8 @@ def sample_season(
             for player_id in original_away.roster_order
             if scheduled.day < states[(original_away.team_id, player_id)].unavailable_until_day
         )
-        home = _available_team(original_home, frozenset(home_unavailable))
-        away = _available_team(original_away, frozenset(away_unavailable))
+        home = available_game_team(original_home, frozenset(home_unavailable))
+        away = available_game_team(original_away, frozenset(away_unavailable))
         game_participants: tuple[int, ...] = ()
         if home is None or away is None:
             if home is None and away is not None:

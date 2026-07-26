@@ -146,6 +146,7 @@ def test_adapter_runs_real_season_playoffs_and_offseason_deterministically() -> 
         "arm",
         "season",
         "playoffs",
+        "postseason_continuity",
         "offseason",
         "manager_decisions",
         "prospect_class",

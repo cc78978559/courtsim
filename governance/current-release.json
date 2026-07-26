@@ -1,7 +1,7 @@
 {
-  "format_version": 30,
+  "format_version": 31,
   "status": "frozen",
-  "engine_version": "0.30.0",
+  "engine_version": "0.31.0",
   "rules": {
     "version": "nba-v1",
     "path": "governance/game-rules-nba-v1.json",
@@ -19,7 +19,7 @@
     "season_version": "season-v1",
     "injury_version": "injury-v1",
     "path": "governance/season-injury-v1.json",
-    "file_sha256": "4a915a5a34bd94c993c884e61f66313907b47920a76ac2837292969e545a9e49",
+    "file_sha256": "0f546e731e822673e25ae17e5f9698a4baaf9b15d121888c20354965c811307e",
     "source_pull_request": 25
   },
   "roster_transactions": {
@@ -38,7 +38,7 @@
   "playoffs": {
     "playoff_version": "playoff-v1",
     "path": "governance/playoffs-v1.json",
-    "file_sha256": "e7846de35b3942ad904f4702bf2c0626f39b0cad03d2d0f1d7d6496b95a6513b",
+    "file_sha256": "26fd63f7ecf137086d07b87793bb7e515dfb041e20bfb2200fcb1c963b10256f",
     "source_pull_request": 43
   },
   "career_draft": {
@@ -67,7 +67,7 @@
   "manager_league_adapter": {
     "manager_league_adapter_version": "manager-league-adapter-v1",
     "path": "governance/manager-league-adapter-v1.json",
-    "file_sha256": "f7734e54bde7e52670ecf4b1749859a9a5824f25d7c2894366eeb639cfa645d0"
+    "file_sha256": "169ddf622f43622129d41545e87091ba83ee01201868d91644e8bbd4646a4437"
   },
   "prospect_generation": {
     "prospect_generation_version": "prospect-generation-v1",

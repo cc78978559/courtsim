@@ -128,10 +128,14 @@ from courtsim.scouting import (
     scouting_reports_to_dict,
 )
 from courtsim.season import (
+    INJURY_VERSION,
+    InjuryRecord,
+    PlayerSeasonState,
     ScheduledGame,
     SeasonConfig,
     SeasonResult,
     SeasonSchedule,
+    available_game_team,
     sample_season,
     season_result_to_dict,
 )
@@ -159,6 +163,33 @@ MANAGER_LEAGUE_ADAPTER_VERSION = "manager-league-adapter-v1"
 
 class ManagerLeagueAdapterError(ValueError):
     pass
+
+
+@dataclass(frozen=True, slots=True)
+class PostseasonGameState:
+    round_number: int
+    series_index: int
+    game_number: int
+    day: int
+    home_team_id: str
+    away_team_id: str
+    home_unavailable: tuple[int, ...]
+    away_unavailable: tuple[int, ...]
+    forfeit_team_id: str | None
+    maximum_initial_fatigue: int
+    maximum_final_fatigue: int
+
+
+@dataclass(frozen=True, slots=True)
+class PostseasonSimulation:
+    result: PlayoffResult
+    initial_player_states: tuple[PlayerSeasonState, ...]
+    final_player_states: tuple[PlayerSeasonState, ...]
+    injuries: tuple[InjuryRecord, ...]
+    games: tuple[PostseasonGameState, ...]
+    player_seconds: tuple[tuple[int, int], ...]
+    player_games: tuple[tuple[int, int], ...]
+    team_games: tuple[tuple[str, int], ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -240,6 +271,9 @@ class CourtSimManagerLeagueAdapter:
     games_per_pair: int = 2
     trace_mode: TraceMode = TraceMode.AGGREGATE_ONLY
     version: str = MANAGER_LEAGUE_ADAPTER_VERSION
+    postseason_rest_days: int = 2
+    playoff_game_rest_days: int = 1
+    playoff_round_rest_days: int = 2
 
     def __post_init__(self) -> None:
         if self.version != MANAGER_LEAGUE_ADAPTER_VERSION:
@@ -250,6 +284,16 @@ class CourtSimManagerLeagueAdapter:
             or self.games_per_pair < 1
         ):
             raise ValueError("games_per_pair must be a positive integer")
+        rest_values = (
+            self.postseason_rest_days,
+            self.playoff_game_rest_days,
+            self.playoff_round_rest_days,
+        )
+        if any(
+            not isinstance(value, int) or isinstance(value, bool) or value < 0
+            for value in rest_values
+        ):
+            raise ValueError("postseason rest days must be non-negative integers")
         if len(self.manager_profiles) != 4:
             raise ValueError("manager league adapter v1 requires exactly four teams")
         team_ids = tuple(profile.team_id for profile in self.manager_profiles)
@@ -398,7 +442,7 @@ class CourtSimManagerLeagueAdapter:
                 matchup_teams[(scheduled.away_team_id, scheduled.home_team_id)],
             ),
         )
-        playoffs = _sample_playoffs(
+        postseason = _sample_playoffs(
             season,
             teams,
             matchup_teams=matchup_teams,
@@ -407,10 +451,15 @@ class CourtSimManagerLeagueAdapter:
             game_config=self.game_config,
             rules=self.game_rules,
             fatigue_config=self.fatigue_config,
+            season_config=self.season_config,
             config=self.playoff_config,
             trace_mode=self.trace_mode,
+            postseason_rest_days=self.postseason_rest_days,
+            game_rest_days=self.playoff_game_rest_days,
+            round_rest_days=self.playoff_round_rest_days,
         )
-        summaries = _season_summaries(season, state.players)
+        playoffs = postseason.result
+        summaries = _season_summaries(season, state.players, postseason)
         offseason_seed = derive_seed(
             request.master_seed,
             MANAGER_LEAGUE_ADAPTER_VERSION,
@@ -483,6 +532,7 @@ class CourtSimManagerLeagueAdapter:
             "arm": request.arm.name.lower(),
             "season": season_result_to_dict(season),
             "playoffs": playoff_result_to_dict(playoffs),
+            "postseason_continuity": _postseason_audit(postseason),
             "offseason": offseason_result_to_dict(offseason),
             "manager_decisions": manager_audit,
             "prospect_class": prospect_audit,
@@ -961,36 +1011,92 @@ def _sample_playoffs(
     game_config: GameClockConfig,
     rules: GameRules,
     fatigue_config: FatigueConfig,
+    season_config: SeasonConfig,
     config: PlayoffConfig,
     trace_mode: TraceMode,
-) -> PlayoffResult:
+    postseason_rest_days: int,
+    game_rest_days: int,
+    round_rest_days: int,
+) -> PostseasonSimulation:
     seeds = tuple(
         PlayoffSeed(index, standing.team_id)
         for index, standing in enumerate(season.standings[:4], start=1)
     )
     team_map = {team.team_id: team for team in teams}
     games: list[PlayoffGame] = []
+    state_games: list[PostseasonGameState] = []
+    injuries: list[InjuryRecord] = []
+    states = {(state.team_id, state.player_id): state for state in season.final_player_states}
+    initial_states = tuple(states[key] for key in sorted(states))
+    regular_end_by_team = {
+        team_id: max(
+            game.day
+            for game in season.schedule.games
+            if team_id in {game.home_team_id, game.away_team_id}
+        )
+        for team_id in season.schedule.team_ids
+    }
+    state_day = {
+        (team.team_id, player_id): regular_end_by_team[team.team_id]
+        for team in teams
+        for player_id in team.roster_order
+    }
+    player_seconds: dict[int, int] = defaultdict(int)
+    player_games: dict[int, int] = defaultdict(int)
+    team_games: dict[str, int] = defaultdict(int)
+
+    def available_team(
+        original: GameTeam,
+        day: int,
+    ) -> tuple[GameTeam | None, tuple[int, ...]]:
+        for player_id in original.roster_order:
+            key = (original.team_id, player_id)
+            state = states[key]
+            rest_days = max(0, day - state_day[key] - 1)
+            states[key] = replace(
+                state,
+                fatigue=max(
+                    0,
+                    state.fatigue - rest_days * season_config.daily_fatigue_recovery,
+                ),
+                unavailable_until_day=(
+                    0
+                    if state.unavailable_until_day and day >= state.unavailable_until_day
+                    else state.unavailable_until_day
+                ),
+            )
+            state_day[key] = day
+        unavailable = tuple(
+            player_id
+            for player_id in original.roster_order
+            if day < states[(original.team_id, player_id)].unavailable_until_day
+        )
+        return available_game_team(original, frozenset(unavailable)), unavailable
 
     def series(
         round_number: int,
         series_index: int,
         first: PlayoffSeed,
         second: PlayoffSeed,
-    ) -> PlayoffSeed:
+        start_day: int,
+    ) -> tuple[PlayoffSeed, int]:
         higher, lower = (first, second) if first.seed < second.seed else (second, first)
         wins = {higher.team_id: 0, lower.team_id: 0}
         game_number = 1
+        day = start_day
         while max(wins.values()) < config.wins_required:
             home_seed = higher if config.higher_seed_home[game_number - 1] else lower
             away_seed = lower if home_seed is higher else higher
-            home = matchup_teams.get(
+            original_home = matchup_teams.get(
                 (home_seed.team_id, away_seed.team_id),
                 team_map[home_seed.team_id],
             )
-            away = matchup_teams.get(
+            original_away = matchup_teams.get(
                 (away_seed.team_id, home_seed.team_id),
                 team_map[away_seed.team_id],
             )
+            home, home_unavailable = available_team(original_home, day)
+            away, away_unavailable = available_team(original_away, day)
             game_seed = derive_seed(
                 request.master_seed,
                 MANAGER_LEAGUE_ADAPTER_VERSION,
@@ -1000,28 +1106,106 @@ def _sample_playoffs(
                 series_index,
                 game_number,
             )
-            sampled = sample_game(
-                parameters=parameters,
-                config=game_config,
-                home=home,
-                away=away,
-                matchups=_matchups(home, away),
-                frame=RandomFrame(
-                    game_seed,
-                    RandomFrameAddress(
-                        request.source_id,
-                        0,
-                        len(games),
-                        0,
-                        0,
+            initial_fatigue: dict[int, int] = {}
+            game_participants: tuple[int, ...] = ()
+            forfeit_team_id = None
+            if home is None or away is None:
+                if home is None and away is not None:
+                    home_score, away_score = 0, season_config.forfeit_score
+                    forfeit_team_id = original_home.team_id
+                elif away is None and (
+                    home is not None or derive_seed(game_seed, "double-forfeit") % 2
+                ):
+                    home_score, away_score = season_config.forfeit_score, 0
+                    forfeit_team_id = original_away.team_id
+                else:
+                    home_score, away_score = 0, season_config.forfeit_score
+                    forfeit_team_id = original_home.team_id
+            else:
+                initial_fatigue = {
+                    player_id: states[(team.team_id, player_id)].fatigue
+                    for team in (home, away)
+                    for player_id in team.roster_order
+                }
+                sampled = sample_game(
+                    parameters=parameters,
+                    config=game_config,
+                    home=home,
+                    away=away,
+                    matchups=_matchups(home, away),
+                    frame=RandomFrame(
+                        game_seed,
+                        RandomFrameAddress(
+                            request.source_id,
+                            0,
+                            len(games),
+                            0,
+                            0,
+                        ),
                     ),
-                ),
-                rules=rules,
-                fatigue_config=fatigue_config,
-                trace_mode=trace_mode,
-            )
-            home_score = sampled.result.home_score
-            away_score = sampled.result.away_score
+                    rules=rules,
+                    fatigue_config=fatigue_config,
+                    initial_fatigue=initial_fatigue,
+                    trace_mode=trace_mode,
+                )
+                home_score = sampled.result.home_score
+                away_score = sampled.result.away_score
+                for snapshot in sampled.result.final_fatigue:
+                    team_id = (
+                        home.team_id if snapshot.player_id in home.roster_order else away.team_id
+                    )
+                    key = (team_id, snapshot.player_id)
+                    states[key] = replace(states[key], fatigue=snapshot.fatigue)
+                for playing_time in sampled.result.playing_time:
+                    player_seconds[playing_time.player_id] += playing_time.seconds
+                    if playing_time.seconds > 0:
+                        player_games[playing_time.player_id] += 1
+                game_participants = tuple(
+                    item.player_id for item in sampled.result.playing_time if item.seconds > 0
+                )
+                playoff_game_id = len(season.games) + len(games) + 1
+                for team in (home, away):
+                    for player_id in team.roster_order:
+                        if player_id not in game_participants:
+                            continue
+                        roll = (
+                            derive_seed(
+                                request.master_seed,
+                                INJURY_VERSION,
+                                "postseason",
+                                playoff_game_id,
+                                player_id,
+                                "roll",
+                            )
+                            % 10_000
+                        )
+                        if roll >= season_config.injury_probability_bps:
+                            continue
+                        span = season_config.maximum_days_out - season_config.minimum_days_out + 1
+                        days_out = season_config.minimum_days_out + (
+                            derive_seed(
+                                request.master_seed,
+                                INJURY_VERSION,
+                                "postseason",
+                                playoff_game_id,
+                                player_id,
+                                "duration",
+                            )
+                            % span
+                        )
+                        injury = InjuryRecord(
+                            team.team_id,
+                            player_id,
+                            playoff_game_id,
+                            day,
+                            day + days_out + 1,
+                        )
+                        injuries.append(injury)
+                        key = (team.team_id, player_id)
+                        states[key] = replace(
+                            states[key],
+                            unavailable_until_day=injury.return_day,
+                        )
             if home_score == away_score:
                 if (
                     derive_seed(
@@ -1038,26 +1222,88 @@ def _sample_playoffs(
                 round_number,
                 series_index,
                 game_number,
-                home.team_id,
-                away.team_id,
+                original_home.team_id,
+                original_away.team_id,
                 home_score,
                 away_score,
             )
             games.append(game)
+            team_games[original_home.team_id] += 1
+            team_games[original_away.team_id] += 1
+            final_fatigue = tuple(
+                states[(team.team_id, player_id)].fatigue
+                for team in (original_home, original_away)
+                for player_id in team.roster_order
+            )
+            state_games.append(
+                PostseasonGameState(
+                    round_number,
+                    series_index,
+                    game_number,
+                    day,
+                    original_home.team_id,
+                    original_away.team_id,
+                    home_unavailable,
+                    away_unavailable,
+                    forfeit_team_id,
+                    max(initial_fatigue.values(), default=0),
+                    max(final_fatigue, default=0),
+                )
+            )
             wins[game.winner_team_id] += 1
             game_number += 1
+            day += game_rest_days + 1
         winner = higher if wins[higher.team_id] > wins[lower.team_id] else lower
-        return winner
+        return winner, day - game_rest_days - 1
 
-    first = series(1, 1, seeds[0], seeds[3])
-    second = series(1, 2, seeds[1], seeds[2])
-    series(2, 1, first, second)
-    return resolve_playoffs(seeds=seeds, games=tuple(games), config=config)
+    regular_season_end = max(game.day for game in season.schedule.games)
+    first_round_start = regular_season_end + postseason_rest_days + 1
+    first, first_end = series(1, 1, seeds[0], seeds[3], first_round_start)
+    second, second_end = series(1, 2, seeds[1], seeds[2], first_round_start)
+    final_start = max(first_end, second_end) + round_rest_days + 1
+    series(2, 1, first, second, final_start)
+    result = resolve_playoffs(seeds=seeds, games=tuple(games), config=config)
+    return PostseasonSimulation(
+        result,
+        initial_states,
+        tuple(states[key] for key in sorted(states)),
+        tuple(injuries),
+        tuple(state_games),
+        tuple(sorted(player_seconds.items())),
+        tuple(sorted(player_games.items())),
+        tuple(sorted(team_games.items())),
+    )
+
+
+def _postseason_audit(simulation: PostseasonSimulation) -> dict[str, object]:
+    initial = {
+        (state.team_id, state.player_id): state for state in simulation.initial_player_states
+    }
+    final = {(state.team_id, state.player_id): state for state in simulation.final_player_states}
+    postseason_start_day = min(game.day for game in simulation.games)
+    return {
+        "initial_player_states": [asdict(state) for state in simulation.initial_player_states],
+        "final_player_states": [asdict(state) for state in simulation.final_player_states],
+        "games": [asdict(game) for game in simulation.games],
+        "injuries": [asdict(injury) for injury in simulation.injuries],
+        "player_seconds": dict(simulation.player_seconds),
+        "player_games": dict(simulation.player_games),
+        "team_games": dict(simulation.team_games),
+        "players_with_fatigue_change": sum(
+            initial[key].fatigue != final[key].fatigue for key in initial
+        ),
+        "regular_season_injuries_carried": sum(
+            postseason_start_day < state.unavailable_until_day
+            for state in simulation.initial_player_states
+        ),
+        "postseason_injuries": len(simulation.injuries),
+    }
 
 
 def _season_summaries(
     season: SeasonResult,
     players: tuple[CareerPlayer, ...],
+    postseason: PostseasonSimulation | None = None,
 ) -> tuple[PlayerSeasonSummary, ...]:
     seconds: dict[int, int] = defaultdict(int)
     games_played: dict[int, int] = defaultdict(int)
@@ -1072,6 +1318,17 @@ def _season_summaries(
                 games_played[item.player_id] += 1
     for injury in season.injuries:
         injury_days[injury.player_id] += max(0, injury.return_day - injury.injury_day - 1)
+    postseason_team_games = dict(postseason.team_games) if postseason is not None else {}
+    if postseason is not None:
+        for player_id, value in postseason.player_seconds:
+            seconds[player_id] += value
+        for player_id, value in postseason.player_games:
+            games_played[player_id] += value
+        for injury in postseason.injuries:
+            injury_days[injury.player_id] += max(
+                0,
+                injury.return_day - injury.injury_day - 1,
+            )
     team_by_player = {
         player_id: roster.team_id
         for roster in season.initial_rosters
@@ -1080,7 +1337,8 @@ def _season_summaries(
     return tuple(
         PlayerSeasonSummary(
             player.player_id,
-            available_by_team.games.get(team_by_player.get(player.player_id, ""), 0),
+            available_by_team.games.get(team_by_player.get(player.player_id, ""), 0)
+            + postseason_team_games.get(team_by_player.get(player.player_id, ""), 0),
             games_played[player.player_id],
             seconds[player.player_id],
             injury_days[player.player_id],

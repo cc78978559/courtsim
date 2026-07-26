@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.31.0] - 2026-07-26
+
+- Carry regular-season fatigue and injury availability into the postseason.
+- Apply calendar-based fatigue recovery between playoff games and rounds.
+- Generate deterministic postseason injuries that affect later games and can force forfeits.
+- Preserve opponent-specific rotations while replacing unavailable players safely.
+- Feed postseason playing time and injury days into annual career development summaries.
+- Add a complete postseason continuity audit with initial/final player states.
+
 ## [0.30.0] - 2026-07-26
 
 - Add explicit three-division-per-conference alignment with legacy conference-only migration.

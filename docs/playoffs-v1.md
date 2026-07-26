@@ -31,6 +31,18 @@ the championship is decided.
 `audit_playoffs` independently replays the ledger and reports teams, completed series, games,
 sweeps, series that reached the maximum game, and champion.
 
+## State continuity
+
+The production league adapter starts the postseason from the canonical regular-season final
+fatigue and injury states. Configured rest days reduce fatigue on the same absolute calendar
+used by injury return dates. New postseason injuries can remove players from later games; the
+roster-safe availability resolver repairs lineups and rotation stints, or records a deterministic
+forfeit when fewer than five players remain.
+
+The continuity audit records every playoff date, unavailable list, forfeit, initial/final
+fatigue maximum, injury, and the complete initial/final player-state ledgers. Postseason games,
+seconds, and injury days are included in the annual career-development summary.
+
 ## Serialization
 
 Playoff schema v1 stores the exact config, seeds, ordered games, and champion. The strict

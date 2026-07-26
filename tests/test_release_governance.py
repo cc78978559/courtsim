@@ -103,7 +103,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 30
+    assert release["format_version"] == 31
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -176,6 +176,8 @@ def test_current_release_registry_is_complete_and_verified() -> None:
             "forfeit_score": SeasonConfig().forfeit_score,
         },
         "game_specific_team_resolver": True,
+        "postseason_injury_engine": True,
+        "absolute_calendar_return_dates": True,
     }
     roster_registry = release["roster_transactions"]
     assert set(roster_registry) == {
@@ -244,6 +246,13 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "default_best_of": PlayoffConfig().best_of,
         "default_higher_seed_home": list(PlayoffConfig().higher_seed_home),
         "playoff_schema_version": PLAYOFF_SCHEMA_VERSION,
+        "regular_season_state_continuity": True,
+        "cross_game_fatigue_continuity": True,
+        "cross_game_injury_continuity": True,
+        "postseason_career_feedback": True,
+        "default_postseason_rest_days": 2,
+        "default_game_rest_days": 1,
+        "default_round_rest_days": 2,
     }
     career_registry = release["career_draft"]
     assert set(career_registry) == {
@@ -375,6 +384,11 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "rotation_engine": MANAGER_ROTATION_VERSION,
         "regular_season_matchup_rotations": True,
         "postseason_matchup_rotations": True,
+        "postseason_state_continuity": True,
+        "postseason_rest_days": 2,
+        "playoff_game_rest_days": 1,
+        "playoff_round_rest_days": 2,
+        "postseason_career_feedback": True,
         "trade_engine": TRADE_VERSION,
         "trade_market_engine": TRADE_MARKET_VERSION,
         "three_team_market_engine": THREE_TEAM_MARKET_VERSION,

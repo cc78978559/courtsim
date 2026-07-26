@@ -8,7 +8,7 @@ statistics ledger rather than continuous court physics.
 
 ## Current versions
 
-- Engine release candidate: `0.30.0`.
+- Engine release candidate: `0.31.0`.
 - Latest mechanics: schema `demo-v1.12`, parameters `demo-1.4.0`.
 - Frozen realism baseline: `demo-1.4.0`.
 - Game rules: `nba-v1`.
@@ -108,6 +108,9 @@ promotion.
   and optional 30-team conference/division alignment, with deterministic schema 1/2/3 migration.
 - Roster-safe per-game team resolution and opponent-specific white-box rotations throughout
   regular-season games and playoff series, with base behavior for unseen opponents.
+- Regular-season fatigue and injury state carried into the postseason, calendar-based recovery
+  between games and rounds, new playoff injuries affecting later games, deterministic forfeits,
+  and postseason playing time/injury burden feeding annual career development.
 - Canonical free-agency, bilateral-trade, and three-team-trade entry points governed by the
   persisted cap ledger, including Bird-rights signings, tiered matching, atomic exception
   creation/consumption, replay verification, and scaled aprons for custom leagues.
@@ -121,7 +124,7 @@ promotion.
 
 - Ruff formatting and lint: passed.
 - mypy strict: passed.
-- pytest: 442 passed; one Windows symlink test skipped when link privileges are absent.
+- pytest: 444 passed; one Windows symlink test skipped when link privileges are absent.
 - Coverage: 85%, meeting the required minimum of 85%.
 - Runtime dependencies: Python standard library only.
 - Frozen `demo-1.4.0` audit: 10 core realism targets, 3 free-throw targets, and
@@ -139,8 +142,8 @@ Run the complete local gate with:
 - Broader offensive vocabulary and stronger player-level usage calibration.
 - Multi-team and player-level real-data calibration beyond the current selected targets.
 - Full NBA lottery odds and advanced conditional-pick rules, seven-year Stepien edge cases,
-  three-plus-round negotiation, playoff fatigue/injury continuity, learned tactical play-call
-  changes beyond rotations, human-approved promotion beyond Shadow
+  three-plus-round negotiation, learned tactical play-call changes beyond rotations,
+  human-approved promotion beyond Shadow
   mode, and fantasy-manager gameplay.
 
 ## Repository boundary
