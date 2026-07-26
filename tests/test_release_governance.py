@@ -8,6 +8,7 @@ from courtsim.analysis import (
     load_audit_gates,
     load_distribution_audit,
 )
+from courtsim.analysis.nba_quick_sim_executor import NBA_QUICK_SIM_EXECUTOR_VERSION
 from courtsim.analysis.quick_sim_artifacts import QUICK_SIM_ARTIFACT_VERSION
 from courtsim.analysis.quick_sim_batch import QUICK_SIM_BATCH_VERSION
 from courtsim.analysis.quick_sim_comparison import (
@@ -112,11 +113,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "quick_sim_comparison",
         "quick_sim_batch",
         "quick_sim_artifact",
+        "nba_quick_sim_executor",
         "model",
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 40
+    assert release["format_version"] == 41
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -966,6 +968,44 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "checkpoint_file_sha256_receipt": True,
         "reference_file_sha256_receipt": True,
         "complete_batch_required_for_reference": True,
+    }
+    nba_quick_sim_registry = release["nba_quick_sim_executor"]
+    assert set(nba_quick_sim_registry) == {
+        "nba_quick_sim_executor_version",
+        "path",
+        "file_sha256",
+    }
+    nba_quick_sim_path = ROOT / nba_quick_sim_registry["path"]
+    nba_quick_sim_config = json.loads(nba_quick_sim_path.read_text(encoding="utf-8"))
+    assert _sha256(nba_quick_sim_path) == nba_quick_sim_registry["file_sha256"]
+    assert (
+        nba_quick_sim_registry["nba_quick_sim_executor_version"] == NBA_QUICK_SIM_EXECUTOR_VERSION
+    )
+    assert nba_quick_sim_config == {
+        "format_version": 1,
+        "nba_quick_sim_executor_version": NBA_QUICK_SIM_EXECUTOR_VERSION,
+        "quick_sim_comparison_version": QUICK_SIM_COMPARISON_VERSION,
+        "nba_league_version": NBA_LEAGUE_VERSION,
+        "team_count": 30,
+        "regular_season_games": 1_230,
+        "games_per_team": 82,
+        "play_in_games_per_conference": 3,
+        "playoff_teams": 16,
+        "playoff_series": 15,
+        "series_best_of": 7,
+        "regular_season_engine": "canonical-season-state-machine",
+        "game_engine": "canonical-possession-runtime",
+        "default_trace_mode": "aggregate-only",
+        "conference_seed_order": [
+            "wins-plus-half-ties",
+            "point-differential",
+            "team-id",
+        ],
+        "postseason_decisive_retry_limit": 100,
+        "deterministic_addressed_randomness": True,
+        "league_unique_player_ids": True,
+        "postseason_fatigue_continuity": False,
+        "postseason_injury_continuity": False,
     }
 
     model = release["model"]

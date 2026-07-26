@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.41.0] - 2026-07-26
+
+- Add a callable 30-team quick-simulation executor.
+- Run all 1,230 regular-season games through the canonical season and possession engines.
+- Sample both conference play-ins and all 15 best-of-seven postseason series.
+- Derive deterministic conference seeds and decisive postseason retry streams.
+- Return canonical season, play-in, postseason, and quick-comparison summary results.
+
 ## [0.40.0] - 2026-07-26
 
 - Persist an atomic quick-simulation checkpoint after every completed season.

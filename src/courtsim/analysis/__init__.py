@@ -43,6 +43,10 @@ from courtsim.analysis.distribution import (
     audit_game_results,
     distribution_audit_to_json,
 )
+from courtsim.analysis.nba_quick_sim_executor import (
+    NBAQuickSimExecution,
+    NBAQuickSimExecutor,
+)
 from courtsim.analysis.nba_reference import (
     NbaReferenceError,
     build_nba_core_target_payload,
@@ -99,6 +103,8 @@ __all__ = [
     "AuditGateError",
     "AuditGateReport",
     "DistributionAudit",
+    "NBAQuickSimExecution",
+    "NBAQuickSimExecutor",
     "NbaReferenceError",
     "PlayerFoulShare",
     "PlayerUsageShare",
