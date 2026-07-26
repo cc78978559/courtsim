@@ -14,12 +14,17 @@ from courtsim.manager_ai import ManagerProfile
 from courtsim.model.game_runtime import GameTeam
 from courtsim.model.interaction_compiler import ProfileLineup
 from courtsim.nba_franchise import (
+    NBAFranchiseSeasonExecution,
     NBAFranchiseState,
     execute_nba_franchise_season,
 )
 from courtsim.nba_franchise_artifacts import (
     load_nba_franchise_checkpoint,
     write_nba_franchise_checkpoint,
+)
+from courtsim.nba_franchise_runner import (
+    NBAFranchiseRunSpec,
+    run_nba_franchise_checkpoint,
 )
 from courtsim.nba_league import NBAConferenceAlignment
 from courtsim.prospects import ProspectGenerationRules
@@ -85,16 +90,36 @@ def test_franchise_season_composes_into_a_second_complete_season(
         rookie_salary=1_000_000,
         rookie_contract_years=2,
     )
-    first = execute_nba_franchise_season(
+
+    def execute(
+        current: NBAFranchiseState,
+        seed: int,
+    ) -> NBAFranchiseSeasonExecution:
+        return execute_nba_franchise_season(
+            current,
+            seed=seed,
+            parameters=PARAMETERS,
+            game_config=game_config,
+            profiles=profiles,
+            contract_rules=contract_rules,
+            draft_rules=draft_rules,
+            season_config=SeasonConfig(injury_probability_bps=0),
+        )
+
+    spec = NBAFranchiseRunSpec("league-run", 101, 2)
+    first_run = run_nba_franchise_checkpoint(
+        spec,
         state,
-        seed=101,
-        parameters=PARAMETERS,
-        game_config=game_config,
-        profiles=profiles,
-        contract_rules=contract_rules,
-        draft_rules=draft_rules,
-        season_config=SeasonConfig(injury_probability_bps=0),
+        contract_rules,
+        execute,
+        tmp_path / "run",
+        maximum_new_seasons=1,
     )
+    assert first_run.completed_before == 0
+    assert first_run.completed_after == 1
+    assert not first_run.complete
+    assert len(first_run.executions) == 1
+    first = first_run.executions[0]
     assert first.final_state.management.season_year == 2030
     assert first.final_state.completed_seasons == 1
     assert first.simulation.matchup_team_count == 0
@@ -141,16 +166,19 @@ def test_franchise_season_composes_into_a_second_complete_season(
     assert restored_rules == contract_rules
     assert loaded_receipt == receipt
 
-    second = execute_nba_franchise_season(
-        restored,
-        seed=202,
-        parameters=PARAMETERS,
-        game_config=game_config,
-        profiles=profiles,
-        contract_rules=restored_rules,
-        draft_rules=draft_rules,
-        season_config=SeasonConfig(injury_probability_bps=0),
+    second_run = run_nba_franchise_checkpoint(
+        spec,
+        state,
+        restored_rules,
+        execute,
+        tmp_path / "run",
+        maximum_new_seasons=1,
     )
+    assert second_run.completed_before == 1
+    assert second_run.completed_after == 2
+    assert second_run.complete
+    assert len(second_run.executions) == 1
+    second = second_run.executions[0]
     assert second.initial_state == first.final_state
     assert second.final_state.management.season_year == 2031
     assert second.final_state.completed_seasons == 2
@@ -184,6 +212,24 @@ def test_franchise_season_composes_into_a_second_complete_season(
     assert len(second.offseason.offseason.selections) == 30
     assert {len(roster.player_ids) for roster in second.final_state.management.rosters} == {7}
     assert not any(career.status is CareerStatus.PROSPECT for career in second.final_state.players)
+
+    def must_not_execute(
+        current: NBAFranchiseState,
+        seed: int,
+    ) -> NBAFranchiseSeasonExecution:
+        raise AssertionError((current.completed_seasons, seed))
+
+    completed_run = run_nba_franchise_checkpoint(
+        spec,
+        state,
+        contract_rules,
+        must_not_execute,
+        tmp_path / "run",
+    )
+    assert completed_run.completed_before == 2
+    assert completed_run.completed_after == 2
+    assert completed_run.complete
+    assert completed_run.executions == ()
 
 
 def test_nba_franchise_rejects_nonstandard_prospect_class_size() -> None:

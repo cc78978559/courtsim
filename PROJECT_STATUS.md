@@ -8,7 +8,7 @@ statistics ledger rather than continuous court physics.
 
 ## Current versions
 
-- Engine release candidate: `0.51.0`.
+- Engine release candidate: `0.52.0`.
 - Latest mechanics: schema `demo-v1.12`, parameters `demo-1.4.0`.
 - Frozen realism baseline: `demo-1.4.0`.
 - Game rules: `nba-v1`.
@@ -43,6 +43,7 @@ statistics ledger rather than continuous court physics.
 - Complete thirty-team career and management offseason: `nba-offseason-v1`.
 - Complete-season learning-aware thirty-team franchise loop: `nba-franchise-v3`.
 - Atomic hash-verified franchise checkpoints: `nba-franchise-artifact-v1`.
+- Resumable automatic multi-season orchestration: `nba-franchise-runner-v1`.
 - Native routed three-team transactions: `three-team-trade-v1`.
 - Automatic cyclic/hub three-team discovery and unified clearing: `three-team-market-v1`.
 - Team-specific hidden-potential scouting: `scouting-v1`.
@@ -164,6 +165,9 @@ promotion.
 - Strict canonical franchise JSON preserving management, careers, assets, learning, alignment,
   team profiles, strategies, and rotations, with atomic writes, embedded state hashes,
   expected-file verification, and direct next-season resume.
+- Stable-seed multi-season franchise runs with a fully verified contiguous checkpoint prefix,
+  per-call work budgets, crash-safe state-before-manifest ordering, zero completed-season
+  replay, and completed-run no-op behavior.
 - League-state schema 4 persistence for Bird rights, trade exceptions, manager opponent memory,
   and optional 30-team conference/division alignment, with deterministic schema 1/2/3 migration.
 - Roster-safe per-game team resolution and opponent-specific white-box rotations throughout
@@ -202,9 +206,8 @@ Run the complete local gate with:
 - Broader offensive vocabulary and stronger player-level usage calibration.
 - Multi-team and player-level real-data calibration beyond the current selected targets.
 - Advanced conditional-pick rules, seven-year Stepien edge cases, four-plus-round and
-  contract-dependent negotiation, automatic multi-season checkpoint orchestration, causal
-  tactical experiments, human-approved promotion beyond Shadow mode, and fantasy-manager
-  gameplay.
+  contract-dependent negotiation, checkpoint retention and schema migrations, causal tactical
+  experiments, human-approved promotion beyond Shadow mode, and fantasy-manager gameplay.
 
 ## Repository boundary
 

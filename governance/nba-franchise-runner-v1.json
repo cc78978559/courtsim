@@ -1,0 +1,28 @@
+{
+  "format_version": 1,
+  "nba_franchise_runner_version": "nba-franchise-runner-v1",
+  "nba_franchise_artifact_version": "nba-franchise-artifact-v1",
+  "nba_franchise_version": "nba-franchise-v3",
+  "manifest_schema": 1,
+  "deterministic_season_seeds": true,
+  "seed_address_fields": [
+    "master-seed",
+    "runner-version",
+    "run-id",
+    "completed-season-number"
+  ],
+  "initial_state_checkpoint": true,
+  "checkpoint_after_every_season": true,
+  "atomic_state_before_manifest": true,
+  "verified_contiguous_prefix": true,
+  "all_prefix_file_hashes_verified": true,
+  "all_prefix_state_hashes_verified": true,
+  "contract_rules_verified": true,
+  "league_identity_verified": true,
+  "execution_state_continuity_required": true,
+  "completed_seasons_reexecuted": false,
+  "bounded_new_seasons_per_call": true,
+  "orphan_checkpoint_safe": true,
+  "complete_run_noop": true,
+  "manifest_sha256_receipt": true
+}

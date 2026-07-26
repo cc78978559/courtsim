@@ -59,6 +59,7 @@ from courtsim.nba_draft_lottery import (
 from courtsim.nba_draft_offseason import NBA_DRAFT_OFFSEASON_VERSION
 from courtsim.nba_franchise import NBA_FRANCHISE_VERSION
 from courtsim.nba_franchise_artifacts import NBA_FRANCHISE_ARTIFACT_VERSION
+from courtsim.nba_franchise_runner import NBA_FRANCHISE_RUNNER_VERSION
 from courtsim.nba_league import NBA_LEAGUE_VERSION, NBARegularSeasonRules
 from courtsim.nba_offseason import NBA_OFFSEASON_VERSION
 from courtsim.parameters import load_model_parameters
@@ -119,6 +120,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "nba_offseason",
         "nba_franchise",
         "nba_franchise_artifact",
+        "nba_franchise_runner",
         "three_team_trades",
         "three_team_market",
         "scouting",
@@ -133,7 +135,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 51
+    assert release["format_version"] == 52
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -1264,6 +1266,47 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "rotation_plans_persisted": True,
         "exact_round_trip": True,
         "next_season_resume": True,
+    }
+    nba_franchise_runner_registry = release["nba_franchise_runner"]
+    assert set(nba_franchise_runner_registry) == {
+        "nba_franchise_runner_version",
+        "path",
+        "file_sha256",
+    }
+    nba_franchise_runner_path = ROOT / nba_franchise_runner_registry["path"]
+    nba_franchise_runner_config = json.loads(nba_franchise_runner_path.read_text(encoding="utf-8"))
+    assert _sha256(nba_franchise_runner_path) == nba_franchise_runner_registry["file_sha256"]
+    assert (
+        nba_franchise_runner_registry["nba_franchise_runner_version"]
+        == NBA_FRANCHISE_RUNNER_VERSION
+    )
+    assert nba_franchise_runner_config == {
+        "format_version": 1,
+        "nba_franchise_runner_version": NBA_FRANCHISE_RUNNER_VERSION,
+        "nba_franchise_artifact_version": NBA_FRANCHISE_ARTIFACT_VERSION,
+        "nba_franchise_version": NBA_FRANCHISE_VERSION,
+        "manifest_schema": 1,
+        "deterministic_season_seeds": True,
+        "seed_address_fields": [
+            "master-seed",
+            "runner-version",
+            "run-id",
+            "completed-season-number",
+        ],
+        "initial_state_checkpoint": True,
+        "checkpoint_after_every_season": True,
+        "atomic_state_before_manifest": True,
+        "verified_contiguous_prefix": True,
+        "all_prefix_file_hashes_verified": True,
+        "all_prefix_state_hashes_verified": True,
+        "contract_rules_verified": True,
+        "league_identity_verified": True,
+        "execution_state_continuity_required": True,
+        "completed_seasons_reexecuted": False,
+        "bounded_new_seasons_per_call": True,
+        "orphan_checkpoint_safe": True,
+        "complete_run_noop": True,
+        "manifest_sha256_receipt": True,
     }
 
     model = release["model"]

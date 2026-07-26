@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.52.0] - 2026-07-26
+
+- Add a resumable automatic multi-season NBA franchise runner.
+- Derive stable season seeds from run identity and completed-season number.
+- Persist an initial state and immutable checkpoint after every completed season.
+- Verify the complete contiguous checkpoint prefix before resuming.
+- Skip every completed season and make completed-run calls verified no-ops.
+
 ## [0.51.0] - 2026-07-26
 
 - Serialize the complete 30-team franchise state as strict canonical JSON.
