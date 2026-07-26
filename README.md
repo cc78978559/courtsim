@@ -143,3 +143,7 @@ and non-executing Shadow recommendations for the draft and free-agent market.
 The [`manager-evidence-v1` layer](docs/manager-evidence-v1.md) evaluates exact paired,
 multi-season incumbent/Shadow outcomes, blocks sample-count-only promotion, and records
 evidence-gated policy activation, rejection, retirement, and rollback.
+
+The [`manager-experiment-v1` runner](docs/manager-experiment-v1.md) executes or resumes paired
+manager-policy arms across independent seeds and multi-season state chains, then hash-verifies
+every cell and derives the governed evidence report.

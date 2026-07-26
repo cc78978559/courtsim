@@ -34,6 +34,7 @@ from courtsim.manager_evaluation import (
     ManagerEvaluationWeights,
     ManagerEvidenceThresholds,
 )
+from courtsim.manager_experiment import MANAGER_EXPERIMENT_VERSION
 from courtsim.parameters import load_model_parameters
 from courtsim.playoffs import PLAYOFF_SCHEMA_VERSION, PLAYOFF_VERSION, PlayoffConfig
 from courtsim.rosters import ROSTER_VERSION, RosterRules
@@ -69,11 +70,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "career_draft",
         "manager_ai",
         "manager_evidence",
+        "manager_experiment",
         "model",
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 10
+    assert release["format_version"] == 11
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -291,6 +293,26 @@ def test_current_release_registry_is_complete_and_verified() -> None:
             "minimum_worst_source_delta": thresholds.minimum_worst_source_delta,
             "neutral_band": thresholds.neutral_band,
         },
+        "automatic_activation": False,
+    }
+    experiment_registry = release["manager_experiment"]
+    assert set(experiment_registry) == {
+        "manager_experiment_version",
+        "path",
+        "file_sha256",
+    }
+    experiment_path = ROOT / experiment_registry["path"]
+    experiment_config = json.loads(experiment_path.read_text(encoding="utf-8"))
+    assert _sha256(experiment_path) == experiment_registry["file_sha256"]
+    assert experiment_registry["manager_experiment_version"] == MANAGER_EXPERIMENT_VERSION
+    assert experiment_config == {
+        "format_version": 1,
+        "manager_experiment_version": MANAGER_EXPERIMENT_VERSION,
+        "arms": ["incumbent", "shadow"],
+        "paired_source_seed_required": True,
+        "multiseason_state_continuity_required": True,
+        "resumable_cells": True,
+        "hash_verified_manifest": True,
         "automatic_activation": False,
     }
 

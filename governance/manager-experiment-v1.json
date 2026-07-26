@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "manager_experiment_version": "manager-experiment-v1",
+  "arms": [
+    "incumbent",
+    "shadow"
+  ],
+  "paired_source_seed_required": true,
+  "multiseason_state_continuity_required": true,
+  "resumable_cells": true,
+  "hash_verified_manifest": true,
+  "automatic_activation": false
+}

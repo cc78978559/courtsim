@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.0] - 2026-07-26
+
+- Add resumable incumbent/Shadow manager experiment orchestration across independent sources.
+- Carry isolated arm state through exact multi-season horizons from one shared initial state.
+- Persist source/arm/season cells with request, state, and execution digests.
+- Reuse only verified completed cells after interruption and reject conflicting plans.
+- Recompute manager evidence from stored outcomes and bind plans, cells, reports, and manifests.
+
 ## [0.10.0] - 2026-07-26
 
 - Add exact-address paired incumbent/Shadow manager outcomes across multiple seasons.

@@ -61,5 +61,5 @@ rejects duplicate versions, invalid parents, invalid transitions, and unknown st
 ## Remaining boundary
 
 Human approval remains outside the registry. A passing result means “eligible for review,” not
-“automatically deploy.” CourtSim still needs a season-level experiment runner that generates
-the governed outcome records from complete incumbent/Shadow league simulations.
+“automatically deploy.” `manager-experiment-v1` now generates and verifies governed paired
+outcome records; a production CourtSim league executor adapter remains separate work.
