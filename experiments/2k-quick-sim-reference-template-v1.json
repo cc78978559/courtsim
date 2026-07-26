@@ -1,0 +1,18 @@
+{
+  "version": "quick-sim-comparison-v1",
+  "reference_id": "replace-with-observed-2k-reference",
+  "source_label": "User-supplied NBA 2K quick-simulation exports",
+  "game_version": "replace-with-exact-2k-version",
+  "roster_date": "replace-with-YYYY-MM-DD",
+  "team_count": 30,
+  "observed_seasons": 0,
+  "source_status": "template",
+  "metrics": [
+    {"metric": "win-rate-stddev", "minimum": null, "maximum": null},
+    {"metric": "pace-possessions-per-team", "minimum": null, "maximum": null},
+    {"metric": "offensive-rating", "minimum": null, "maximum": null},
+    {"metric": "point-differential-stddev", "minimum": null, "maximum": null},
+    {"metric": "playoff-upset-rate", "minimum": null, "maximum": null},
+    {"metric": "champion-seed-mean", "minimum": null, "maximum": null}
+  ]
+}

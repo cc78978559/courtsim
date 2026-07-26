@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.38.0] - 2026-07-26
+
+- Add canonical multi-season basketball quick-simulation summaries.
+- Compare six season and postseason metrics against versioned external target intervals.
+- Require exact source, game version, roster date, team count, and observed season count.
+- Add strict reference and report JSON contracts.
+- Ship an explicitly incomplete NBA 2K template that cannot be scored until real data is supplied.
+
 ## [0.37.0] - 2026-07-26
 
 - Group bilateral trade candidates into stable negotiation trees.

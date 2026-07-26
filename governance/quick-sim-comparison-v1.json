@@ -1,0 +1,21 @@
+{
+  "format_version": 1,
+  "quick_sim_comparison_version": "quick-sim-comparison-v1",
+  "default_team_count": 30,
+  "canonical_metrics": [
+    "win-rate-stddev",
+    "pace-possessions-per-team",
+    "offensive-rating",
+    "point-differential-stddev",
+    "playoff-upset-rate",
+    "champion-seed-mean"
+  ],
+  "multi_season_aggregation": "arithmetic-mean",
+  "season_source": "canonical-season-ledger",
+  "postseason_source": "canonical-playoff-ledger",
+  "observed_reference_required": true,
+  "incomplete_template_rejected_for_scoring": true,
+  "fabricated_2k_targets": false,
+  "strict_reference_json": true,
+  "canonical_report_json": true
+}

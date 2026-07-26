@@ -8,6 +8,10 @@ from courtsim.analysis import (
     load_audit_gates,
     load_distribution_audit,
 )
+from courtsim.analysis.quick_sim_comparison import (
+    QUICK_SIM_COMPARISON_VERSION,
+    QUICK_SIM_METRICS,
+)
 from courtsim.analysis.realism_targets import (
     load_realism_target_set,
     score_audit_against_realism_targets,
@@ -103,11 +107,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "cap_mechanics",
         "nba_league",
         "manager_learning",
+        "quick_sim_comparison",
         "model",
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 37
+    assert release["format_version"] == 38
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -881,6 +886,30 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "league_state_persistence": True,
         "automatic_season_observations": True,
         "automatic_activation": False,
+    }
+    quick_sim_registry = release["quick_sim_comparison"]
+    assert set(quick_sim_registry) == {
+        "quick_sim_comparison_version",
+        "path",
+        "file_sha256",
+    }
+    quick_sim_path = ROOT / quick_sim_registry["path"]
+    quick_sim_config = json.loads(quick_sim_path.read_text(encoding="utf-8"))
+    assert _sha256(quick_sim_path) == quick_sim_registry["file_sha256"]
+    assert quick_sim_registry["quick_sim_comparison_version"] == QUICK_SIM_COMPARISON_VERSION
+    assert quick_sim_config == {
+        "format_version": 1,
+        "quick_sim_comparison_version": QUICK_SIM_COMPARISON_VERSION,
+        "default_team_count": 30,
+        "canonical_metrics": list(QUICK_SIM_METRICS),
+        "multi_season_aggregation": "arithmetic-mean",
+        "season_source": "canonical-season-ledger",
+        "postseason_source": "canonical-playoff-ledger",
+        "observed_reference_required": True,
+        "incomplete_template_rejected_for_scoring": True,
+        "fabricated_2k_targets": False,
+        "strict_reference_json": True,
+        "canonical_report_json": True,
     }
 
     model = release["model"]
