@@ -601,7 +601,7 @@ def league_state_to_json(state: CourtSimLeagueState) -> str:
         )
     )
     payload = {
-        "schema_version": 3,
+        "schema_version": 4,
         "version": state.version,
         "management": management,
         "players": [_career_player_to_dict(player) for player in state.players],
@@ -642,7 +642,7 @@ def league_state_from_json(payload: str) -> CourtSimLeagueState:
                 "nba_alignment",
             }
         _exact(raw, expected_keys, "manager league state")
-        if schema_version not in {1, 2, 3} or raw["version"] != MANAGER_LEAGUE_ADAPTER_VERSION:
+        if schema_version not in {1, 2, 3, 4} or raw["version"] != MANAGER_LEAGUE_ADAPTER_VERSION:
             raise ManagerLeagueAdapterError("unsupported manager league state")
         management_envelope = _object(raw["management"], "manager league management")
         management_rules = _object(
@@ -667,8 +667,10 @@ def league_state_from_json(payload: str) -> CourtSimLeagueState:
             if schema_version == 1
             else draft_asset_ledger_from_dict(raw["draft_assets"])
         )
-        cap_ledger = cap_ledger_from_dict(raw["cap_ledger"]) if schema_version == 3 else CapLedger()
-        if schema_version == 3:
+        cap_ledger = (
+            cap_ledger_from_dict(raw["cap_ledger"]) if schema_version in {3, 4} else CapLedger()
+        )
+        if schema_version in {3, 4}:
             learning_raw = raw["manager_learning"]
             if not isinstance(learning_raw, list):
                 raise ManagerLeagueAdapterError("manager learning must be a list")

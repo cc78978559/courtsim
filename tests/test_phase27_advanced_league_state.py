@@ -17,7 +17,7 @@ from courtsim.nba_league import (
 )
 
 
-def test_schema_three_round_trips_cap_and_manager_memory() -> None:
+def test_schema_four_round_trips_cap_and_manager_memory() -> None:
     initial = replace(
         league_state(),
         cap_ledger=CapLedger(
@@ -27,7 +27,7 @@ def test_schema_three_round_trips_cap_and_manager_memory() -> None:
         manager_learning=(ManagerLearningState("manager-A", "A", 2027),),
     )
     payload = league_state_to_json(initial)
-    assert json.loads(payload)["schema_version"] == 3
+    assert json.loads(payload)["schema_version"] == 4
     assert league_state_from_json(payload) == initial
 
 
@@ -41,6 +41,13 @@ def test_schema_two_migrates_to_empty_advanced_state() -> None:
     assert migrated.cap_ledger == CapLedger()
     assert migrated.manager_learning == ()
     assert migrated.nba_alignment is None
+
+
+def test_schema_three_advanced_state_remains_readable() -> None:
+    initial = league_state()
+    raw = json.loads(league_state_to_json(initial))
+    raw["schema_version"] = 3
+    assert league_state_from_json(json.dumps(raw)) == initial
 
 
 def test_real_season_expires_exceptions_and_persists_opponent_memory() -> None:

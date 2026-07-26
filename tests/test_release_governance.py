@@ -103,7 +103,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 29
+    assert release["format_version"] == 30
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -384,8 +384,8 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "cap_ledger_transaction_authority": True,
         "scaled_custom_league_aprons": True,
         "draft_asset_engine": DRAFT_ASSET_VERSION,
-        "league_state_schema_version": 3,
-        "legacy_state_schema_versions": [1, 2],
+        "league_state_schema_version": 4,
+        "legacy_state_schema_versions": [1, 2, 3],
         "advanced_state": ["cap-ledger", "manager-learning", "nba-alignment"],
         "future_pick_horizon": 3,
         "draft_lottery_engine": DRAFT_LOTTERY_VERSION,
@@ -539,7 +539,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "format_version": 1,
         "draft_asset_version": DRAFT_ASSET_VERSION,
         "schema_version": DRAFT_ASSET_SCHEMA_VERSION,
-        "league_state_schema_version": 3,
+        "league_state_schema_version": 4,
         "future_year_horizon": 3,
         "supported_protection": "top-n",
         "protection_rollover": True,
@@ -696,11 +696,21 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "games_per_team": nba_rules.games_per_team,
         "regular_season_games": 1230,
         "conferences": 2,
+        "divisions_per_conference": 3,
+        "teams_per_division": 5,
+        "division_opponent_games": 4,
+        "conference_four_game_opponents": 6,
+        "conference_three_game_opponents": 4,
+        "interconference_opponent_games": 2,
+        "home_games_per_team": 41,
+        "same_day_team_conflicts": False,
         "play_in_seeds": [7, 8, 9, 10],
         "playoff_teams": 16,
         "playoff_series": 15,
         "series_best_of": 7,
         "deterministic_schedule": True,
+        "explicit_division_persistence": True,
+        "legacy_conference_alignment_migration": True,
         "conference_alignment_persistence": True,
         "derived_bracket_validation": True,
     }

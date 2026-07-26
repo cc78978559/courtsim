@@ -29,6 +29,8 @@ class NBAConferenceAlignment:
     east_team_ids: tuple[str, ...]
     west_team_ids: tuple[str, ...]
     version: str = NBA_LEAGUE_VERSION
+    east_divisions: tuple[tuple[str, ...], ...] = ()
+    west_divisions: tuple[tuple[str, ...], ...] = ()
 
     def __post_init__(self) -> None:
         if (
@@ -39,6 +41,20 @@ class NBAConferenceAlignment:
             or set(self.east_team_ids) & set(self.west_team_ids)
         ):
             raise ValueError("NBA alignment requires two distinct ordered 15-team conferences")
+        if not self.east_divisions:
+            object.__setattr__(
+                self,
+                "east_divisions",
+                _default_divisions(self.east_team_ids),
+            )
+        if not self.west_divisions:
+            object.__setattr__(
+                self,
+                "west_divisions",
+                _default_divisions(self.west_team_ids),
+            )
+        _validate_divisions(self.east_divisions, self.east_team_ids, "east")
+        _validate_divisions(self.west_divisions, self.west_team_ids, "west")
         if self.version != NBA_LEAGUE_VERSION:
             raise ValueError("unsupported NBA alignment version")
 
@@ -48,14 +64,23 @@ def nba_alignment_to_dict(value: NBAConferenceAlignment) -> dict[str, object]:
         "version": value.version,
         "east_team_ids": list(value.east_team_ids),
         "west_team_ids": list(value.west_team_ids),
+        "east_divisions": [list(division) for division in value.east_divisions],
+        "west_divisions": [list(division) for division in value.west_divisions],
     }
 
 
 def nba_alignment_from_dict(value: object) -> NBAConferenceAlignment:
-    if not isinstance(value, dict) or set(value) != {
-        "version",
-        "east_team_ids",
-        "west_team_ids",
+    if not isinstance(value, dict) or frozenset(value) not in {
+        frozenset({"version", "east_team_ids", "west_team_ids"}),
+        frozenset(
+            {
+                "version",
+                "east_team_ids",
+                "west_team_ids",
+                "east_divisions",
+                "west_divisions",
+            }
+        ),
     }:
         raise ValueError("invalid NBA alignment object")
     east = value["east_team_ids"]
@@ -66,7 +91,21 @@ def nba_alignment_from_dict(value: object) -> NBAConferenceAlignment:
         or any(not isinstance(item, str) for item in (*east, *west))
     ):
         raise ValueError("NBA alignment teams must be string lists")
-    return NBAConferenceAlignment(tuple(east), tuple(west), str(value["version"]))
+    if "east_divisions" not in value:
+        return NBAConferenceAlignment(
+            tuple(east),
+            tuple(west),
+            version=str(value["version"]),
+        )
+    east_divisions = _division_tuple(value["east_divisions"], "east")
+    west_divisions = _division_tuple(value["west_divisions"], "west")
+    return NBAConferenceAlignment(
+        tuple(east),
+        tuple(west),
+        version=str(value["version"]),
+        east_divisions=east_divisions,
+        west_divisions=west_divisions,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,28 +189,127 @@ def generate_nba_schedule(
     team_ids: tuple[str, ...],
     *,
     rules: NBARegularSeasonRules | None = None,
+    alignment: NBAConferenceAlignment | None = None,
 ) -> SeasonSchedule:
     active_rules = rules or NBARegularSeasonRules()
     if team_ids != tuple(sorted(set(team_ids))) or len(team_ids) != active_rules.team_count:
         raise ValueError("NBA team ids must contain thirty ordered unique teams")
-    rounds = _round_robin_pairs(team_ids)
-    selected_rounds = (*rounds, *rounds, *rounds[:24])
-    games: list[ScheduledGame] = []
-    game_id = 1
-    for day, pairs in enumerate(selected_rounds, start=1):
-        cycle = (day - 1) // len(rounds)
-        for pair_index, (first, second) in enumerate(pairs):
-            flip = (cycle + pair_index + day) % 2 == 1
-            home, away = (second, first) if flip else (first, second)
-            games.append(ScheduledGame(game_id, day, home, away))
-            game_id += 1
-    schedule = SeasonSchedule(team_ids, tuple(games))
+    active_alignment = alignment or NBAConferenceAlignment(team_ids[:15], team_ids[15:])
+    if set((*active_alignment.east_team_ids, *active_alignment.west_team_ids)) != set(team_ids):
+        raise ValueError("NBA alignment must cover the scheduled teams exactly")
+    three_game_home = _three_game_home_teams(active_alignment)
+    divisions = (*active_alignment.east_divisions, *active_alignment.west_divisions)
+    division_by_team = {
+        team_id: division_index
+        for division_index, division in enumerate(divisions)
+        for team_id in division
+    }
+    conference_by_team = {
+        team_id: conference
+        for conference, conference_teams in (
+            ("east", active_alignment.east_team_ids),
+            ("west", active_alignment.west_team_ids),
+        )
+        for team_id in conference_teams
+    }
+    unscheduled: list[tuple[int, str, str, str, str]] = []
+    for first_index, first in enumerate(team_ids):
+        for second in team_ids[first_index + 1 :]:
+            same_conference = conference_by_team[first] == conference_by_team[second]
+            same_division = division_by_team[first] == division_by_team[second]
+            pair = frozenset((first, second))
+            count = (
+                4
+                if same_division
+                else 3
+                if pair in three_game_home
+                else 4
+                if same_conference
+                else 2
+            )
+            preferred_home = three_game_home.get(pair)
+            for copy_index in range(count):
+                if count == 3:
+                    assert preferred_home is not None
+                    home = (
+                        preferred_home
+                        if copy_index < 2
+                        else second
+                        if preferred_home == first
+                        else first
+                    )
+                else:
+                    home = first if copy_index % 2 == 0 else second
+                away = second if home == first else first
+                unscheduled.append((copy_index, first, second, home, away))
+    days: list[tuple[list[tuple[str, str]], set[str]]] = []
+    for _, _, _, home, away in sorted(unscheduled):
+        for games, occupied in days:
+            if home not in occupied and away not in occupied:
+                games.append((home, away))
+                occupied.update((home, away))
+                break
+        else:
+            days.append(([(home, away)], {home, away}))
+    scheduled_games: list[ScheduledGame] = []
+    for day, (matchups, _) in enumerate(days, start=1):
+        for home, away in sorted(matchups):
+            scheduled_games.append(ScheduledGame(len(scheduled_games) + 1, day, home, away))
+    schedule = SeasonSchedule(team_ids, tuple(scheduled_games))
     appearances = Counter(
         team_id for game in schedule.games for team_id in (game.home_team_id, game.away_team_id)
     )
     if set(appearances.values()) != {active_rules.games_per_team}:
         raise ValueError("generated NBA schedule does not contain eighty-two games per team")
+    home_games = Counter(game.home_team_id for game in schedule.games)
+    if set(home_games.values()) != {active_rules.games_per_team // 2}:
+        raise ValueError("generated NBA schedule does not balance home games")
     return schedule
+
+
+def _default_divisions(team_ids: tuple[str, ...]) -> tuple[tuple[str, ...], ...]:
+    return tuple(tuple(team_ids[index : index + 5]) for index in range(0, 15, 5))
+
+
+def _validate_divisions(
+    divisions: tuple[tuple[str, ...], ...],
+    conference_team_ids: tuple[str, ...],
+    conference: str,
+) -> None:
+    if (
+        len(divisions) != 3
+        or any(len(division) != 5 for division in divisions)
+        or any(division != tuple(sorted(set(division))) for division in divisions)
+        or divisions != tuple(sorted(divisions))
+        or {team_id for division in divisions for team_id in division} != set(conference_team_ids)
+    ):
+        raise ValueError(f"{conference} divisions must be three ordered five-team groups")
+
+
+def _division_tuple(value: object, conference: str) -> tuple[tuple[str, ...], ...]:
+    if not isinstance(value, list) or any(
+        not isinstance(division, list) or any(not isinstance(team_id, str) for team_id in division)
+        for division in value
+    ):
+        raise ValueError(f"{conference} divisions must be string lists")
+    return tuple(tuple(division) for division in value)
+
+
+def _three_game_home_teams(
+    alignment: NBAConferenceAlignment,
+) -> dict[frozenset[str], str]:
+    result: dict[frozenset[str], str] = {}
+    for divisions in (alignment.east_divisions, alignment.west_divisions):
+        for left_index, right_index in ((0, 1), (0, 2), (1, 2)):
+            left = divisions[left_index]
+            right = divisions[right_index]
+            for offset in (0, 1):
+                for index, left_team in enumerate(left):
+                    right_team = right[(index + offset) % 5]
+                    result[frozenset((left_team, right_team))] = (
+                        left_team if offset == 0 else right_team
+                    )
+    return result
 
 
 def resolve_play_in(

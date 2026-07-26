@@ -8,7 +8,7 @@ statistics ledger rather than continuous court physics.
 
 ## Current versions
 
-- Engine release candidate: `0.29.0`.
+- Engine release candidate: `0.30.0`.
 - Latest mechanics: schema `demo-v1.12`, parameters `demo-1.4.0`.
 - Frozen realism baseline: `demo-1.4.0`.
 - Game rules: `nba-v1`.
@@ -99,10 +99,13 @@ promotion.
   matching tiers, and immutable expiring trade-exception ledgers.
 - A deterministic 30-team schedule containing exactly 1,230 games and 82 games per team,
   conference play-in resolution, and a validated 16-team/15-series postseason path.
+- Division-aware NBA series allocation with four games against every division opponent,
+  6/4 four-game/three-game same-conference opponents, two games against every opposite-
+  conference opponent, 41 balanced home games, and conflict-free deterministic game days.
 - Games-weighted opponent memories across seasons and bounded matchup contributions that
   directly alter the existing white-box rotation selector.
-- League-state schema 3 persistence for Bird rights, trade exceptions, manager opponent memory,
-  and optional 30-team conference alignment, with deterministic schema 1/2 migration.
+- League-state schema 4 persistence for Bird rights, trade exceptions, manager opponent memory,
+  and optional 30-team conference/division alignment, with deterministic schema 1/2/3 migration.
 - Roster-safe per-game team resolution and opponent-specific white-box rotations throughout
   regular-season games and playoff series, with base behavior for unseen opponents.
 - Canonical free-agency, bilateral-trade, and three-team-trade entry points governed by the
@@ -118,7 +121,7 @@ promotion.
 
 - Ruff formatting and lint: passed.
 - mypy strict: passed.
-- pytest: 439 passed; one Windows symlink test skipped when link privileges are absent.
+- pytest: 442 passed; one Windows symlink test skipped when link privileges are absent.
 - Coverage: 85%, meeting the required minimum of 85%.
 - Runtime dependencies: Python standard library only.
 - Frozen `demo-1.4.0` audit: 10 core realism targets, 3 free-throw targets, and
@@ -136,8 +139,8 @@ Run the complete local gate with:
 - Broader offensive vocabulary and stronger player-level usage calibration.
 - Multi-team and player-level real-data calibration beyond the current selected targets.
 - Full NBA lottery odds and advanced conditional-pick rules, seven-year Stepien edge cases,
-  divisional schedule weighting, three-plus-round negotiation, playoff fatigue/injury continuity,
-  learned tactical play-call changes beyond rotations, human-approved promotion beyond Shadow
+  three-plus-round negotiation, playoff fatigue/injury continuity, learned tactical play-call
+  changes beyond rotations, human-approved promotion beyond Shadow
   mode, and fantasy-manager gameplay.
 
 ## Repository boundary

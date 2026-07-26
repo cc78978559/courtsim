@@ -9,5 +9,5 @@ trade can create an expiring exception; later transactions may consume it partia
 cannot be aggregated with outgoing salary, expired exceptions are rejected, and all changes
 return a new immutable ledger.
 
-The complete cap ledger is stored in manager league schema 3. Advancing a real adapter season
+The complete cap ledger is stored in manager league schema 4. Advancing a real adapter season
 automatically removes exceptions that have passed their governed expiry season.

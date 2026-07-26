@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.30.0] - 2026-07-26
+
+- Add explicit three-division-per-conference alignment with legacy conference-only migration.
+- Allocate 82 games using NBA division, conference, and interconference series frequencies.
+- Balance every team at exactly 41 home and 41 away games.
+- Schedule all 1,230 games deterministically without same-day team conflicts.
+- Upgrade league-state persistence to schema 4 while retaining schema 1-3 readers.
+
 ## [0.29.0] - 2026-07-26
 
 - Activate the persisted cap ledger in canonical free-agency and trade execution.

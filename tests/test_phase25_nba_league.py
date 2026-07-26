@@ -3,9 +3,12 @@ from collections import Counter
 import pytest
 
 from courtsim.nba_league import (
+    NBAConferenceAlignment,
     NBASeriesResult,
     PlayInGame,
     generate_nba_schedule,
+    nba_alignment_from_dict,
+    nba_alignment_to_dict,
     resolve_nba_playoffs,
     resolve_play_in,
 )
@@ -24,13 +27,63 @@ def test_thirty_team_schedule_has_1230_games_and_82_per_team() -> None:
         team_id for game in schedule.games for team_id in (game.home_team_id, game.away_team_id)
     )
     assert set(appearances.values()) == {82}
-    for day in range(1, 83):
+    assert Counter(game.home_team_id for game in schedule.games) == Counter(
+        {team_id: 41 for team_id in team_ids()}
+    )
+    for day in range(1, max(game.day for game in schedule.games) + 1):
         games = [game for game in schedule.games if game.day == day]
-        assert len(games) == 15
-        assert (
-            len({team_id for game in games for team_id in (game.home_team_id, game.away_team_id)})
-            == 30
-        )
+        participants = {
+            team_id for game in games for team_id in (game.home_team_id, game.away_team_id)
+        }
+        assert len(games) <= 15
+        assert len(participants) == len(games) * 2
+
+
+def test_schedule_uses_division_conference_and_interconference_series_weights() -> None:
+    teams = team_ids()
+    alignment = NBAConferenceAlignment(teams[:15], teams[15:])
+    schedule = generate_nba_schedule(teams, alignment=alignment)
+    pair_games = Counter(
+        tuple(sorted((game.home_team_id, game.away_team_id))) for game in schedule.games
+    )
+    for conference, divisions in (
+        (set(alignment.east_team_ids), alignment.east_divisions),
+        (set(alignment.west_team_ids), alignment.west_divisions),
+    ):
+        for team_id in conference:
+            division = next(set(item) for item in divisions if team_id in item)
+            division_counts = Counter(
+                pair_games[tuple(sorted((team_id, opponent_id)))]
+                for opponent_id in division - {team_id}
+            )
+            conference_counts = Counter(
+                pair_games[tuple(sorted((team_id, opponent_id)))]
+                for opponent_id in conference - division
+            )
+            other_counts = Counter(
+                pair_games[tuple(sorted((team_id, opponent_id)))]
+                for opponent_id in set(teams) - conference
+            )
+            assert division_counts == {4: 4}
+            assert conference_counts == {3: 4, 4: 6}
+            assert other_counts == {2: 15}
+
+
+def test_explicit_divisions_round_trip_and_legacy_alignment_migrates() -> None:
+    teams = team_ids()
+    alignment = NBAConferenceAlignment(
+        teams[:15],
+        teams[15:],
+        east_divisions=(teams[0:5], teams[5:10], teams[10:15]),
+        west_divisions=(teams[15:20], teams[20:25], teams[25:30]),
+    )
+    assert nba_alignment_from_dict(nba_alignment_to_dict(alignment)) == alignment
+    legacy = {
+        "version": alignment.version,
+        "east_team_ids": list(alignment.east_team_ids),
+        "west_team_ids": list(alignment.west_team_ids),
+    }
+    assert nba_alignment_from_dict(legacy) == alignment
 
 
 def test_play_in_derives_seventh_and_eighth_seeds() -> None:

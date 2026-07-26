@@ -1,7 +1,7 @@
 {
-  "format_version": 29,
+  "format_version": 30,
   "status": "frozen",
-  "engine_version": "0.29.0",
+  "engine_version": "0.30.0",
   "rules": {
     "version": "nba-v1",
     "path": "governance/game-rules-nba-v1.json",
@@ -67,7 +67,7 @@
   "manager_league_adapter": {
     "manager_league_adapter_version": "manager-league-adapter-v1",
     "path": "governance/manager-league-adapter-v1.json",
-    "file_sha256": "c290e49cd5d918c60454f9d5742fcb3da8a74d6fd3596523e7eac86fc2ee9998"
+    "file_sha256": "f7734e54bde7e52670ecf4b1749859a9a5824f25d7c2894366eeb639cfa645d0"
   },
   "prospect_generation": {
     "prospect_generation_version": "prospect-generation-v1",
@@ -97,7 +97,7 @@
   "draft_assets": {
     "draft_asset_version": "draft-asset-v1",
     "path": "governance/draft-assets-v1.json",
-    "file_sha256": "0ae73f7a47e0d20bef9fefd5600e9b0962b2ad325a8aafeea326acfcb748ca4a"
+    "file_sha256": "2411e51f29f6dc41ac770a7c115e47614ab172bcbb7ec4e1176cb424f0cb63f2"
   },
   "draft_lottery": {
     "draft_lottery_version": "draft-lottery-v1",
@@ -127,7 +127,7 @@
   "nba_league": {
     "nba_league_version": "nba-league-v1",
     "path": "governance/nba-league-v1.json",
-    "file_sha256": "3aad3eaf1eb62ec30d8e12399eeedc11513a2d052a3b9f1d364c719a6ad1482c"
+    "file_sha256": "aff7e37a63b6254e7cd931aa8267cf09e358694aeecbd220aab68bcd100340f0"
   },
   "manager_learning": {
     "manager_learning_version": "manager-learning-v1",
