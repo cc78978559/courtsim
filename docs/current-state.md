@@ -66,6 +66,9 @@ OFF_BALL_ACTION
 | 多种子稳健性审计 | `src/courtsim/analysis/matrix_robustness.py` |
 | 配对种子反事实门禁 | `src/courtsim/analysis/matrix_contrast.py` |
 | 多种子反事实聚合 | `src/courtsim/analysis/matrix_contrast_robustness.py` |
+| 生涯、选秀和休赛期 | `src/courtsim/career.py` |
+| 合同和自由市场 | `src/courtsim/management.py` |
+| 白盒经理 Shadow 决策 | `src/courtsim/manager_ai.py` |
 | 命令入口 | `src/courtsim/cli.py`、`tools.ps1` |
 
 详细阶段契约按需读取：
@@ -81,7 +84,9 @@ OFF_BALL_ACTION
 - `fixed-opponent-style-validation-v1.md`：主客队独立阵容、球队分侧指标和隔离门禁；
 - `assist-occurrence-v2.md`：潜在传球者如何进入助攻发生概率及 v0.9 冻结；
 - `assist-execution-calibration-v1.md`、`foul-free-throw-calibration-v1.md`：
-  最近两次结构校准。
+  最近两次结构校准；
+- `career-draft-v1.md`：成长、衰退、退休、选秀与休赛期；
+- `manager-ai-v1.md`：经理档案、白盒评分、Shadow 选秀和自由市场建议。
 
 ## 必须保持的不变量
 
@@ -147,12 +152,9 @@ OFF_BALL_ACTION
 
 ## 当前边界
 
-尚未实现：
-
-- 换人、轮换、体力、伤病；
-- 最后两分钟 penalty、进攻犯规、技术犯规；
-- 加时和末节特殊策略；
-- 赛程、交易、成长和经理玩法。
+当前仍未实现的主要边界包括选秀乐透/保护、球探不确定性、交易 AI、经理学习、
+Shadow 之外的自动权限、附加赛和完整玩法 UI。轮换、体力、伤病、完整比赛规则、
+赛季、交易执行、合同、生涯、选秀和首版白盒经理建议已经实现。
 
 固定对手和球队分侧审计已落地；球队级 `tempo` 已通过 12/15/18 秒有界分布改变
 回合数。v1.9 进一步在末节最后 120 秒按 6 分分差调整节奏：三个种子上落后球权

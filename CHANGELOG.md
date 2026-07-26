@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.9.0] - 2026-07-26
+
+- Add a generic white-box manager decision contract with hard rejections, rational scoring,
+  a reasonable-choice band, and bounded personality contributions.
+- Add validated manager profiles, deterministic candidate ordering, incumbent comparisons,
+  and immutable decision ledgers.
+- Add non-executing draft and free-agency Shadow policies that emit canonical `DraftPlan`
+  and `MarketPlan` values for replay through the existing rule engines.
+- Enforce roster and salary-cap legality before manager style can influence a choice.
+
 ## [0.8.0] - 2026-07-26
 
 - Add immutable player career state with field-level potential and no global overall rating.

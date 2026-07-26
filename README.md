@@ -135,3 +135,7 @@ advancement, championship facts, JSON round trips, and replay audits.
 The [`career-v1 / draft-v1 / retirement-v1` layer](docs/career-draft-v1.md) adds immutable
 career state, field-level growth and decline, deterministic retirement, explicit draft-pick
 ownership, rookie contracts, canonical offseason ordering, strict JSON, and replay audits.
+
+The [`manager-ai-v1` layer](docs/manager-ai-v1.md) adds explainable manager profiles, hard
+legality gates, rational candidate scoring, bounded personality effects, incumbent comparison,
+and non-executing Shadow recommendations for the draft and free-agent market.

@@ -27,6 +27,7 @@ from courtsim.management import (
     MANAGEMENT_SCHEMA_VERSION,
     ContractRules,
 )
+from courtsim.manager_ai import MANAGER_AI_VERSION, ManagerPolicyMode
 from courtsim.parameters import load_model_parameters
 from courtsim.playoffs import PLAYOFF_SCHEMA_VERSION, PLAYOFF_VERSION, PlayoffConfig
 from courtsim.rosters import ROSTER_VERSION, RosterRules
@@ -60,11 +61,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "contracts_free_agency",
         "playoffs",
         "career_draft",
+        "manager_ai",
         "model",
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 8
+    assert release["format_version"] == 9
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -230,6 +232,24 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "draft_rounds": DraftRules().rounds,
         "rookie_salary": DraftRules().rookie_salary,
         "rookie_contract_years": DraftRules().rookie_contract_years,
+    }
+    manager_registry = release["manager_ai"]
+    assert set(manager_registry) == {
+        "manager_ai_version",
+        "path",
+        "file_sha256",
+    }
+    manager_path = ROOT / manager_registry["path"]
+    manager_config = json.loads(manager_path.read_text(encoding="utf-8"))
+    assert _sha256(manager_path) == manager_registry["file_sha256"]
+    assert manager_registry["manager_ai_version"] == MANAGER_AI_VERSION
+    assert manager_config == {
+        "format_version": 1,
+        "manager_ai_version": MANAGER_AI_VERSION,
+        "default_mode": ManagerPolicyMode.SHADOW.name.lower(),
+        "reasonable_band": 0.08,
+        "style_contribution_limit": 0.04,
+        "supported_stages": ["draft", "market"],
     }
 
     model = release["model"]
