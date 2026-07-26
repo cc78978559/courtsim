@@ -1144,6 +1144,8 @@ def _tactical_adjustment_to_dict(
         "tempo_delta": adjustment.tempo_delta,
         "effective_tempo": 50 + adjustment.tempo_delta,
         "confidence_bps": adjustment.confidence_bps,
+        "matchup_net_rating": adjustment.matchup_net_rating,
+        "response_multiplier_bps": adjustment.response_multiplier_bps,
         "games_observed": adjustment.games_observed,
         "version": adjustment.version,
     }

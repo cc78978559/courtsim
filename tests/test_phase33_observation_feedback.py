@@ -48,6 +48,11 @@ def test_real_game_events_feed_opponent_shot_profile_and_next_season_tactics() -
         if matchup["tactics"] is not None
     ]
     assert tactics
+    assert all(
+        -100 <= tactic["matchup_net_rating"] <= 100
+        and 7_500 <= tactic["response_multiplier_bps"] <= 12_500
+        for tactic in tactics
+    )
     assert any(
         any(value != 0 for value in tactic["coverage_logit_biases"].values()) for tactic in tactics
     )

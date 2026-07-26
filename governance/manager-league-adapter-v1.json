@@ -22,6 +22,7 @@
   "postseason_matchup_tactics": true,
   "matchup_tactical_dimensions": ["offense", "defense", "tempo"],
   "manager_learning_observation_source": "season-game-event-ledger",
+  "manager_learning_outcome_feedback_audit": true,
   "postseason_state_continuity": true,
   "postseason_rest_days": 2,
   "playoff_game_rest_days": 1,

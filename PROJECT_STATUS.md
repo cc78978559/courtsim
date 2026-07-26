@@ -8,7 +8,7 @@ statistics ledger rather than continuous court physics.
 
 ## Current versions
 
-- Engine release candidate: `0.34.0`.
+- Engine release candidate: `0.35.0`.
 - Latest mechanics: schema `demo-v1.12`, parameters `demo-1.4.0`.
 - Frozen realism baseline: `demo-1.4.0`.
 - Game rules: `nba-v1`.
@@ -113,6 +113,8 @@ promotion.
   feedback path into matchup tactics.
 - Canonical Shadow/Assist/Active authority semantics across draft, free agency, trade, rotation,
   and tactics, including authorization enforcement and per-stage execution receipts.
+- Outcome-responsive matchup tactics that keep opponent style direction separate from bounded
+  intensity feedback derived from historical matchup net efficiency.
 - League-state schema 4 persistence for Bird rights, trade exceptions, manager opponent memory,
   and optional 30-team conference/division alignment, with deterministic schema 1/2/3 migration.
 - Roster-safe per-game team resolution and opponent-specific white-box rotations throughout
@@ -133,7 +135,7 @@ promotion.
 
 - Ruff formatting and lint: passed.
 - mypy strict: passed.
-- pytest: 451 passed; one Windows symlink test skipped when link privileges are absent.
+- pytest: 453 passed; one Windows symlink test skipped when link privileges are absent.
 - Coverage: 85%, meeting the required minimum of 85%.
 - Runtime dependencies: Python standard library only.
 - Frozen `demo-1.4.0` audit: 10 core realism targets, 3 free-throw targets, and
@@ -151,8 +153,8 @@ Run the complete local gate with:
 - Broader offensive vocabulary and stronger player-level usage calibration.
 - Multi-team and player-level real-data calibration beyond the current selected targets.
 - Full NBA lottery odds and advanced conditional-pick rules, seven-year Stepien edge cases,
-  three-plus-round negotiation, multi-season tactical outcome optimization, human-approved
-  promotion beyond Shadow mode, and fantasy-manager gameplay.
+  three-plus-round negotiation, causal tactical experiments, human-approved promotion beyond
+  Shadow mode, and fantasy-manager gameplay.
 
 ## Repository boundary
 

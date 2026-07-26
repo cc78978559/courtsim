@@ -38,6 +38,12 @@ from one through eight observed games, then remains capped. The same matchup tea
 for regular-season and postseason games, and the audit records every bias, confidence, tempo
 delta, and effective tempo. An unseen opponent retains the exact neutral strategy.
 
+Historical matchup net efficiency changes only tactical intensity. A negative matchup result
+can amplify the style-derived adjustment to at most 125%; a positive result can reduce it to
+no less than 75%. This outcome signal never reverses the direction implied by the opponent
+profile. It is explicitly treated as bounded correlation feedback, not causal attribution.
+The audit records both matchup net rating and the applied response multiplier.
+
 At season completion, the adapter rebuilds opponent observations from canonical game events.
 Offensive and defensive strength use possession-normalized scoring, pace uses the configured
 neutral possession count, and three-point/rim rates count shot-segment zones. This makes short

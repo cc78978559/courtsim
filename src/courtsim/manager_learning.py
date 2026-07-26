@@ -115,6 +115,8 @@ class OpponentTacticalAdjustment:
     coverage_logit_biases: tuple[tuple[Coverage, float], ...]
     tempo_delta: int
     confidence_bps: int
+    matchup_net_rating: int
+    response_multiplier_bps: int
     games_observed: int
     version: str = MANAGER_LEARNING_VERSION
 
@@ -134,6 +136,10 @@ class OpponentTacticalAdjustment:
             raise ValueError("opponent tempo adjustment exceeds its bounded range")
         if not 0 <= self.confidence_bps <= 10_000:
             raise ValueError("opponent tactical confidence is invalid")
+        if not -100 <= self.matchup_net_rating <= 100:
+            raise ValueError("opponent matchup net rating is invalid")
+        if not 7_500 <= self.response_multiplier_bps <= 12_500:
+            raise ValueError("opponent tactical response multiplier is invalid")
         if self.version != MANAGER_LEARNING_VERSION:
             raise ValueError("unsupported opponent adjustment version")
 
@@ -239,41 +245,53 @@ def opponent_tactical_adjustment(
         return None
     confidence_bps = min(10_000, memory.games_observed * 1_250)
     confidence = confidence_bps / 10_000
+    matchup_net_rating = (100 - memory.defense_strength) - memory.offense_strength
+    response_multiplier_bps = max(
+        7_500,
+        min(12_500, 10_000 - matchup_net_rating * 100),
+    )
+    response_multiplier = response_multiplier_bps / 10_000
+    tactical_weight = confidence * response_multiplier
     defense_delta = memory.defense_strength - 50
     offense_delta = memory.offense_strength - 50
     three_delta = memory.three_point_rate - 50
     rim_delta = memory.rim_rate - 50
 
     offense_biases = (
-        (PlayFamily.BALL_SCREEN, _bounded_bias(defense_delta * 0.006 * confidence)),
-        (PlayFamily.ISOLATION, _bounded_bias(-defense_delta * 0.010 * confidence)),
-        (PlayFamily.OFF_BALL_ACTION, _bounded_bias(defense_delta * 0.008 * confidence)),
+        (PlayFamily.BALL_SCREEN, _bounded_bias(defense_delta * 0.006 * tactical_weight)),
+        (PlayFamily.ISOLATION, _bounded_bias(-defense_delta * 0.010 * tactical_weight)),
+        (
+            PlayFamily.OFF_BALL_ACTION,
+            _bounded_bias(defense_delta * 0.008 * tactical_weight),
+        ),
     )
     coverage_biases = (
         (
             Coverage.BASE,
-            _bounded_bias(-abs(three_delta - rim_delta) * 0.002 * confidence),
+            _bounded_bias(-abs(three_delta - rim_delta) * 0.002 * tactical_weight),
         ),
         (
             Coverage.DROP,
-            _bounded_bias((rim_delta * 0.009 - three_delta * 0.007) * confidence),
+            _bounded_bias((rim_delta * 0.009 - three_delta * 0.007) * tactical_weight),
         ),
         (
             Coverage.SWITCH,
-            _bounded_bias((three_delta * 0.009 - rim_delta * 0.004) * confidence),
+            _bounded_bias((three_delta * 0.009 - rim_delta * 0.004) * tactical_weight),
         ),
         (
             Coverage.BLITZ,
-            _bounded_bias((offense_delta * 0.006 + three_delta * 0.004) * confidence),
+            _bounded_bias((offense_delta * 0.006 + three_delta * 0.004) * tactical_weight),
         ),
     )
-    tempo_delta = round(((50 - memory.pace) * 0.20 + defense_delta * 0.10) * confidence)
+    tempo_delta = round(((50 - memory.pace) * 0.20 + defense_delta * 0.10) * tactical_weight)
     return OpponentTacticalAdjustment(
         opponent_team_id,
         offense_biases,
         coverage_biases,
         max(-15, min(15, tempo_delta)),
         confidence_bps,
+        matchup_net_rating,
+        response_multiplier_bps,
         memory.games_observed,
     )
 

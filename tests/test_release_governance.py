@@ -105,7 +105,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 34
+    assert release["format_version"] == 35
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -433,6 +433,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "postseason_matchup_tactics": True,
         "matchup_tactical_dimensions": ["offense", "defense", "tempo"],
         "manager_learning_observation_source": "season-game-event-ledger",
+        "manager_learning_outcome_feedback_audit": True,
         "postseason_state_continuity": True,
         "postseason_rest_days": 2,
         "playoff_game_rest_days": 1,
@@ -809,6 +810,11 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "tactical_confidence_full_games": 8,
         "maximum_tactical_logit_bias": 0.75,
         "maximum_tempo_delta": 15,
+        "tactical_outcome_signal": "matchup-net-rating",
+        "tactical_outcome_causal_claim": False,
+        "minimum_response_multiplier_bps": 7500,
+        "maximum_response_multiplier_bps": 12500,
+        "style_direction_separate_from_outcome_intensity": True,
         "regular_season_tactics": True,
         "postseason_tactics": True,
         "white_box_contributions": True,

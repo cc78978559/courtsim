@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.35.0] - 2026-07-26
+
+- Derive a matchup net-efficiency outcome signal from persistent opponent observations.
+- Separate opponent-style tactical direction from historical outcome-driven intensity.
+- Amplify poor-matchup responses up to 125% and reduce successful responses no lower than 75%.
+- Preserve confidence scaling and absolute tactical bias and tempo limits.
+- Audit matchup net rating and response multiplier without claiming causal attribution.
+
 ## [0.34.0] - 2026-07-26
 
 - Add one canonical Shadow, Assist, and Active authority model for manager stages.
