@@ -13,6 +13,8 @@
   "every_team_sends_and_receives": true,
   "unanimous_manager_approval": true,
   "atomic_state_transition": true,
+  "cap_ledger_aware_entrypoint": true,
+  "tiered_salary_matching": true,
   "replay_audit_required": true,
   "automatic_market_generation": false
 }

@@ -1,7 +1,7 @@
 {
-  "format_version": 28,
+  "format_version": 29,
   "status": "frozen",
-  "engine_version": "0.28.0",
+  "engine_version": "0.29.0",
   "rules": {
     "version": "nba-v1",
     "path": "governance/game-rules-nba-v1.json",
@@ -32,7 +32,7 @@
     "contract_version": "contract-v1",
     "free_agency_version": "free-agency-v1",
     "path": "governance/contracts-free-agency-v1.json",
-    "file_sha256": "80aa78c6ec9b33f332c4a763ed17a7f66b59c0e5ee8d93d9cb81315649506e23",
+    "file_sha256": "29512ce5745aaf08369c09a3cf294c9d4edef871fa8ff86de0d03ffe4023dffc",
     "source_pull_request": 37
   },
   "playoffs": {
@@ -67,7 +67,7 @@
   "manager_league_adapter": {
     "manager_league_adapter_version": "manager-league-adapter-v1",
     "path": "governance/manager-league-adapter-v1.json",
-    "file_sha256": "de00e8dd6156c95895bc5912f0aec3b1391dfd1d38f9eaf7a94ddfc32c789ac4"
+    "file_sha256": "c290e49cd5d918c60454f9d5742fcb3da8a74d6fd3596523e7eac86fc2ee9998"
   },
   "prospect_generation": {
     "prospect_generation_version": "prospect-generation-v1",
@@ -82,7 +82,7 @@
   "trades": {
     "trade_version": "trade-v1",
     "path": "governance/trades-v1.json",
-    "file_sha256": "e45051eaaecd79ea834db5edc591653d0f6da1e578987e35abc24b3fbcb4fdf4"
+    "file_sha256": "f45a909d516bcc774cc459ee593c6096dbcaa714df056bc6b21a8ff80abace77"
   },
   "manager_trade": {
     "manager_trade_version": "manager-trade-v1",
@@ -92,7 +92,7 @@
   "trade_market": {
     "trade_market_version": "trade-market-v1",
     "path": "governance/trade-market-v1.json",
-    "file_sha256": "464b63b71aca655cacd86f93f81571178c5d7d59d02d6dafdc4891c2c85e5c5c"
+    "file_sha256": "3a187b10eb598202f19d195e7072d882757f1176887ea7ce83bacfc771932d1c"
   },
   "draft_assets": {
     "draft_asset_version": "draft-asset-v1",
@@ -107,12 +107,12 @@
   "three_team_trades": {
     "three_team_trade_version": "three-team-trade-v1",
     "path": "governance/three-team-trades-v1.json",
-    "file_sha256": "c2807326895f34b3a96f703d7c04c88ce23604fbb9bebb17aa16af28efd3d669"
+    "file_sha256": "905a3332ebdabdcbb667e1d95eaefae2bf34e18fd27304fa7b62fa7c356ae22c"
   },
   "three_team_market": {
     "three_team_market_version": "three-team-market-v1",
     "path": "governance/three-team-market-v1.json",
-    "file_sha256": "69315553f1304a48cf5d612ba0455db211d07b01cf9e3e36efb12a2409e9c9e5"
+    "file_sha256": "91ea90366405ec4a0dd9a709a036eb3694421fb486b5b08063c623f272381198"
   },
   "scouting": {
     "scouting_version": "scouting-v1",
@@ -122,7 +122,7 @@
   "cap_mechanics": {
     "cap_mechanics_version": "cap-mechanics-v1",
     "path": "governance/cap-mechanics-v1.json",
-    "file_sha256": "e79821ddc4cbe01b01b9d7e69b87ef9398006b1c26955168cd7b9afecf2d85d5"
+    "file_sha256": "196d2161aee4b1038403818e942212b144c2d3ce9d66f059776f6967aded14d2"
   },
   "nba_league": {
     "nba_league_version": "nba-league-v1",

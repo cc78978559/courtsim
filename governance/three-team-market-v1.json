@@ -22,6 +22,7 @@
   ],
   "stable_candidate_order": true,
   "team_locking": true,
+  "sequential_cap_ledger_clearing": true,
   "unified_bilateral_comparison": true,
   "default_mode": "shadow",
   "automatic_activation": false

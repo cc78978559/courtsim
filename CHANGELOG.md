@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.29.0] - 2026-07-26
+
+- Activate the persisted cap ledger in canonical free-agency and trade execution.
+- Permit governed Bird-rights signings above the soft cap while enforcing the second apron.
+- Create and consume trade exceptions atomically across sequential bilateral market clearing.
+- Apply tiered salary matching and cap-ledger updates to routed three-team transactions.
+- Scale apron thresholds deterministically for custom league salary caps and replay cap state.
+
 ## [0.28.0] - 2026-07-26
 
 - Add a roster-preserving per-game team resolver to the canonical season sampler.

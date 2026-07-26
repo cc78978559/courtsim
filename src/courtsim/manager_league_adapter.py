@@ -9,8 +9,10 @@ from typing import Any, cast
 
 from courtsim.cap_mechanics import (
     CapLedger,
+    CapMechanicsRules,
     cap_ledger_from_dict,
     cap_ledger_to_dict,
+    cap_rules_for_salary_cap,
     expire_cap_ledger,
 )
 from courtsim.career import (
@@ -173,7 +175,11 @@ class CourtSimLeagueState:
     def __post_init__(self) -> None:
         if self.version != MANAGER_LEAGUE_ADAPTER_VERSION:
             raise ValueError("unsupported manager league adapter version")
-        validate_management_state(self.management, self.contract_rules)
+        validate_management_state(
+            self.management,
+            self.contract_rules,
+            maximum_payroll=cap_rules_for_salary_cap(self.contract_rules.salary_cap).second_apron,
+        )
         if self.players != tuple(sorted(self.players, key=lambda item: item.player_id)):
             raise ValueError("manager league players must be ordered by player_id")
         player_ids = tuple(player.player_id for player in self.players)
@@ -273,6 +279,7 @@ class CourtSimManagerLeagueAdapter:
         if state.management.season_year != request.season_year:
             raise ManagerLeagueAdapterError("league state season does not match experiment request")
         team_ids = tuple(roster.team_id for roster in state.management.rosters)
+        cap_rules = cap_rules_for_salary_cap(state.contract_rules.salary_cap)
         profiles = {profile.team_id: profile for profile in self.manager_profiles}
         if team_ids != tuple(profiles):
             raise ManagerLeagueAdapterError("league state teams do not match manager profiles")
@@ -318,6 +325,8 @@ class CourtSimManagerLeagueAdapter:
                 bilateral_plan,
                 state.contract_rules,
                 self.trade_rules,
+                cap_ledger=state.cap_ledger,
+                cap_rules=cap_rules,
             )
             three_team_execution = apply_three_team_market_plan(
                 trade_execution.final_management,
@@ -325,10 +334,13 @@ class CourtSimManagerLeagueAdapter:
                 three_team_plan,
                 state.contract_rules,
                 self.trade_rules,
+                cap_ledger=trade_execution.final_cap_ledger,
+                cap_rules=cap_rules,
             )
             state = replace(
                 state,
                 management=three_team_execution.final_management,
+                cap_ledger=three_team_execution.final_cap_ledger or state.cap_ledger,
                 draft_assets=replace(
                     state.draft_assets,
                     picks=cast(
@@ -425,6 +437,8 @@ class CourtSimManagerLeagueAdapter:
             career_rules=self.career_rules,
             draft_rules=self.draft_rules,
             scouting_rules=self.scouting_rules,
+            cap_ledger=state.cap_ledger,
+            cap_rules=cap_rules,
         )
         if trade_ledger is not None:
             manager_audit["trade"] = trade_ledger
@@ -442,6 +456,8 @@ class CourtSimManagerLeagueAdapter:
             career_rules=self.career_rules,
             contract_rules=state.contract_rules,
             draft_rules=self.draft_rules,
+            cap_ledger=state.cap_ledger,
+            cap_rules=cap_rules,
         )
         next_learning = _advance_manager_learning(
             season,
@@ -628,7 +644,18 @@ def league_state_from_json(payload: str) -> CourtSimLeagueState:
         _exact(raw, expected_keys, "manager league state")
         if schema_version not in {1, 2, 3} or raw["version"] != MANAGER_LEAGUE_ADAPTER_VERSION:
             raise ManagerLeagueAdapterError("unsupported manager league state")
-        market = market_result_from_dict(raw["management"])
+        management_envelope = _object(raw["management"], "manager league management")
+        management_rules = _object(
+            management_envelope.get("rules"),
+            "manager league contract rules",
+        )
+        salary_cap = management_rules.get("salary_cap")
+        if not isinstance(salary_cap, int) or isinstance(salary_cap, bool) or salary_cap < 1:
+            raise ManagerLeagueAdapterError("manager league salary cap is invalid")
+        market = market_result_from_dict(
+            raw["management"],
+            maximum_payroll=cap_rules_for_salary_cap(salary_cap).second_apron,
+        )
         if market.actions or market.initial_state != market.final_state:
             raise ManagerLeagueAdapterError("manager league management envelope is not a snapshot")
         raw_players = raw["players"]
@@ -1104,7 +1131,11 @@ def _transition_preview(
             contract for contract in state.management.contracts if contract.player_id not in retired
         ),
     )
-    contract_year = advance_contract_year(after_retirement, state.contract_rules)
+    contract_year = advance_contract_year(
+        after_retirement,
+        state.contract_rules,
+        maximum_payroll=cap_rules_for_salary_cap(state.contract_rules.salary_cap).second_apron,
+    )
     players = _sync_player_statuses(transition.final_players, contract_year.final_state)
     return contract_year.final_state, players
 
@@ -1190,6 +1221,8 @@ def _offseason_plans(
     career_rules: CareerRules,
     draft_rules: DraftRules,
     scouting_rules: ScoutingRules,
+    cap_ledger: CapLedger,
+    cap_rules: CapMechanicsRules,
 ) -> tuple[DraftPlan, MarketPlan, dict[str, object]]:
     management, players = _transition_preview(
         state,
@@ -1230,6 +1263,7 @@ def _offseason_plans(
         season_year=state.management.season_year + 1,
         contract_rules=state.contract_rules,
         draft_rules=draft_rules,
+        maximum_payroll=cap_rules.second_apron,
     )
     if arm is ManagerExperimentArm.SHADOW:
         shadow_market = generate_market_shadow(
@@ -1243,6 +1277,8 @@ def _offseason_plans(
             drafted.final_players,
             state.contract_rules,
             shadow_market.plan,
+            cap_ledger,
+            cap_rules,
         )
         decision_audit["market"] = asdict(shadow_market.ledger)
     else:
@@ -1251,6 +1287,8 @@ def _offseason_plans(
             drafted.final_players,
             state.contract_rules,
             MarketPlan(()),
+            cap_ledger,
+            cap_rules,
         )
     return draft_plan, market_plan, decision_audit
 
@@ -1280,8 +1318,16 @@ def _ensure_playable_market(
     players: tuple[CareerPlayer, ...],
     rules: ContractRules,
     plan: MarketPlan,
+    cap_ledger: CapLedger,
+    cap_rules: CapMechanicsRules,
 ) -> MarketPlan:
-    preview = apply_market_plan(management, plan, rules).final_state
+    preview = apply_market_plan(
+        management,
+        plan,
+        rules,
+        cap_ledger=cap_ledger,
+        cap_rules=cap_rules,
+    ).final_state
     actions = list(plan.actions)
     available = set(preview.free_agent_ids)
     player_map = {player.player_id: player for player in players}
@@ -1319,7 +1365,13 @@ def _ensure_playable_market(
             actions.append(action)
             next_action_id += 1
             available.remove(selected.player_id)
-            preview = apply_market_plan(preview, MarketPlan((action,)), rules).final_state
+            preview = apply_market_plan(
+                preview,
+                MarketPlan((action,)),
+                rules,
+                cap_ledger=cap_ledger,
+                cap_rules=cap_rules,
+            ).final_state
             current = next(item for item in preview.rosters if item.team_id == roster.team_id)
     return MarketPlan(tuple(actions))
 

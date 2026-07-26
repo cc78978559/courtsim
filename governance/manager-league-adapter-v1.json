@@ -22,6 +22,8 @@
   "trade_market_stage": "preseason-shadow",
   "trade_clearing": "highest-combined-rational-gain",
   "bilateral_tie_preference": true,
+  "cap_ledger_transaction_authority": true,
+  "scaled_custom_league_aprons": true,
   "draft_asset_engine": "draft-asset-v1",
   "league_state_schema_version": 3,
   "legacy_state_schema_versions": [1, 2],

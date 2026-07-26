@@ -7,6 +7,7 @@ from dataclasses import dataclass, replace
 from heapq import nsmallest
 from itertools import combinations, permutations, product
 
+from courtsim.cap_mechanics import CapLedger, CapMechanicsRules
 from courtsim.career import CareerPlayer
 from courtsim.draft_assets import TradableDraftPick
 from courtsim.management import ContractRules, LeagueManagementState
@@ -145,6 +146,8 @@ class ThreeTeamMarketExecution:
     final_management: LeagueManagementState
     final_picks: tuple[TradableDraftPick, ...]
     audits: tuple[ThreeTeamTradeAudit, ...]
+    initial_cap_ledger: CapLedger | None = None
+    final_cap_ledger: CapLedger | None = None
     three_team_trade_version: str = THREE_TEAM_TRADE_VERSION
     version: str = THREE_TEAM_MARKET_VERSION
 
@@ -303,9 +306,13 @@ def apply_three_team_market_plan(
     plan: ThreeTeamMarketPlan,
     contract_rules: ContractRules,
     trade_rules: TradeRules = DEFAULT_TRADE_RULES,
+    *,
+    cap_ledger: CapLedger | None = None,
+    cap_rules: CapMechanicsRules | None = None,
 ) -> ThreeTeamMarketExecution:
     final_management = management
     final_picks = picks
+    final_cap_ledger = cap_ledger
     audits: list[ThreeTeamTradeAudit] = []
     for offer in plan.offers:
         result = apply_three_team_trade(
@@ -314,10 +321,13 @@ def apply_three_team_market_plan(
             offer,
             contract_rules,
             trade_rules,
+            cap_ledger=final_cap_ledger,
+            cap_rules=cap_rules,
         )
         audits.append(audit_three_team_trade(result))
         final_management = result.final_management
         final_picks = result.final_picks
+        final_cap_ledger = result.final_cap_ledger
     return ThreeTeamMarketExecution(
         plan,
         management,
@@ -325,6 +335,8 @@ def apply_three_team_market_plan(
         final_management,
         final_picks,
         tuple(audits),
+        cap_ledger,
+        final_cap_ledger,
     )
 
 

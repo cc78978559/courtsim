@@ -6,6 +6,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from itertools import combinations
 
+from courtsim.cap_mechanics import CapLedger, CapMechanicsRules
 from courtsim.career import CareerPlayer
 from courtsim.draft_assets import TradableDraftPick
 from courtsim.management import ContractRules, LeagueManagementState
@@ -114,6 +115,8 @@ class TradeMarketExecution:
     final_management: LeagueManagementState
     final_picks: tuple[TradableDraftPick, ...]
     audits: tuple[TradeAudit, ...]
+    initial_cap_ledger: CapLedger | None = None
+    final_cap_ledger: CapLedger | None = None
     trade_version: str = TRADE_VERSION
     version: str = TRADE_MARKET_VERSION
 
@@ -222,10 +225,15 @@ def apply_trade_market_plan(
     plan: TradeMarketPlan,
     contract_rules: ContractRules,
     trade_rules: TradeRules = DEFAULT_TRADE_RULES,
+    *,
+    cap_ledger: CapLedger | None = None,
+    cap_rules: CapMechanicsRules | None = None,
+    exception_ids: Mapping[int, Mapping[str, int]] | None = None,
 ) -> TradeMarketExecution:
     """Replay a conflict-free approved plan through the canonical trade engine."""
     final_management = management
     final_picks = picks
+    final_cap_ledger = cap_ledger
     audits: list[TradeAudit] = []
     for offer in plan.offers:
         result = apply_trade(
@@ -234,10 +242,14 @@ def apply_trade_market_plan(
             offer,
             contract_rules,
             trade_rules,
+            cap_ledger=final_cap_ledger,
+            cap_rules=cap_rules,
+            exception_ids=(exception_ids or {}).get(offer.trade_id),
         )
         audits.append(audit_trade(result))
         final_management = result.final_management
         final_picks = result.final_picks
+        final_cap_ledger = result.final_cap_ledger
     return TradeMarketExecution(
         plan,
         management,
@@ -245,6 +257,8 @@ def apply_trade_market_plan(
         final_management,
         final_picks,
         tuple(audits),
+        cap_ledger,
+        final_cap_ledger,
     )
 
 

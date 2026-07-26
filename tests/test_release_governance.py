@@ -103,7 +103,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 28
+    assert release["format_version"] == 29
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -220,6 +220,9 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "maximum_years": ContractRules().maximum_years,
         "maximum_roster_players": ContractRules().maximum_roster_players,
         "management_schema_version": MANAGEMENT_SCHEMA_VERSION,
+        "cap_ledger_aware_entrypoint": True,
+        "bird_rights_over_cap_signing": True,
+        "second_apron_hard_ceiling": True,
     }
     playoff_registry = release["playoffs"]
     assert set(playoff_registry) == {
@@ -378,6 +381,8 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "trade_market_stage": "preseason-shadow",
         "trade_clearing": "highest-combined-rational-gain",
         "bilateral_tie_preference": True,
+        "cap_ledger_transaction_authority": True,
+        "scaled_custom_league_aprons": True,
         "draft_asset_engine": DRAFT_ASSET_VERSION,
         "league_state_schema_version": 3,
         "legacy_state_schema_versions": [1, 2],
@@ -461,6 +466,9 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "supported_assets": ["player", "draft-pick", "future-draft-pick"],
         "contract_follows_player": True,
         "atomic_state_transition": True,
+        "cap_ledger_aware_entrypoint": True,
+        "trade_exception_creation_and_consumption": True,
+        "tiered_salary_matching": True,
         "replay_audit_required": True,
     }
     manager_trade_registry = release["manager_trade"]
@@ -513,6 +521,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "candidate_kind_mixing": True,
         "stable_candidate_order": True,
         "team_and_asset_locking": True,
+        "sequential_cap_ledger_clearing": True,
         "default_mode": ManagerPolicyMode.SHADOW.name.lower(),
         "automatic_activation": False,
     }
@@ -581,6 +590,8 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "every_team_sends_and_receives": True,
         "unanimous_manager_approval": True,
         "atomic_state_transition": True,
+        "cap_ledger_aware_entrypoint": True,
+        "tiered_salary_matching": True,
         "replay_audit_required": True,
         "automatic_market_generation": False,
     }
@@ -623,6 +634,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         ],
         "stable_candidate_order": True,
         "team_locking": True,
+        "sequential_cap_ledger_clearing": True,
         "unified_bilateral_comparison": True,
         "default_mode": ManagerPolicyMode.SHADOW.name.lower(),
         "automatic_activation": False,
@@ -666,6 +678,8 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "exception_lifetime_years": cap_rules.exception_lifetime_years,
         "exception_aggregation": False,
         "atomic_exception_ledger": True,
+        "canonical_transaction_activation": True,
+        "scaled_aprons_for_custom_leagues": True,
         "league_state_persistence": True,
         "season_expiry_transition": True,
     }

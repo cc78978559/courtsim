@@ -14,5 +14,8 @@
   ],
   "contract_follows_player": true,
   "atomic_state_transition": true,
+  "cap_ledger_aware_entrypoint": true,
+  "trade_exception_creation_and_consumption": true,
+  "tiered_salary_matching": true,
   "replay_audit_required": true
 }

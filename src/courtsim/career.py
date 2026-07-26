@@ -8,6 +8,7 @@ from dataclasses import dataclass, fields, replace
 from enum import IntEnum
 from typing import Any, NoReturn, cast
 
+from courtsim.cap_mechanics import CapLedger, CapMechanicsRules
 from courtsim.domain.player import AbilityRatings, PlayerProfile
 from courtsim.domain.player_serialization import (
     player_profile_from_dict,
@@ -571,6 +572,8 @@ def _remove_retired(
     state: LeagueManagementState,
     retired_player_ids: tuple[int, ...],
     rules: ContractRules,
+    *,
+    maximum_payroll: int | None = None,
 ) -> LeagueManagementState:
     retired = set(retired_player_ids)
     updated = LeagueManagementState(
@@ -585,7 +588,7 @@ def _remove_retired(
         tuple(player_id for player_id in state.free_agent_ids if player_id not in retired),
         tuple(contract for contract in state.contracts if contract.player_id not in retired),
     )
-    validate_management_state(updated, rules)
+    validate_management_state(updated, rules, maximum_payroll=maximum_payroll)
     return updated
 
 
@@ -627,9 +630,10 @@ def apply_draft(
     season_year: int,
     contract_rules: ContractRules,
     draft_rules: DraftRules | None = None,
+    maximum_payroll: int | None = None,
 ) -> DraftResult:
     draft_rules = draft_rules or DraftRules()
-    validate_management_state(state, contract_rules)
+    validate_management_state(state, contract_rules, maximum_payroll=maximum_payroll)
     ordered_players = _ordered_players(players)
     ordered_picks = tuple(sorted(picks, key=lambda item: item.selection_number))
     if tuple(item.selection_number for item in ordered_picks) != tuple(
@@ -678,7 +682,11 @@ def apply_draft(
             final_state.free_agent_ids,
             tuple(sorted((*final_state.contracts, contract), key=lambda item: item.player_id)),
         )
-        validate_management_state(final_state, contract_rules)
+        validate_management_state(
+            final_state,
+            contract_rules,
+            maximum_payroll=maximum_payroll,
+        )
         players_by_id[player.player_id] = replace(
             player,
             status=CareerStatus.ACTIVE,
@@ -711,6 +719,8 @@ def advance_offseason(
     career_rules: CareerRules | None = None,
     contract_rules: ContractRules | None = None,
     draft_rules: DraftRules | None = None,
+    cap_ledger: CapLedger | None = None,
+    cap_rules: CapMechanicsRules | None = None,
 ) -> OffseasonResult:
     career_rules = career_rules or CareerRules()
     contract_rules = contract_rules or ContractRules()
@@ -718,7 +728,14 @@ def advance_offseason(
         rookie_salary=contract_rules.minimum_salary,
         rookie_contract_years=min(2, contract_rules.maximum_years),
     )
-    validate_management_state(management, contract_rules)
+    if cap_ledger is not None and cap_rules is None:
+        cap_rules = CapMechanicsRules()
+    maximum_payroll = cap_rules.second_apron if cap_rules is not None else None
+    validate_management_state(
+        management,
+        contract_rules,
+        maximum_payroll=maximum_payroll,
+    )
     if management.season_year != season_year:
         raise ValueError("offseason year must match management season year")
     transition = advance_careers(
@@ -732,8 +749,13 @@ def advance_offseason(
         management,
         transition.retired_player_ids,
         contract_rules,
+        maximum_payroll=maximum_payroll,
     )
-    contract_year = advance_contract_year(after_retirement, contract_rules)
+    contract_year = advance_contract_year(
+        after_retirement,
+        contract_rules,
+        maximum_payroll=maximum_payroll,
+    )
     synced = _sync_statuses(transition.final_players, contract_year.final_state)
     draft = apply_draft(
         contract_year.final_state,
@@ -743,8 +765,15 @@ def advance_offseason(
         season_year=season_year + 1,
         contract_rules=contract_rules,
         draft_rules=draft_rules,
+        maximum_payroll=maximum_payroll,
     )
-    market = apply_market_plan(draft.final_management, market_plan, contract_rules)
+    market = apply_market_plan(
+        draft.final_management,
+        market_plan,
+        contract_rules,
+        cap_ledger=cap_ledger,
+        cap_rules=cap_rules,
+    )
     final_players = _sync_statuses(draft.final_players, market.final_state)
     return OffseasonResult(
         season_year,

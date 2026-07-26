@@ -129,6 +129,19 @@ class TradeSalaryResult:
     consumed_exception_id: int | None = None
 
 
+def cap_rules_for_salary_cap(salary_cap: int) -> CapMechanicsRules:
+    """Scale the governed apron model to a league's configured soft cap."""
+    if not isinstance(salary_cap, int) or isinstance(salary_cap, bool) or salary_cap < 1:
+        raise ValueError("salary cap must be a positive integer")
+    first_apron = max(salary_cap + 1, salary_cap * 178 // 140)
+    second_apron = max(first_apron + 1, salary_cap * 189 // 140)
+    return CapMechanicsRules(
+        salary_cap=salary_cap,
+        first_apron=first_apron,
+        second_apron=second_apron,
+    )
+
+
 def evaluate_signing_salary(
     *,
     team_id: str,

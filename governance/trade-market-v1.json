@@ -12,6 +12,7 @@
   "candidate_kind_mixing": true,
   "stable_candidate_order": true,
   "team_and_asset_locking": true,
+  "sequential_cap_ledger_clearing": true,
   "default_mode": "shadow",
   "automatic_activation": false
 }

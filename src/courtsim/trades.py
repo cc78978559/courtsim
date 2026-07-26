@@ -6,6 +6,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from itertools import pairwise
 
+from courtsim.cap_mechanics import (
+    CapLedger,
+    CapMechanicsRules,
+    evaluate_trade_salary,
+)
 from courtsim.draft_assets import FutureDraftPickAsset, TradableDraftPick
 from courtsim.management import (
     ContractRules,
@@ -111,6 +116,10 @@ class TradeResult:
     initial_picks: tuple[TradableDraftPick, ...]
     final_management: LeagueManagementState
     final_picks: tuple[TradableDraftPick, ...]
+    initial_cap_ledger: CapLedger | None = None
+    final_cap_ledger: CapLedger | None = None
+    cap_rules: CapMechanicsRules | None = None
+    exception_ids: tuple[tuple[str, int], ...] = ()
     version: str = TRADE_VERSION
 
     def __post_init__(self) -> None:
@@ -134,11 +143,23 @@ def trade_rejections(
     offer: TradeOffer,
     contract_rules: ContractRules,
     trade_rules: TradeRules,
+    *,
+    cap_ledger: CapLedger | None = None,
+    cap_rules: CapMechanicsRules | None = None,
+    exception_ids: Mapping[str, int] | None = None,
 ) -> tuple[str, ...]:
     """Return deterministic legality failures without mutating league state."""
     rejected: list[str] = []
+    if cap_ledger is not None and cap_rules is None:
+        cap_rules = CapMechanicsRules()
     try:
-        validate_management_state(management, contract_rules)
+        validate_management_state(
+            management,
+            contract_rules,
+            maximum_payroll=cap_rules.second_apron
+            if cap_ledger is not None and cap_rules is not None
+            else None,
+        )
     except ValueError as error:
         return (f"invalid-management:{error}",)
     teams = {roster.team_id: roster for roster in management.rosters}
@@ -195,10 +216,26 @@ def trade_rejections(
         (offer.team_a_id, outgoing_a, incoming_a),
         (offer.team_b_id, outgoing_b, incoming_b),
     ):
-        final_payroll = payrolls[team_id] - outgoing + incoming
-        if final_payroll > contract_rules.salary_cap:
-            rejected.append(f"salary-cap:{team_id}")
-        if payrolls[team_id] >= trade_rules.salary_matching_threshold:
+        if cap_ledger is not None:
+            active_cap_rules = cap_rules or CapMechanicsRules()
+            cap_result = evaluate_trade_salary(
+                team_id=team_id,
+                team_payroll=payrolls[team_id],
+                outgoing_salary=outgoing,
+                incoming_salary=incoming,
+                season_year=management.season_year,
+                ledger=cap_ledger,
+                exception_id=(exception_ids or {}).get(team_id),
+                rules=active_cap_rules,
+            )
+            rejected.extend(
+                f"cap-mechanics:{team_id}:{reason}" for reason in cap_result.decision.rejections
+            )
+        else:
+            final_payroll = payrolls[team_id] - outgoing + incoming
+            if final_payroll > contract_rules.salary_cap:
+                rejected.append(f"salary-cap:{team_id}")
+        if cap_ledger is None and payrolls[team_id] >= trade_rules.salary_matching_threshold:
             maximum = (
                 outgoing * trade_rules.maximum_incoming_salary_bps // 10_000
                 + trade_rules.salary_matching_buffer
@@ -275,9 +312,24 @@ def apply_trade(
     offer: TradeOffer,
     contract_rules: ContractRules,
     trade_rules: TradeRules = DEFAULT_TRADE_RULES,
+    *,
+    cap_ledger: CapLedger | None = None,
+    cap_rules: CapMechanicsRules | None = None,
+    exception_ids: Mapping[str, int] | None = None,
 ) -> TradeResult:
     """Apply a legal bilateral trade as one atomic state transition."""
-    rejected = trade_rejections(management, picks, offer, contract_rules, trade_rules)
+    if cap_ledger is not None and cap_rules is None:
+        cap_rules = CapMechanicsRules()
+    rejected = trade_rejections(
+        management,
+        picks,
+        offer,
+        contract_rules,
+        trade_rules,
+        cap_ledger=cap_ledger,
+        cap_rules=cap_rules,
+        exception_ids=exception_ids,
+    )
     if rejected:
         raise ValueError("illegal trade: " + ", ".join(rejected))
     a_out = set(offer.players_from_a)
@@ -327,7 +379,33 @@ def apply_trade(
         rosters=final_rosters,
         contracts=final_contracts,
     )
-    validate_management_state(final_management, contract_rules)
+    final_cap_ledger = cap_ledger
+    if cap_ledger is not None and cap_rules is not None:
+        salaries = {contract.player_id: contract.annual_salary for contract in management.contracts}
+        payrolls = {roster.team_id: 0 for roster in management.rosters}
+        for contract in management.contracts:
+            payrolls[contract.team_id] += contract.annual_salary
+        for team_id, outgoing_players, incoming_players in (
+            (offer.team_a_id, offer.players_from_a, offer.players_from_b),
+            (offer.team_b_id, offer.players_from_b, offer.players_from_a),
+        ):
+            assert final_cap_ledger is not None
+            cap_result = evaluate_trade_salary(
+                team_id=team_id,
+                team_payroll=payrolls[team_id],
+                outgoing_salary=sum(salaries[player_id] for player_id in outgoing_players),
+                incoming_salary=sum(salaries[player_id] for player_id in incoming_players),
+                season_year=management.season_year,
+                ledger=final_cap_ledger,
+                exception_id=(exception_ids or {}).get(team_id),
+                rules=cap_rules,
+            )
+            final_cap_ledger = cap_result.final_ledger
+    validate_management_state(
+        final_management,
+        contract_rules,
+        maximum_payroll=cap_rules.second_apron if cap_rules is not None else None,
+    )
     return TradeResult(
         trade_rules,
         contract_rules,
@@ -336,6 +414,10 @@ def apply_trade(
         picks,
         final_management,
         final_picks,
+        cap_ledger,
+        final_cap_ledger,
+        cap_rules,
+        tuple(sorted((exception_ids or {}).items())),
     )
 
 
@@ -346,10 +428,14 @@ def audit_trade(result: TradeResult) -> TradeAudit:
         result.offer,
         result.contract_rules,
         result.rules,
+        cap_ledger=result.initial_cap_ledger,
+        cap_rules=result.cap_rules,
+        exception_ids=dict(result.exception_ids),
     )
     if (
         replayed.final_management != result.final_management
         or replayed.final_picks != result.final_picks
+        or replayed.final_cap_ledger != result.final_cap_ledger
     ):
         raise ValueError("trade result does not derive from its offer ledger")
     salaries = {

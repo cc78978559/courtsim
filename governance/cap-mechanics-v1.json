@@ -13,6 +13,8 @@
   "exception_lifetime_years": 1,
   "exception_aggregation": false,
   "atomic_exception_ledger": true,
+  "canonical_transaction_activation": true,
+  "scaled_aprons_for_custom_leagues": true,
   "league_state_persistence": true,
   "season_expiry_transition": true
 }
