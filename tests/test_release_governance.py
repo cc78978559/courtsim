@@ -20,6 +20,7 @@ from courtsim.management import (
     ContractRules,
 )
 from courtsim.parameters import load_model_parameters
+from courtsim.playoffs import PLAYOFF_SCHEMA_VERSION, PLAYOFF_VERSION, PlayoffConfig
 from courtsim.rosters import ROSTER_VERSION, RosterRules
 from courtsim.rotations import FATIGUE_VERSION, ROTATION_VERSION, FatigueConfig
 from courtsim.rules import GameRules
@@ -49,11 +50,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "season_injury",
         "roster_transactions",
         "contracts_free_agency",
+        "playoffs",
         "model",
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 6
+    assert release["format_version"] == 7
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -169,6 +171,25 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "maximum_years": ContractRules().maximum_years,
         "maximum_roster_players": ContractRules().maximum_roster_players,
         "management_schema_version": MANAGEMENT_SCHEMA_VERSION,
+    }
+    playoff_registry = release["playoffs"]
+    assert set(playoff_registry) == {
+        "playoff_version",
+        "path",
+        "file_sha256",
+    }
+    playoff_path = ROOT / playoff_registry["path"]
+    playoff_config = json.loads(playoff_path.read_text(encoding="utf-8"))
+    assert _sha256(playoff_path) == playoff_registry["file_sha256"]
+    assert playoff_registry["playoff_version"] == PLAYOFF_VERSION
+    assert playoff_config == {
+        "format_version": 1,
+        "playoff_version": PLAYOFF_VERSION,
+        "team_count": 4,
+        "supported_best_of": [1, 3, 5, 7],
+        "default_best_of": PlayoffConfig().best_of,
+        "default_higher_seed_home": list(PlayoffConfig().higher_seed_home),
+        "playoff_schema_version": PLAYOFF_SCHEMA_VERSION,
     }
 
     model = release["model"]

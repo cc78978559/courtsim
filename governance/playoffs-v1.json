@@ -1,0 +1,9 @@
+{
+  "format_version": 1,
+  "playoff_version": "playoff-v1",
+  "team_count": 4,
+  "supported_best_of": [1, 3, 5, 7],
+  "default_best_of": 7,
+  "default_higher_seed_home": [true, true, false, false, true, false, true],
+  "playoff_schema_version": 1
+}

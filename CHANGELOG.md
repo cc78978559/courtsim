@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0] - 2026-07-26
+
+- Add a deterministic four-team playoff bracket with 1/3/5/7-game series.
+- Enforce canonical seed pairings, game addresses, and configurable home-court patterns.
+- Derive series winners, advancement, finals, and champion from the game ledger.
+- Add strict playoff JSON, bracket replay audits, and frozen playoff governance.
+
 ## [0.6.0] - 2026-07-25
 
 - Add canonical multi-year player contracts with salary and term limits.

@@ -1,7 +1,7 @@
 {
-  "format_version": 6,
+  "format_version": 7,
   "status": "frozen",
-  "engine_version": "0.6.0",
+  "engine_version": "0.7.0",
   "rules": {
     "version": "nba-v1",
     "path": "governance/game-rules-nba-v1.json",
@@ -34,6 +34,11 @@
     "path": "governance/contracts-free-agency-v1.json",
     "file_sha256": "80aa78c6ec9b33f332c4a763ed17a7f66b59c0e5ee8d93d9cb81315649506e23",
     "source_pull_request": 37
+  },
+  "playoffs": {
+    "playoff_version": "playoff-v1",
+    "path": "governance/playoffs-v1.json",
+    "file_sha256": "e7846de35b3942ad904f4702bf2c0626f39b0cad03d2d0f1d7d6496b95a6513b"
   },
   "model": {
     "schema_version": "demo-v1.12",
