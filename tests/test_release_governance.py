@@ -56,6 +56,7 @@ from courtsim.nba_draft_lottery import (
     NBA_DRAFT_LOTTERY_RULES,
     NBA_DRAFT_LOTTERY_VERSION,
 )
+from courtsim.nba_draft_offseason import NBA_DRAFT_OFFSEASON_VERSION
 from courtsim.nba_league import NBA_LEAGUE_VERSION, NBARegularSeasonRules
 from courtsim.parameters import load_model_parameters
 from courtsim.playoffs import PLAYOFF_SCHEMA_VERSION, PLAYOFF_VERSION, PlayoffConfig
@@ -111,6 +112,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "draft_lottery",
         "nba_draft_lottery",
         "nba_draft_asset_settlement",
+        "nba_draft_offseason",
         "three_team_trades",
         "three_team_market",
         "scouting",
@@ -125,7 +127,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 44
+    assert release["format_version"] == 45
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -764,6 +766,38 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "native_team_identity_preserved": True,
         "atomic_settlement": True,
         "complete_thirty_team_first_round": True,
+    }
+    nba_draft_registry = release["nba_draft_offseason"]
+    assert set(nba_draft_registry) == {
+        "nba_draft_offseason_version",
+        "path",
+        "file_sha256",
+    }
+    nba_draft_path = ROOT / nba_draft_registry["path"]
+    nba_draft_config = json.loads(nba_draft_path.read_text(encoding="utf-8"))
+    assert _sha256(nba_draft_path) == nba_draft_registry["file_sha256"]
+    assert nba_draft_registry["nba_draft_offseason_version"] == NBA_DRAFT_OFFSEASON_VERSION
+    assert nba_draft_config == {
+        "format_version": 1,
+        "nba_draft_offseason_version": NBA_DRAFT_OFFSEASON_VERSION,
+        "nba_draft_asset_settlement_version": NBA_DRAFT_ASSET_SETTLEMENT_VERSION,
+        "manager_ai_version": MANAGER_AI_VERSION,
+        "scouting_version": SCOUTING_VERSION,
+        "draft_version": DRAFT_VERSION,
+        "team_count": 30,
+        "required_first_round_picks": 30,
+        "one_manager_profile_per_team": True,
+        "one_scouting_report_per_team_prospect": True,
+        "true_potential_hidden_from_manager": True,
+        "white_box_candidate_contributions": True,
+        "pick_owner_controls_selection": True,
+        "unique_prospect_selection": True,
+        "roster_limit_enforced": True,
+        "payroll_limit_enforced": True,
+        "rookie_contract_created": True,
+        "career_draft_metadata_written": True,
+        "execution_authority": "explicit-active-entrypoint",
+        "atomic_draft_execution": True,
     }
     three_team_registry = release["three_team_trades"]
     assert set(three_team_registry) == {

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.45.0] - 2026-07-26
+
+- Execute a complete 30-team first round from settled NBA draft assets.
+- Generate independent hidden-potential scouting boards for every manager.
+- Retain white-box candidate contributions and decision ledgers for all selections.
+- Enforce pick ownership, unique prospects, roster limits, and payroll limits.
+- Create rookie contracts and persist career draft metadata atomically.
+
 ## [0.44.0] - 2026-07-26
 
 - Apply the complete NBA lottery order to persistent draft-pick assets.
