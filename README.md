@@ -127,3 +127,7 @@ rebuilding, and season schema-v2 roster ledgers.
 The [`contract-v1 / free-agency-v1` layer](docs/contracts-and-free-agency-v1.md) adds
 multi-year contracts, salary-cap validation, deterministic expirations, canonical free-agent
 pools, atomic sign/waive plans, and strict management ledgers.
+
+The [`playoff-v1` layer](docs/playoffs-v1.md) resolves a canonical four-team bracket with
+configurable best-of series and home-court patterns, strict game ordering, deterministic
+advancement, championship facts, JSON round trips, and replay audits.
