@@ -52,6 +52,7 @@ from courtsim.manager_objectives import MANAGER_OBJECTIVE_VERSION, ManagerObject
 from courtsim.manager_rotation import MANAGER_ROTATION_VERSION, ManagerRotationRules
 from courtsim.manager_trade import MANAGER_TRADE_VERSION, ManagerTradeRules
 from courtsim.nba_draft_lottery import (
+    NBA_DRAFT_ASSET_SETTLEMENT_VERSION,
     NBA_DRAFT_LOTTERY_RULES,
     NBA_DRAFT_LOTTERY_VERSION,
 )
@@ -109,6 +110,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "draft_assets",
         "draft_lottery",
         "nba_draft_lottery",
+        "nba_draft_asset_settlement",
         "three_team_trades",
         "three_team_market",
         "scouting",
@@ -123,7 +125,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 43
+    assert release["format_version"] == 44
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -734,6 +736,34 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "playoff_order_tiebreak": "reverse-regular-season-standing",
         "champion_final_pick": True,
         "addressed_randomness": True,
+    }
+    nba_asset_registry = release["nba_draft_asset_settlement"]
+    assert set(nba_asset_registry) == {
+        "nba_draft_asset_settlement_version",
+        "path",
+        "file_sha256",
+    }
+    nba_asset_path = ROOT / nba_asset_registry["path"]
+    nba_asset_config = json.loads(nba_asset_path.read_text(encoding="utf-8"))
+    assert _sha256(nba_asset_path) == nba_asset_registry["file_sha256"]
+    assert (
+        nba_asset_registry["nba_draft_asset_settlement_version"]
+        == NBA_DRAFT_ASSET_SETTLEMENT_VERSION
+    )
+    assert nba_asset_config == {
+        "format_version": 1,
+        "nba_draft_asset_settlement_version": NBA_DRAFT_ASSET_SETTLEMENT_VERSION,
+        "nba_draft_lottery_version": NBA_DRAFT_LOTTERY_VERSION,
+        "draft_asset_version": DRAFT_ASSET_VERSION,
+        "first_round_order": "nba-lottery-final-order",
+        "later_round_order": "pre-lottery-worst-to-best",
+        "top_n_protection_uses_final_lottery_slot": True,
+        "protected_pick_rollover": True,
+        "swap_uses_final_round_slot": True,
+        "ownership_preserved": True,
+        "native_team_identity_preserved": True,
+        "atomic_settlement": True,
+        "complete_thirty_team_first_round": True,
     }
     three_team_registry = release["three_team_trades"]
     assert set(three_team_registry) == {

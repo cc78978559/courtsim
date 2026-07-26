@@ -1,0 +1,15 @@
+{
+  "format_version": 1,
+  "nba_draft_asset_settlement_version": "nba-draft-asset-settlement-v1",
+  "nba_draft_lottery_version": "nba-draft-lottery-v1",
+  "draft_asset_version": "draft-asset-v1",
+  "first_round_order": "nba-lottery-final-order",
+  "later_round_order": "pre-lottery-worst-to-best",
+  "top_n_protection_uses_final_lottery_slot": true,
+  "protected_pick_rollover": true,
+  "swap_uses_final_round_slot": true,
+  "ownership_preserved": true,
+  "native_team_identity_preserved": true,
+  "atomic_settlement": true,
+  "complete_thirty_team_first_round": true
+}

@@ -1,7 +1,7 @@
 {
-  "format_version": 43,
+  "format_version": 44,
   "status": "frozen",
-  "engine_version": "0.43.0",
+  "engine_version": "0.44.0",
   "rules": {
     "version": "nba-v1",
     "path": "governance/game-rules-nba-v1.json",
@@ -118,6 +118,11 @@
     "nba_draft_lottery_version": "nba-draft-lottery-v1",
     "path": "governance/nba-draft-lottery-v1.json",
     "file_sha256": "f88fe0d3c51e8cb59dd3f99fe5f0b66fbb620fc61eafa0e5ebb1b503353b631b"
+  },
+  "nba_draft_asset_settlement": {
+    "nba_draft_asset_settlement_version": "nba-draft-asset-settlement-v1",
+    "path": "governance/nba-draft-asset-settlement-v1.json",
+    "file_sha256": "2b146ba54a2ec17d890eada7f0289e19d18953b7c31dc62507364f598fe01d44"
   },
   "three_team_trades": {
     "three_team_trade_version": "three-team-trade-v1",

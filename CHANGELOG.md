@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.44.0] - 2026-07-26
+
+- Apply the complete NBA lottery order to persistent draft-pick assets.
+- Resolve top-N protection against final post-lottery slots.
+- Roll protected obligations using existing deferral terms.
+- Exercise swap rights against final round positions.
+- Preserve pick ownership and immutable original-team identity.
+
 ## [0.43.0] - 2026-07-26
 
 - Add canonical odds for the fourteen-team NBA draft lottery.

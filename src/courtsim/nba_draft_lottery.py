@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from courtsim.draft_assets import (
+    DraftAssetLedger,
+    DraftAssetSettlement,
+    settle_draft_assets,
+)
 from courtsim.draft_lottery import (
     DraftLotteryResult,
     DraftLotteryRules,
@@ -13,6 +18,7 @@ from courtsim.nba_league import NBAPostseasonResult
 from courtsim.season import SeasonResult
 
 NBA_DRAFT_LOTTERY_VERSION = "nba-draft-lottery-v1"
+NBA_DRAFT_ASSET_SETTLEMENT_VERSION = "nba-draft-asset-settlement-v1"
 NBA_DRAFT_LOTTERY_RULES = DraftLotteryRules(
     drawn_slots=4,
     weight_bps=(
@@ -57,6 +63,19 @@ class NBADraftLotteryResult:
             raise ValueError("NBA final draft order does not derive from lottery and playoff order")
         if self.version != NBA_DRAFT_LOTTERY_VERSION:
             raise ValueError("unsupported NBA draft lottery version")
+
+
+@dataclass(frozen=True, slots=True)
+class NBADraftAssetSettlement:
+    lottery: NBADraftLotteryResult
+    assets: DraftAssetSettlement
+    version: str = NBA_DRAFT_ASSET_SETTLEMENT_VERSION
+
+    def __post_init__(self) -> None:
+        if self.assets.draft_year != self.lottery.draft_year:
+            raise ValueError("NBA lottery and asset settlement draft years differ")
+        if self.version != NBA_DRAFT_ASSET_SETTLEMENT_VERSION:
+            raise ValueError("unsupported NBA draft asset settlement version")
 
 
 def resolve_nba_draft_lottery(
@@ -134,3 +153,19 @@ def resolve_nba_draft_lottery_from_results(
         non_playoff_order=non_playoff_order,
         playoff_order=playoff_order,
     )
+
+
+def settle_nba_draft_assets(
+    ledger: DraftAssetLedger,
+    lottery: NBADraftLotteryResult,
+) -> NBADraftAssetSettlement:
+    assets = settle_draft_assets(
+        ledger,
+        draft_year=lottery.draft_year,
+        original_team_order=(
+            *lottery.non_playoff_order,
+            *lottery.playoff_order,
+        ),
+        first_round_order=lottery.final_order,
+    )
+    return NBADraftAssetSettlement(lottery, assets)
