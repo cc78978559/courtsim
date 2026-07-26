@@ -102,6 +102,10 @@ def test_adapter_uses_persisted_opponent_memory_for_game_and_playoff_rotations()
     matchup = audit["rotations"]["A"]["opponents"]["B"]
     assert matchup["adjustment"] is not None
     assert matchup["adjustment"]["games_observed"] == 8
+    assert matchup["tactics"]["confidence_bps"] == 10_000
+    assert matchup["tactics"]["play_family_logit_biases"]["ISOLATION"] < 0
+    assert matchup["tactics"]["coverage_logit_biases"]["SWITCH"] > 0
+    assert matchup["tactics"]["effective_tempo"] < 50
     assert any(
         contribution["source"] == "opponent-model" and contribution["value"] != 0
         for decision in matchup["rotation"]["decisions"]

@@ -26,6 +26,14 @@ Before each season, `manager-rotation-v1` converts every roster and manager prof
 starters, a normal rotation group, emergency depth and an official clock-addressed plan. These
 plans are used by both the regular-season and playoff game samplers.
 
+Persisted `manager-learning-v1` opponent memories also compile into matchup-specific tactics.
+Defensive strength shifts ball-screen, isolation, and off-ball play-family logits; observed
+shot profile and offensive strength shift base, drop, switch, and blitz coverage logits; pace
+and defensive strength produce a bounded tempo counter. Tactical influence scales linearly
+from one through eight observed games, then remains capped. The same matchup teams are resolved
+for regular-season and postseason games, and the audit records every bias, confidence, tempo
+delta, and effective tempo. An unseen opponent retains the exact neutral strategy.
+
 When the state has no waiting prospects, `prospect-generation-v1` adds an identical addressed
 class to both policy arms for the following draft. A supplied complete class is preserved.
 
@@ -74,8 +82,7 @@ These values feed `manager-evidence-v1`; they are not simulation-level overall r
 
 ## Known limits
 
-- Version 1 supports four teams and a generated round-robin schedule.
-- Playoff fatigue and injuries do not yet carry between playoff games.
-- Rotations are season-level and do not yet adapt to opponents or playoff series.
-- Trades, lottery/protections, negotiation, scouting uncertainty, and owner objectives remain
-  outside the adapter.
+- The default compact adapter path supports four teams; persisted NBA alignment activates the
+  complete 30-team schedule and play-in bracket.
+- Opponent models learn season aggregates rather than series-by-series outcomes.
+- Owner objectives and human promotion remain outside the adapter.

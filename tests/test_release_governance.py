@@ -103,7 +103,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 31
+    assert release["format_version"] == 32
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -384,6 +384,9 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "rotation_engine": MANAGER_ROTATION_VERSION,
         "regular_season_matchup_rotations": True,
         "postseason_matchup_rotations": True,
+        "regular_season_matchup_tactics": True,
+        "postseason_matchup_tactics": True,
+        "matchup_tactical_dimensions": ["offense", "defense", "tempo"],
         "postseason_state_continuity": True,
         "postseason_rest_days": 2,
         "playoff_game_rest_days": 1,
@@ -747,6 +750,16 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         ],
         "maximum_adjustment_bps": 2500,
         "rotation_integration": True,
+        "tactical_integration": [
+            "play-family-logit-bias",
+            "coverage-logit-bias",
+            "tempo",
+        ],
+        "tactical_confidence_full_games": 8,
+        "maximum_tactical_logit_bias": 0.75,
+        "maximum_tempo_delta": 15,
+        "regular_season_tactics": True,
+        "postseason_tactics": True,
         "white_box_contributions": True,
         "league_state_persistence": True,
         "automatic_season_observations": True,

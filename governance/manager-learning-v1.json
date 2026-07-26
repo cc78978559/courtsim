@@ -12,6 +12,16 @@
   ],
   "maximum_adjustment_bps": 2500,
   "rotation_integration": true,
+  "tactical_integration": [
+    "play-family-logit-bias",
+    "coverage-logit-bias",
+    "tempo"
+  ],
+  "tactical_confidence_full_games": 8,
+  "maximum_tactical_logit_bias": 0.75,
+  "maximum_tempo_delta": 15,
+  "regular_season_tactics": true,
+  "postseason_tactics": true,
   "white_box_contributions": true,
   "league_state_persistence": true,
   "automatic_season_observations": true,

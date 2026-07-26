@@ -30,6 +30,7 @@ from courtsim.career import (
     apply_draft,
     offseason_result_to_dict,
 )
+from courtsim.domain.enums import Coverage, PlayFamily
 from courtsim.domain.game import GameClockConfig
 from courtsim.domain.player import AbilityRatings, PlayerProfile
 from courtsim.domain.player_serialization import (
@@ -77,9 +78,11 @@ from courtsim.manager_experiment import (
 from courtsim.manager_learning import (
     ManagerLearningState,
     OpponentObservation,
+    OpponentTacticalAdjustment,
     manager_learning_from_dict,
     manager_learning_to_dict,
     opponent_rotation_adjustment,
+    opponent_tactical_adjustment,
     update_manager_learning,
 )
 from courtsim.manager_rotation import (
@@ -88,9 +91,11 @@ from courtsim.manager_rotation import (
     generate_manager_rotation,
 )
 from courtsim.manager_trade import ManagerTradeRules
+from courtsim.model.action_setup import TeamDefenseStrategy, TeamOffenseStrategy
 from courtsim.model.game_runtime import (
     GameMatchups,
     GameTeam,
+    TeamTempoStrategy,
     sample_game,
 )
 from courtsim.model.interaction_compiler import (
@@ -926,6 +931,14 @@ def _game_teams(
                 if roster.team_id in learning
                 else None
             )
+            tactical_adjustment = (
+                opponent_tactical_adjustment(
+                    learning[roster.team_id],
+                    opponent_team_id,
+                )
+                if roster.team_id in learning
+                else None
+            )
             rotation = (
                 base_rotation
                 if adjustment is None
@@ -939,10 +952,18 @@ def _game_teams(
                 )
             )
             matchup_teams[(roster.team_id, opponent_team_id)] = _game_team_from_rotation(
-                roster.team_id, profiles, rotation
+                roster.team_id,
+                profiles,
+                rotation,
+                tactical_adjustment=tactical_adjustment,
             )
             opponent_audit[opponent_team_id] = {
                 "adjustment": asdict(adjustment) if adjustment is not None else None,
+                "tactics": (
+                    _tactical_adjustment_to_dict(tactical_adjustment)
+                    if tactical_adjustment is not None
+                    else None
+                ),
                 "rotation": asdict(rotation),
             }
         audit[roster.team_id] = {
@@ -956,6 +977,8 @@ def _game_team_from_rotation(
     team_id: str,
     profiles: tuple[PlayerProfile, ...],
     rotation: ManagerRotationResult,
+    *,
+    tactical_adjustment: OpponentTacticalAdjustment | None = None,
 ) -> GameTeam:
     profile_map = {profile.player_id: profile for profile in profiles}
     lineup = rotation.lineup
@@ -968,14 +991,43 @@ def _game_team_from_rotation(
         for player_id in rotation.substitution_order
         if player_id not in lineup
     )
+    offense_strategy = TeamOffenseStrategy()
+    defense_strategy = TeamDefenseStrategy()
+    tempo_strategy = TeamTempoStrategy()
+    if tactical_adjustment is not None:
+        offense_strategy = TeamOffenseStrategy(tactical_adjustment.play_family_logit_biases)
+        defense_strategy = TeamDefenseStrategy(tactical_adjustment.coverage_logit_biases)
+        tempo_strategy = TeamTempoStrategy(50 + tactical_adjustment.tempo_delta)
     return GameTeam(
         team_id,
         lineup,
         active,
+        offense_strategy=offense_strategy,
+        defense_strategy=defense_strategy,
+        tempo_strategy=tempo_strategy,
         bench_profiles=bench,
         substitution_order=rotation.substitution_order,
         rotation_plan=rotation.plan,
     )
+
+
+def _tactical_adjustment_to_dict(
+    adjustment: OpponentTacticalAdjustment,
+) -> dict[str, object]:
+    return {
+        "opponent_team_id": adjustment.opponent_team_id,
+        "play_family_logit_biases": {
+            PlayFamily(key).name: value for key, value in adjustment.play_family_logit_biases
+        },
+        "coverage_logit_biases": {
+            Coverage(key).name: value for key, value in adjustment.coverage_logit_biases
+        },
+        "tempo_delta": adjustment.tempo_delta,
+        "effective_tempo": 50 + adjustment.tempo_delta,
+        "confidence_bps": adjustment.confidence_bps,
+        "games_observed": adjustment.games_observed,
+        "version": adjustment.version,
+    }
 
 
 def _matchups(home: GameTeam, away: GameTeam) -> GameMatchups:

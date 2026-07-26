@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
 
+from courtsim.domain.enums import Coverage, PlayFamily
+
 MANAGER_LEARNING_VERSION = "manager-learning-v1"
 
 
@@ -106,6 +108,36 @@ class OpponentRotationAdjustment:
             raise ValueError("unsupported opponent adjustment version")
 
 
+@dataclass(frozen=True, slots=True)
+class OpponentTacticalAdjustment:
+    opponent_team_id: str
+    play_family_logit_biases: tuple[tuple[PlayFamily, float], ...]
+    coverage_logit_biases: tuple[tuple[Coverage, float], ...]
+    tempo_delta: int
+    confidence_bps: int
+    games_observed: int
+    version: str = MANAGER_LEARNING_VERSION
+
+    def __post_init__(self) -> None:
+        if not self.opponent_team_id.strip() or self.games_observed < 1:
+            raise ValueError("opponent tactical adjustment is invalid")
+        if tuple(item[0] for item in self.play_family_logit_biases) != tuple(PlayFamily):
+            raise ValueError("play-family tactical biases must use canonical order")
+        if tuple(item[0] for item in self.coverage_logit_biases) != tuple(Coverage):
+            raise ValueError("coverage tactical biases must use canonical order")
+        biases = tuple(item[1] for item in self.play_family_logit_biases) + tuple(
+            item[1] for item in self.coverage_logit_biases
+        )
+        if any(abs(value) > 0.75 for value in biases):
+            raise ValueError("opponent tactical bias exceeds its bounded range")
+        if not -15 <= self.tempo_delta <= 15:
+            raise ValueError("opponent tempo adjustment exceeds its bounded range")
+        if not 0 <= self.confidence_bps <= 10_000:
+            raise ValueError("opponent tactical confidence is invalid")
+        if self.version != MANAGER_LEARNING_VERSION:
+            raise ValueError("unsupported opponent adjustment version")
+
+
 def update_manager_learning(
     state: ManagerLearningState,
     observations: Sequence[OpponentObservation],
@@ -195,6 +227,57 @@ def opponent_rotation_adjustment(
     )
 
 
+def opponent_tactical_adjustment(
+    state: ManagerLearningState,
+    opponent_team_id: str,
+) -> OpponentTacticalAdjustment | None:
+    memory = next(
+        (item for item in state.opponents if item.opponent_team_id == opponent_team_id),
+        None,
+    )
+    if memory is None:
+        return None
+    confidence_bps = min(10_000, memory.games_observed * 1_250)
+    confidence = confidence_bps / 10_000
+    defense_delta = memory.defense_strength - 50
+    offense_delta = memory.offense_strength - 50
+    three_delta = memory.three_point_rate - 50
+    rim_delta = memory.rim_rate - 50
+
+    offense_biases = (
+        (PlayFamily.BALL_SCREEN, _bounded_bias(defense_delta * 0.006 * confidence)),
+        (PlayFamily.ISOLATION, _bounded_bias(-defense_delta * 0.010 * confidence)),
+        (PlayFamily.OFF_BALL_ACTION, _bounded_bias(defense_delta * 0.008 * confidence)),
+    )
+    coverage_biases = (
+        (
+            Coverage.BASE,
+            _bounded_bias(-abs(three_delta - rim_delta) * 0.002 * confidence),
+        ),
+        (
+            Coverage.DROP,
+            _bounded_bias((rim_delta * 0.009 - three_delta * 0.007) * confidence),
+        ),
+        (
+            Coverage.SWITCH,
+            _bounded_bias((three_delta * 0.009 - rim_delta * 0.004) * confidence),
+        ),
+        (
+            Coverage.BLITZ,
+            _bounded_bias((offense_delta * 0.006 + three_delta * 0.004) * confidence),
+        ),
+    )
+    tempo_delta = round(((50 - memory.pace) * 0.20 + defense_delta * 0.10) * confidence)
+    return OpponentTacticalAdjustment(
+        opponent_team_id,
+        offense_biases,
+        coverage_biases,
+        max(-15, min(15, tempo_delta)),
+        confidence_bps,
+        memory.games_observed,
+    )
+
+
 def _weighted(
     previous: int,
     previous_games: int,
@@ -208,6 +291,10 @@ def _weighted(
 
 def _bounded(value: int) -> int:
     return max(-2_500, min(2_500, value))
+
+
+def _bounded_bias(value: float) -> float:
+    return round(max(-0.75, min(0.75, value)), 4)
 
 
 def manager_learning_to_dict(state: ManagerLearningState) -> dict[str, object]:

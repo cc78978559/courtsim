@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.32.0] - 2026-07-26
+
+- Compile persistent opponent memory into matchup-specific offense, defense, and tempo tactics.
+- Scale tactical effects by observed-game confidence, reaching the bounded maximum at eight games.
+- Apply learned tactics through the shared regular-season and postseason matchup resolver.
+- Audit play-family logits, coverage logits, tempo delta, effective tempo, and confidence.
+- Preserve exact neutral strategies for opponents without historical observations.
+
 ## [0.31.0] - 2026-07-26
 
 - Carry regular-season fatigue and injury availability into the postseason.
