@@ -131,7 +131,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 48
+    assert release["format_version"] == 49
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -1123,6 +1123,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "quick_sim_comparison_version": QUICK_SIM_COMPARISON_VERSION,
         "nba_league_version": NBA_LEAGUE_VERSION,
         "career_version": CAREER_VERSION,
+        "manager_learning_version": MANAGER_LEARNING_VERSION,
         "team_count": 30,
         "regular_season_games": 1_230,
         "games_per_team": 82,
@@ -1154,6 +1155,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "postseason_team_games": True,
         "career_summary_regular_and_postseason": True,
         "deterministic_forfeit_resolution": True,
+        "opponent_specific_matchup_teams": True,
+        "maximum_directed_matchup_teams": 870,
+        "matchup_roster_identity_required": True,
+        "regular_season_matchup_resolution": True,
+        "postseason_matchup_resolution": True,
+        "matchup_team_count_audit": True,
     }
     nba_franchise_registry = release["nba_franchise"]
     assert set(nba_franchise_registry) == {
@@ -1174,11 +1181,14 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "nba_offseason_version": NBA_OFFSEASON_VERSION,
         "prospect_generation_version": PROSPECT_GENERATION_VERSION,
         "manager_rotation_version": MANAGER_ROTATION_VERSION,
+        "manager_learning_version": MANAGER_LEARNING_VERSION,
         "team_count": 30,
         "stage_order": [
+            "matchup-team-build",
             "regular-season",
             "play-in",
             "playoffs",
+            "manager-learning-update",
             "career-summary",
             "lottery",
             "draft-asset-settlement",
@@ -1188,11 +1198,18 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "annual_prospect_class_size": 30,
         "management_year_increment": 1,
         "completed_seasons_increment": 1,
+        "opponents_per_manager": 29,
+        "maximum_directed_matchup_teams": 870,
+        "first_season_base_matchups": True,
+        "regular_season_event_learning": True,
+        "postseason_event_learning": False,
+        "regular_and_postseason_tactic_application": True,
+        "manager_change_resets_team_memory": True,
         "roster_identity_rebuilt_from_management": True,
         "deterministic_addressed_randomness": True,
         "composable_next_season_state": True,
-        "persistent_manager_learning_integration": False,
-        "opponent_specific_rotation_rebuild": False,
+        "persistent_manager_learning_integration": True,
+        "opponent_specific_rotation_rebuild": True,
         "disk_resume": False,
     }
 

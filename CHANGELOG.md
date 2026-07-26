@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.49.0] - 2026-07-26
+
+- Persist all 30 managers' event-ledger opponent memories in franchise state.
+- Build 870 directed white-box matchup teams after the first completed season.
+- Apply opponent-specific rotations and tactics in the regular season and postseason.
+- Accumulate games-weighted memory across real chained franchise seasons.
+- Reset a team's prior opponent memory when its manager identity changes.
+
 ## [0.48.0] - 2026-07-26
 
 - Compose the complete 30-team season, postseason, lottery, and offseason pipeline.

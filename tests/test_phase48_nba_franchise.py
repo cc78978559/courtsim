@@ -90,6 +90,14 @@ def test_franchise_season_composes_into_a_second_complete_season() -> None:
     )
     assert first.final_state.management.season_year == 2030
     assert first.final_state.completed_seasons == 1
+    assert first.simulation.matchup_team_count == 0
+    assert len(first.final_state.manager_learning) == 30
+    assert all(
+        learning.last_completed_season == 2029
+        and learning.seasons_observed == 1
+        and len(learning.opponents) == 29
+        for learning in first.final_state.manager_learning
+    )
     assert len(first.simulation.season.games) == 1_230
     assert len(first.offseason.offseason.selections) == 30
     assert {len(roster.player_ids) for roster in first.final_state.management.rosters} == {6}
@@ -115,6 +123,23 @@ def test_franchise_season_composes_into_a_second_complete_season() -> None:
     assert second.initial_state == first.final_state
     assert second.final_state.management.season_year == 2031
     assert second.final_state.completed_seasons == 2
+    assert second.simulation.matchup_team_count == 870
+    assert all(
+        learning.last_completed_season == 2030
+        and learning.seasons_observed == 2
+        and len(learning.opponents) == 29
+        for learning in second.final_state.manager_learning
+    )
+    first_games = {
+        (learning.team_id, opponent.opponent_team_id): opponent.games_observed
+        for learning in first.final_state.manager_learning
+        for opponent in learning.opponents
+    }
+    assert all(
+        opponent.games_observed > first_games[(learning.team_id, opponent.opponent_team_id)]
+        for learning in second.final_state.manager_learning
+        for opponent in learning.opponents
+    )
     assert len(second.simulation.postseason.series) == 15
     assert len(second.offseason.offseason.selections) == 30
     assert {len(roster.player_ids) for roster in second.final_state.management.rosters} == {7}

@@ -30,18 +30,12 @@ from courtsim.career import (
     apply_draft,
     offseason_result_to_dict,
 )
-from courtsim.domain.enums import Coverage, PlayFamily, ShotZone
+from courtsim.domain.enums import Coverage, PlayFamily
 from courtsim.domain.game import GameClockConfig
 from courtsim.domain.player import AbilityRatings, PlayerProfile
 from courtsim.domain.player_serialization import (
     player_profile_from_dict,
     player_profile_to_dict,
-)
-from courtsim.domain.results import (
-    BlockedShotSegmentResult,
-    MadeShotSegmentResult,
-    MissedShotSegmentResult,
-    ShootingFoulSegmentResult,
 )
 from courtsim.draft_assets import (
     DraftAssetLedger,
@@ -89,13 +83,12 @@ from courtsim.manager_experiment import (
 )
 from courtsim.manager_learning import (
     ManagerLearningState,
-    OpponentObservation,
     OpponentTacticalAdjustment,
+    advance_manager_learning_from_season,
     manager_learning_from_dict,
     manager_learning_to_dict,
     opponent_rotation_adjustment,
     opponent_tactical_adjustment,
-    update_manager_learning,
 )
 from courtsim.manager_objectives import (
     ManagerObjectiveContext,
@@ -533,7 +526,7 @@ class CourtSimManagerLeagueAdapter:
             cap_ledger=state.cap_ledger,
             cap_rules=cap_rules,
         )
-        next_learning = _advance_manager_learning(
+        next_learning = advance_manager_learning_from_season(
             season,
             state.manager_learning,
             profiles,
@@ -901,81 +894,6 @@ def _round_robin_schedule(
     return SeasonSchedule(team_ids, tuple(games))
 
 
-def _advance_manager_learning(
-    season: SeasonResult,
-    existing: tuple[ManagerLearningState, ...],
-    profiles: dict[str, ManagerProfile],
-    game_config: GameClockConfig,
-    *,
-    completed_season: int,
-) -> tuple[ManagerLearningState, ...]:
-    existing_by_team = {item.team_id: item for item in existing}
-    result = []
-    for team_id in sorted(profiles):
-        totals: dict[str, list[int]] = defaultdict(lambda: [0] * 8)
-        for record in season.games:
-            scheduled = record.scheduled_game
-            if scheduled.home_team_id == team_id:
-                opponent = scheduled.away_team_id
-                team_points, opponent_points = record.home_score, record.away_score
-            elif scheduled.away_team_id == team_id:
-                opponent = scheduled.home_team_id
-                team_points, opponent_points = record.away_score, record.home_score
-            else:
-                continue
-            totals[opponent][0] += 1
-            totals[opponent][1] += opponent_points
-            totals[opponent][2] += team_points
-            if record.result is None:
-                continue
-            for possession in record.result.possessions:
-                offense_index = 3 if possession.offense_team_id == opponent else 4
-                totals[opponent][offense_index] += 1
-                if possession.offense_team_id != opponent:
-                    continue
-                for segment in possession.result.segments:
-                    if not isinstance(
-                        segment,
-                        (
-                            MadeShotSegmentResult,
-                            MissedShotSegmentResult,
-                            BlockedShotSegmentResult,
-                            ShootingFoulSegmentResult,
-                        ),
-                    ):
-                        continue
-                    totals[opponent][5] += 1
-                    totals[opponent][6] += segment.zone is ShotZone.THREE
-                    totals[opponent][7] += segment.zone is ShotZone.RIM
-        observations = tuple(
-            _opponent_observation(opponent, values, game_config)
-            for opponent, values in sorted(totals.items())
-        )
-        profile = profiles[team_id]
-        prior = existing_by_team.get(
-            team_id,
-            ManagerLearningState(
-                profile.manager_id,
-                team_id,
-                completed_season - 1,
-            ),
-        )
-        if prior.manager_id != profile.manager_id:
-            prior = ManagerLearningState(
-                profile.manager_id,
-                team_id,
-                completed_season - 1,
-            )
-        result.append(
-            update_manager_learning(
-                prior,
-                observations,
-                completed_season=completed_season,
-            )
-        )
-    return tuple(result)
-
-
 def _manager_objective_profiles(
     state: CourtSimLeagueState,
     profiles: dict[str, ManagerProfile],
@@ -1013,46 +931,6 @@ def _manager_objective_profiles(
         effective[roster.team_id] = decision.effective_profile
         audit.append(manager_objective_to_dict(context, decision))
     return effective, audit
-
-
-def _opponent_observation(
-    opponent_team_id: str,
-    totals: list[int],
-    game_config: GameClockConfig,
-) -> OpponentObservation:
-    (
-        games,
-        opponent_points,
-        team_points,
-        opponent_possessions,
-        team_possessions,
-        opponent_shots,
-        opponent_threes,
-        opponent_rim_shots,
-    ) = totals
-    reference_possessions = (
-        game_config.regulation_periods
-        * game_config.period_seconds
-        / (2 * game_config.possession_seconds)
-    )
-    possessions_per_game = opponent_possessions / max(1, games)
-    return OpponentObservation(
-        opponent_team_id,
-        games,
-        _bounded_rating(round(opponent_points * 50 / max(1, opponent_possessions))),
-        _bounded_rating(100 - round(team_points * 50 / max(1, team_possessions))),
-        _bounded_rating(round(50 * possessions_per_game / reference_possessions)),
-        _percentage(opponent_threes, opponent_shots),
-        _percentage(opponent_rim_shots, opponent_shots),
-    )
-
-
-def _percentage(part: int, whole: int) -> int:
-    return 50 if whole == 0 else _bounded_rating(round(part * 100 / whole))
-
-
-def _bounded_rating(value: int) -> int:
-    return max(0, min(100, value))
 
 
 def _game_teams(

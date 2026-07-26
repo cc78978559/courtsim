@@ -5,11 +5,12 @@ from test_phase12_manager_league_adapter import adapter, league_state, request
 
 from courtsim.domain.game import GameClockConfig
 from courtsim.manager_experiment import ManagerExperimentArm
-from courtsim.manager_league_adapter import _opponent_observation, league_state_to_json
+from courtsim.manager_league_adapter import league_state_to_json
+from courtsim.manager_learning import opponent_observation_from_totals
 
 
 def test_opponent_observation_normalizes_efficiency_pace_and_shot_zones() -> None:
-    observation = _opponent_observation(
+    observation = opponent_observation_from_totals(
         "B",
         [2, 220, 180, 200, 190, 160, 64, 80],
         GameClockConfig(4, 750, 15),

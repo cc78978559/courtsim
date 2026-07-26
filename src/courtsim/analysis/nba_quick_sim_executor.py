@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from typing import cast
 
@@ -34,13 +35,24 @@ from courtsim.season import (
     INJURY_VERSION,
     InjuryRecord,
     PlayerSeasonState,
+    ScheduledGame,
     SeasonConfig,
     SeasonResult,
     available_game_team,
     sample_season,
 )
 
-NBA_QUICK_SIM_EXECUTOR_VERSION = "nba-quick-sim-executor-v3"
+NBA_QUICK_SIM_EXECUTOR_VERSION = "nba-quick-sim-executor-v4"
+
+
+@dataclass(frozen=True, slots=True)
+class NBAQuickSimMatchupTeam:
+    opponent_team_id: str
+    team: GameTeam
+
+    def __post_init__(self) -> None:
+        if not self.opponent_team_id.strip() or self.opponent_team_id == self.team.team_id:
+            raise ValueError("NBA matchup team requires a distinct opponent")
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,6 +88,7 @@ class NBAQuickSimExecution:
     postseason: NBAPostseasonResult
     postseason_state: NBAQuickSimPostseasonState
     summary: QuickSimSeasonSummary
+    matchup_team_count: int = 0
     version: str = NBA_QUICK_SIM_EXECUTOR_VERSION
 
 
@@ -85,6 +98,7 @@ class NBAQuickSimExecutor:
     game_config: GameClockConfig
     teams: tuple[GameTeam, ...]
     alignment: NBAConferenceAlignment
+    matchup_teams: tuple[NBAQuickSimMatchupTeam, ...] = ()
     game_rules: GameRules = field(default_factory=GameRules)
     fatigue_config: FatigueConfig = field(default_factory=FatigueConfig)
     season_config: SeasonConfig = field(default_factory=SeasonConfig)
@@ -104,6 +118,20 @@ class NBAQuickSimExecutor:
         player_ids = tuple(player_id for team in self.teams for player_id in team.roster_order)
         if len(player_ids) != len(set(player_ids)):
             raise ValueError("NBA quick simulation player ids must be league-unique")
+        matchup_keys = tuple(
+            (item.team.team_id, item.opponent_team_id) for item in self.matchup_teams
+        )
+        if matchup_keys != tuple(sorted(set(matchup_keys))):
+            raise ValueError("NBA matchup teams must use canonical unique order")
+        team_map = {team.team_id: team for team in self.teams}
+        for item in self.matchup_teams:
+            base = team_map.get(item.team.team_id)
+            if (
+                base is None
+                or item.opponent_team_id not in team_map
+                or set(item.team.roster_order) != set(base.roster_order)
+            ):
+                raise ValueError("NBA matchup teams must preserve league identity and roster")
         if not self.game_config.overtime_enabled:
             raise ValueError("NBA quick simulation requires overtime")
         if self.playoff_config.best_of != 7:
@@ -130,6 +158,21 @@ class NBAQuickSimExecutor:
             tuple(team.team_id for team in self.teams),
             alignment=self.alignment,
         )
+        matchup_map = {
+            (item.team.team_id, item.opponent_team_id): item.team for item in self.matchup_teams
+        }
+
+        def resolve_matchup(
+            scheduled: ScheduledGame,
+            team_map: Mapping[str, GameTeam],
+        ) -> tuple[GameTeam, GameTeam]:
+            home_team_id = scheduled.home_team_id
+            away_team_id = scheduled.away_team_id
+            return (
+                matchup_map.get((home_team_id, away_team_id), team_map[home_team_id]),
+                matchup_map.get((away_team_id, home_team_id), team_map[away_team_id]),
+            )
+
         season = sample_season(
             parameters=self.parameters,
             game_config=self.game_config,
@@ -140,6 +183,7 @@ class NBAQuickSimExecutor:
             fatigue_config=self.fatigue_config,
             season_config=self.season_config,
             trace_mode=self.trace_mode,
+            team_resolver=resolve_matchup if matchup_map else None,
         )
         east_regular = _conference_seeds(season, self.alignment.east_team_ids)
         west_regular = _conference_seeds(season, self.alignment.west_team_ids)
@@ -147,6 +191,7 @@ class NBAQuickSimExecutor:
         runtime = _PostseasonRuntime.from_season(
             season,
             team_map=team_map,
+            matchup_map=matchup_map,
             master_seed=seed,
             parameters=self.parameters,
             config=self.game_config,
@@ -183,12 +228,14 @@ class NBAQuickSimExecutor:
             postseason,
             postseason_state,
             summarize_quick_sim_season(season_id, season, postseason),
+            len(matchup_map),
         )
 
 
 @dataclass(slots=True)
 class _PostseasonRuntime:
     team_map: dict[str, GameTeam]
+    matchup_map: dict[tuple[str, str], GameTeam]
     states: dict[tuple[str, int], PlayerSeasonState]
     initial_states: tuple[PlayerSeasonState, ...]
     last_game_day: dict[int, int]
@@ -213,6 +260,7 @@ class _PostseasonRuntime:
         season: SeasonResult,
         *,
         team_map: dict[str, GameTeam],
+        matchup_map: dict[tuple[str, str], GameTeam],
         master_seed: int,
         parameters: ModelParameters,
         config: GameClockConfig,
@@ -234,6 +282,7 @@ class _PostseasonRuntime:
         final_day = max(game.day for game in season.schedule.games)
         return cls(
             team_map,
+            matchup_map,
             {(item.team_id, item.player_id): item for item in initial},
             initial,
             last_game_day,
@@ -255,8 +304,14 @@ class _PostseasonRuntime:
         *,
         address: tuple[object, ...],
     ) -> tuple[int, int]:
-        original_home = self.team_map[home_team_id]
-        original_away = self.team_map[away_team_id]
+        original_home = self.matchup_map.get(
+            (home_team_id, away_team_id),
+            self.team_map[home_team_id],
+        )
+        original_away = self.matchup_map.get(
+            (away_team_id, home_team_id),
+            self.team_map[away_team_id],
+        )
         for team in (original_home, original_away):
             for player_id in team.roster_order:
                 key = (team.team_id, player_id)
