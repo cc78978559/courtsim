@@ -14,10 +14,17 @@ For every ordered pair of teams, the market generates stable candidates from:
 
 1. one-player-for-one-player direct offers;
 2. a direct offer plus one currently owned draft pick from either side;
-3. one player for one currently owned draft pick.
+3. one player for one currently owned draft pick;
+4. bounded two-for-one player packages.
 
 Each non-direct candidate records a parent direct-offer ID. Generation is bounded per team
 pair and never uses random sampling, so input state fully determines candidate identity.
+
+Candidates form explicit negotiation trees. A direct offer is round one, the existing
+player/pick alternatives are round two, and a legal round-two offer rejected by exactly one
+manager may receive round-three pick compensation from the other team. Both managers then
+re-evaluate the complete package. Round-three generation is capped globally, and every
+negotiation terminates as accepted, round-limit, or no-counter.
 
 Every candidate is sent through canonical trade legality and two independent white-box manager
 decisions. Approved candidates are ranked by combined rational gain and then stable offer
@@ -34,11 +41,12 @@ own replay audit.
 Generation remains `SHADOW`. The production manager experiment adapter applies its selected
 plan only inside the Shadow experiment arm before the season begins. Incumbent state remains
 unchanged, and the audit payload records candidate summaries, approvals, selected offers,
-execution audits, and the manager decision ledger.
+negotiation IDs and rounds, terminal summaries, execution audits, and the manager decision
+ledger.
 
 ## Current boundary
 
 The adapter supplies the persisted three-year pick inventory defined by `draft-asset-v1`.
-Future-year picks, top-N protections, and one-way swaps are therefore live inputs. Multi-player
-packages, negotiation rounds, deadlines, conditional multi-outcome conversion, and trade
-exceptions remain future versioned work.
+Future-year picks, top-N protections, one-way swaps, multi-player packages, three-round
+negotiation, and trade exceptions are therefore live inputs. Deadlines, contract-dependent
+packages, and conditional multi-outcome conversion remain future versioned work.

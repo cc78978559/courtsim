@@ -107,7 +107,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 36
+    assert release["format_version"] == 37
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -494,6 +494,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "trade_market_engine": TRADE_MARKET_VERSION,
         "three_team_market_engine": THREE_TEAM_MARKET_VERSION,
         "trade_market_stage": "preseason-shadow",
+        "bilateral_negotiation_audit": True,
         "trade_clearing": "highest-combined-rational-gain",
         "bilateral_tie_preference": True,
         "cap_ledger_transaction_authority": True,
@@ -633,6 +634,14 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "generate_pick_counteroffers": trade_market_rules.generate_pick_counteroffers,
         "generate_player_for_pick_offers": trade_market_rules.generate_player_for_pick_offers,
         "generate_two_for_one_offers": trade_market_rules.generate_two_for_one_offers,
+        "maximum_negotiation_rounds": trade_market_rules.maximum_negotiation_rounds,
+        "maximum_round_three_candidates": trade_market_rules.maximum_round_three_candidates,
+        "generate_round_three_counteroffers": (
+            trade_market_rules.generate_round_three_counteroffers
+        ),
+        "round_three_compensation": "additional-owned-pick",
+        "negotiation_terminal_reasons": ["accepted", "round-limit", "no-counter"],
+        "canonical_negotiation_summaries": True,
         "candidate_kind_mixing": True,
         "stable_candidate_order": True,
         "team_and_asset_locking": True,

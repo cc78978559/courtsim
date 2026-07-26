@@ -35,6 +35,7 @@
   "trade_market_engine": "trade-market-v1",
   "three_team_market_engine": "three-team-market-v1",
   "trade_market_stage": "preseason-shadow",
+  "bilateral_negotiation_audit": true,
   "trade_clearing": "highest-combined-rational-gain",
   "bilateral_tie_preference": true,
   "cap_ledger_transaction_authority": true,

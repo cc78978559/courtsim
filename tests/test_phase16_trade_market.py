@@ -105,6 +105,45 @@ def test_market_generates_pick_counteroffers_with_parent_links() -> None:
     assert all(item.parent_trade_id is not None for item in counters)
     offer_ids = {item.shadow.offer.trade_id for item in result.evaluations}
     assert all(item.parent_trade_id in offer_ids for item in counters)
+    assert all(item.round_number == 2 for item in counters)
+    assert all(item.negotiation_id == item.parent_trade_id for item in counters)
+
+
+def test_market_records_bounded_three_round_negotiations() -> None:
+    result = generate_trade_market_shadow(
+        management=management(salary_a=5_000_000, salary_b=5_000_000),
+        players=league_players(home_value=76, away_value=68),
+        picks=(
+            *picks(),
+            replace(picks()[0], selection_number=3, round_number=2),
+            replace(picks()[1], selection_number=4, round_number=2),
+        ),
+        profiles={
+            "home": ManagerProfile(
+                "home-manager",
+                "home",
+                win_now=90,
+                development_bias=10,
+            ),
+            "away": ManagerProfile(
+                "away-manager",
+                "away",
+                win_now=10,
+                development_bias=90,
+            ),
+        },
+        contract_rules=contract_rules(),
+    )
+    assert result.negotiations
+    assert all(item.rounds_completed <= 3 for item in result.negotiations)
+    round_three = [item for item in result.evaluations if item.round_number == 3]
+    assert round_three
+    offer_ids = {item.shadow.offer.trade_id for item in result.evaluations}
+    assert all(item.parent_trade_id in offer_ids for item in round_three)
+    assert all(
+        len(item.shadow.offer.picks_from_a) + len(item.shadow.offer.picks_from_b) >= 2
+        for item in round_three
+    )
 
 
 def test_market_plan_rejects_team_reuse_before_execution() -> None:

@@ -8,7 +8,7 @@ statistics ledger rather than continuous court physics.
 
 ## Current versions
 
-- Engine release candidate: `0.36.0`.
+- Engine release candidate: `0.37.0`.
 - Latest mechanics: schema `demo-v1.12`, parameters `demo-1.4.0`.
 - Frozen realism baseline: `demo-1.4.0`.
 - Game rules: `nba-v1`.
@@ -83,6 +83,8 @@ promotion.
   replay gates, plus independent bilateral manager approval in Shadow mode.
 - Deterministic direct/counteroffer generation, positive-surplus ranking, asset locking, and
   preseason Shadow-market execution inside real multi-season manager experiments.
+- Bounded three-round bilateral negotiation trees with parent offers, additional-pick final
+  counters, repeated white-box approval, and explicit accepted/round-limit/no-counter outcomes.
 - Stable future-pick ownership across seasons, top-N protection and deferral, one-way
   better-slot swaps, and standings-addressed annual settlement into the draft.
 - Addressed weighted lottery draws, round-specific order settlement, consecutive-future-first
@@ -139,7 +141,7 @@ promotion.
 
 - Ruff formatting and lint: passed.
 - mypy strict: passed.
-- pytest: 457 passed; one Windows symlink test skipped when link privileges are absent.
+- pytest: 458 passed; one Windows symlink test skipped when link privileges are absent.
 - Coverage: 85%, meeting the required minimum of 85%.
 - Runtime dependencies: Python standard library only.
 - Frozen `demo-1.4.0` audit: 10 core realism targets, 3 free-throw targets, and
@@ -157,8 +159,8 @@ Run the complete local gate with:
 - Broader offensive vocabulary and stronger player-level usage calibration.
 - Multi-team and player-level real-data calibration beyond the current selected targets.
 - Full NBA lottery odds and advanced conditional-pick rules, seven-year Stepien edge cases,
-  three-plus-round negotiation, causal tactical experiments, human-approved promotion beyond
-  Shadow mode, and fantasy-manager gameplay.
+  four-plus-round and contract-dependent negotiation, causal tactical experiments,
+  human-approved promotion beyond Shadow mode, and fantasy-manager gameplay.
 
 ## Repository boundary
 

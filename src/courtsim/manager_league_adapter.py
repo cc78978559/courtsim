@@ -643,10 +643,13 @@ def _trade_market_audit(
             evaluation.shadow.approved for evaluation in shadow.evaluations
         ),
         "selected_offers": [asdict(offer) for offer in execution.plan.offers],
+        "negotiations": [asdict(item) for item in shadow.negotiations],
         "evaluations": [
             {
                 "kind": evaluation.kind,
                 "parent_trade_id": evaluation.parent_trade_id,
+                "negotiation_id": evaluation.negotiation_id,
+                "negotiation_round": evaluation.round_number,
                 "offer": asdict(evaluation.shadow.offer),
                 "legal": evaluation.shadow.legal,
                 "approved": evaluation.shadow.approved,

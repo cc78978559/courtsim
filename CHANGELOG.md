@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.37.0] - 2026-07-26
+
+- Group bilateral trade candidates into stable negotiation trees.
+- Add explicit round and negotiation identities to every evaluated offer.
+- Generate bounded round-three pick compensation after a single-manager rejection.
+- Re-run canonical legality and independent white-box approval for complete final packages.
+- Audit accepted, round-limit, and no-counter terminal outcomes.
+
 ## [0.36.0] - 2026-07-26
 
 - Add annual contend, develop, rebuild, cap-relief, and balanced manager objectives.
