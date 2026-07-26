@@ -1,0 +1,14 @@
+{
+  "format_version": 1,
+  "three_team_market_version": "three-team-market-v1",
+  "three_team_trade_version": "three-team-trade-v1",
+  "maximum_candidates_per_trio": 64,
+  "minimum_combined_rational_gain": 0.001,
+  "search_pick_compensation": true,
+  "cyclic_orientations": 2,
+  "stable_candidate_order": true,
+  "team_locking": true,
+  "unified_bilateral_comparison": true,
+  "default_mode": "shadow",
+  "automatic_activation": false
+}

@@ -8,7 +8,7 @@ statistics ledger rather than continuous court physics.
 
 ## Current versions
 
-- Engine release candidate: `0.19.0`.
+- Engine release candidate: `0.20.0`.
 - Latest mechanics: schema `demo-v1.12`, parameters `demo-1.4.0`.
 - Frozen realism baseline: `demo-1.4.0`.
 - Game rules: `nba-v1`.
@@ -32,6 +32,7 @@ statistics ledger rather than continuous court physics.
 - Persistent future picks, protections, and swap rights: `draft-asset-v1`.
 - Weighted first-round lottery and Stepien safety: `draft-lottery-v1`.
 - Native routed three-team transactions: `three-team-trade-v1`.
+- Automatic three-team discovery and unified clearing: `three-team-market-v1`.
 
 The latest mechanics are now the formal baseline after a complete independent
 100-game event audit, realism scoring, manifest verification, and regression-gate
@@ -82,6 +83,8 @@ promotion.
   trade safety, and bounded two-for-one white-box trade packages.
 - Native three-team player/pick routing with simultaneous legality, atomic contract and asset
   movement, replay audit, and unanimous three-manager Shadow approval.
+- Deterministic cyclic three-team discovery, bounded future-pick compensation, positive-surplus
+  selection, team locking, and gain-based clearing against the bilateral market.
 - Canonical JSONL event ledgers, replay, SHA-256 manifests, and statistics attribution.
 - Parallel deterministic batches, resumable experiment matrices, paired-seed
   counterfactuals, multi-seed robustness checks, and realism/regression gates.
@@ -92,7 +95,7 @@ promotion.
 
 - Ruff formatting and lint: passed.
 - mypy strict: passed.
-- pytest: 401 passed; one Windows symlink test skipped when link privileges are absent.
+- pytest: 406 passed; one Windows symlink test skipped when link privileges are absent.
 - Coverage: 85%, meeting the required minimum of 85%.
 - Runtime dependencies: Python standard library only.
 - Frozen `demo-1.4.0` audit: 10 core realism targets, 3 free-throw targets, and
@@ -110,7 +113,7 @@ Run the complete local gate with:
 - Broader offensive vocabulary and stronger player-level usage calibration.
 - Multi-team and player-level real-data calibration beyond the current selected targets.
 - Full NBA lottery odds and advanced conditional-pick rules, seven-year Stepien edge cases,
-  scouting uncertainty, automatic three-team discovery, multi-round trade negotiation,
+  scouting uncertainty, hub-team three-way packages, multi-round trade negotiation,
   opponent-specific rotations, manager learning, playoff fatigue/injury continuity,
   human-approved promotion beyond Shadow mode, play-in/larger playoff formats, and
   fantasy-manager gameplay.

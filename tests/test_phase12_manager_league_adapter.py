@@ -153,9 +153,13 @@ def test_adapter_runs_real_season_playoffs_and_offseason_deterministically() -> 
         "trade_market",
         "draft_assets",
         "draft_lottery",
+        "three_team_market",
+        "trade_clearing_choice",
     }
     assert audit["prospect_class"] is None
     assert audit["trade_market"] is None
+    assert audit["three_team_market"] is None
+    assert audit["trade_clearing_choice"] is None
     assert audit["draft_assets"]["draft_year"] == 2029
     assert len(audit["draft_lottery"]["draws"]) == 2
     assert audit["playoffs"]["champion_team_id"] in TEAM_IDS
@@ -189,8 +193,15 @@ def test_shadow_uses_white_box_draft_and_market_ledgers() -> None:
     incumbent_audit = json.loads(incumbent.audit_payload)
     shadow_audit = json.loads(shadow.audit_payload)
     assert incumbent_audit["manager_decisions"] == {}
-    assert set(shadow_audit["manager_decisions"]) == {"draft", "market", "trade"}
+    assert set(shadow_audit["manager_decisions"]) == {
+        "draft",
+        "market",
+        "trade",
+        "three_team_trade",
+    }
     assert shadow_audit["trade_market"]["candidate_count"] > 0
+    assert shadow_audit["three_team_market"]["candidate_count"] > 0
+    assert shadow_audit["trade_clearing_choice"] in {"none", "bilateral", "three-team"}
     assert incumbent_audit["season"]["games"] == shadow_audit["season"]["games"]
     assert incumbent_audit["playoffs"] == shadow_audit["playoffs"]
     incumbent_picks = tuple(

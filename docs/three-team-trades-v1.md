@@ -31,6 +31,8 @@ contiguous decision ledger.
 
 ## Current boundary
 
-Version 1 exposes canonical execution and Shadow approval for supplied offers. Automatic
-three-team offer discovery, hub-team compensation search, multi-round counteroffers, conditional
-asset conversion, and integration into the preseason clearing market remain later work.
+The separate `three-team-market-v1` layer now provides automatic cyclic discovery, bounded
+single-pick compensation, and integration into preseason Shadow clearing. The native transaction
+engine in this document remains responsible only for supplied-offer legality, execution,
+approval, and replay. Hub-team packages, multi-round counteroffers, and conditional asset
+conversion remain later work.

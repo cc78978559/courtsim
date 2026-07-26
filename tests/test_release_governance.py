@@ -52,6 +52,7 @@ from courtsim.season import (
     SEASON_VERSION,
     SeasonConfig,
 )
+from courtsim.three_team_market import THREE_TEAM_MARKET_VERSION, ThreeTeamMarketRules
 from courtsim.three_team_trades import THREE_TEAM_TRADE_VERSION
 from courtsim.trade_market import TRADE_MARKET_VERSION, TradeMarketRules
 from courtsim.trades import TRADE_VERSION, TradeRules
@@ -89,11 +90,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "draft_assets",
         "draft_lottery",
         "three_team_trades",
+        "three_team_market",
         "model",
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 19
+    assert release["format_version"] == 20
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -359,7 +361,10 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "rotation_engine": MANAGER_ROTATION_VERSION,
         "trade_engine": TRADE_VERSION,
         "trade_market_engine": TRADE_MARKET_VERSION,
+        "three_team_market_engine": THREE_TEAM_MARKET_VERSION,
         "trade_market_stage": "preseason-shadow",
+        "trade_clearing": "highest-combined-rational-gain",
+        "bilateral_tie_preference": True,
         "draft_asset_engine": DRAFT_ASSET_VERSION,
         "league_state_schema_version": 2,
         "future_pick_horizon": 3,
@@ -560,6 +565,31 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "atomic_state_transition": True,
         "replay_audit_required": True,
         "automatic_market_generation": False,
+    }
+    three_team_market_registry = release["three_team_market"]
+    assert set(three_team_market_registry) == {
+        "three_team_market_version",
+        "path",
+        "file_sha256",
+    }
+    three_team_market_path = ROOT / three_team_market_registry["path"]
+    three_team_market_config = json.loads(three_team_market_path.read_text(encoding="utf-8"))
+    assert _sha256(three_team_market_path) == three_team_market_registry["file_sha256"]
+    assert three_team_market_registry["three_team_market_version"] == THREE_TEAM_MARKET_VERSION
+    three_team_market_rules = ThreeTeamMarketRules()
+    assert three_team_market_config == {
+        "format_version": 1,
+        "three_team_market_version": THREE_TEAM_MARKET_VERSION,
+        "three_team_trade_version": THREE_TEAM_TRADE_VERSION,
+        "maximum_candidates_per_trio": (three_team_market_rules.maximum_candidates_per_trio),
+        "minimum_combined_rational_gain": (three_team_market_rules.minimum_combined_rational_gain),
+        "search_pick_compensation": three_team_market_rules.search_pick_compensation,
+        "cyclic_orientations": 2,
+        "stable_candidate_order": True,
+        "team_locking": True,
+        "unified_bilateral_comparison": True,
+        "default_mode": ManagerPolicyMode.SHADOW.name.lower(),
+        "automatic_activation": False,
     }
 
     model = release["model"]

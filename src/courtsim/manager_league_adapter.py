@@ -108,8 +108,18 @@ from courtsim.season import (
     sample_season,
     season_result_to_dict,
 )
+from courtsim.three_team_market import (
+    ThreeTeamMarketExecution,
+    ThreeTeamMarketPlan,
+    ThreeTeamMarketRules,
+    ThreeTeamMarketShadowResult,
+    apply_three_team_market_plan,
+    generate_three_team_market_shadow,
+    three_team_shadow_gain,
+)
 from courtsim.trade_market import (
     TradeMarketExecution,
+    TradeMarketPlan,
     TradeMarketRules,
     TradeMarketShadowResult,
     apply_trade_market_plan,
@@ -176,6 +186,7 @@ class CourtSimManagerLeagueAdapter:
     trade_rules: TradeRules = field(default_factory=TradeRules)
     manager_trade_rules: ManagerTradeRules = field(default_factory=ManagerTradeRules)
     trade_market_rules: TradeMarketRules = field(default_factory=TradeMarketRules)
+    three_team_market_rules: ThreeTeamMarketRules = field(default_factory=ThreeTeamMarketRules)
     games_per_pair: int = 2
     trace_mode: TraceMode = TraceMode.AGGREGATE_ONLY
     version: str = MANAGER_LEAGUE_ADAPTER_VERSION
@@ -223,7 +234,10 @@ class CourtSimManagerLeagueAdapter:
             raise ManagerLeagueAdapterError("league state teams do not match manager profiles")
 
         trade_audit: dict[str, object] | None = None
+        three_team_audit: dict[str, object] | None = None
+        trade_clearing_choice: str | None = None
         trade_ledger: dict[str, object] | None = None
+        three_team_ledger: dict[str, object] | None = None
         if request.arm is ManagerExperimentArm.SHADOW:
             trade_shadow = generate_trade_market_shadow(
                 management=state.management,
@@ -235,26 +249,64 @@ class CourtSimManagerLeagueAdapter:
                 manager_rules=self.manager_trade_rules,
                 market_rules=self.trade_market_rules,
             )
+            three_team_shadow = generate_three_team_market_shadow(
+                management=state.management,
+                players=state.players,
+                picks=state.draft_assets.picks,
+                profiles=profiles,
+                contract_rules=state.contract_rules,
+                trade_rules=self.trade_rules,
+                manager_rules=self.manager_trade_rules,
+                market_rules=self.three_team_market_rules,
+            )
+            bilateral_gain = _selected_bilateral_gain(trade_shadow)
+            three_team_gain = _selected_three_team_gain(three_team_shadow)
+            choose_three_team = (
+                bool(three_team_shadow.plan.offers) and three_team_gain > bilateral_gain
+            )
+            bilateral_plan = TradeMarketPlan(()) if choose_three_team else trade_shadow.plan
+            three_team_plan = (
+                three_team_shadow.plan if choose_three_team else ThreeTeamMarketPlan(())
+            )
             trade_execution = apply_trade_market_plan(
                 state.management,
                 state.draft_assets.picks,
-                trade_shadow.plan,
+                bilateral_plan,
+                state.contract_rules,
+                self.trade_rules,
+            )
+            three_team_execution = apply_three_team_market_plan(
+                trade_execution.final_management,
+                trade_execution.final_picks,
+                three_team_plan,
                 state.contract_rules,
                 self.trade_rules,
             )
             state = replace(
                 state,
-                management=trade_execution.final_management,
+                management=three_team_execution.final_management,
                 draft_assets=replace(
                     state.draft_assets,
                     picks=cast(
                         tuple[FutureDraftPickAsset, ...],
-                        trade_execution.final_picks,
+                        three_team_execution.final_picks,
                     ),
                 ),
             )
             trade_audit = _trade_market_audit(trade_shadow, trade_execution)
+            three_team_audit = _three_team_market_audit(
+                three_team_shadow,
+                three_team_execution,
+            )
+            trade_clearing_choice = (
+                "three-team"
+                if choose_three_team
+                else "bilateral"
+                if bilateral_plan.offers
+                else "none"
+            )
             trade_ledger = asdict(trade_shadow.ledger)
+            three_team_ledger = asdict(three_team_shadow.ledger)
 
         teams, rotation_audit = _game_teams(
             state,
@@ -326,6 +378,8 @@ class CourtSimManagerLeagueAdapter:
         )
         if trade_ledger is not None:
             manager_audit["trade"] = trade_ledger
+        if three_team_ledger is not None:
+            manager_audit["three_team_trade"] = three_team_ledger
         offseason = advance_offseason(
             season_year=request.season_year,
             master_seed=offseason_seed,
@@ -356,6 +410,8 @@ class CourtSimManagerLeagueAdapter:
             "prospect_class": prospect_audit,
             "rotations": rotation_audit,
             "trade_market": trade_audit,
+            "three_team_market": three_team_audit,
+            "trade_clearing_choice": trade_clearing_choice,
             "draft_assets": asdict(draft_settlement),
             "draft_lottery": asdict(draft_lottery),
         }
@@ -376,7 +432,7 @@ def _trade_market_audit(
         "approved_candidate_count": sum(
             evaluation.shadow.approved for evaluation in shadow.evaluations
         ),
-        "selected_offers": [asdict(offer) for offer in shadow.plan.offers],
+        "selected_offers": [asdict(offer) for offer in execution.plan.offers],
         "evaluations": [
             {
                 "kind": evaluation.kind,
@@ -399,6 +455,59 @@ def _trade_market_audit(
         ],
         "execution_audits": [asdict(audit) for audit in execution.audits],
     }
+
+
+def _three_team_market_audit(
+    shadow: ThreeTeamMarketShadowResult,
+    execution: ThreeTeamMarketExecution,
+) -> dict[str, object]:
+    return {
+        "version": shadow.version,
+        "candidate_count": len(shadow.evaluations),
+        "approved_candidate_count": sum(
+            evaluation.shadow.approved for evaluation in shadow.evaluations
+        ),
+        "selected_offers": [asdict(offer) for offer in execution.plan.offers],
+        "evaluations": [
+            {
+                "kind": evaluation.kind,
+                "parent_trade_id": evaluation.parent_trade_id,
+                "offer": asdict(evaluation.shadow.offer),
+                "legal": evaluation.shadow.legal,
+                "approved": evaluation.shadow.approved,
+                "hard_rejections": list(evaluation.shadow.hard_rejections),
+                "approvals": [
+                    {
+                        "team_id": approval.team_id,
+                        "manager_id": approval.manager_id,
+                        "accepted": approval.accepted,
+                        "rational_gain": approval.rational_gain,
+                    }
+                    for approval in evaluation.shadow.approvals
+                ],
+            }
+            for evaluation in shadow.evaluations
+        ],
+        "execution_audits": [asdict(audit) for audit in execution.audits],
+    }
+
+
+def _selected_bilateral_gain(shadow: TradeMarketShadowResult) -> float:
+    selected = {offer.trade_id for offer in shadow.plan.offers}
+    return sum(
+        sum(approval.rational_gain or 0.0 for approval in evaluation.shadow.approvals)
+        for evaluation in shadow.evaluations
+        if evaluation.shadow.offer.trade_id in selected
+    )
+
+
+def _selected_three_team_gain(shadow: ThreeTeamMarketShadowResult) -> float:
+    selected = {offer.trade_id for offer in shadow.plan.offers}
+    return sum(
+        three_team_shadow_gain(evaluation.shadow)
+        for evaluation in shadow.evaluations
+        if evaluation.shadow.offer.trade_id in selected
+    )
 
 
 def league_state_to_json(state: CourtSimLeagueState) -> str:

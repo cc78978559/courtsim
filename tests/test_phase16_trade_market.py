@@ -206,6 +206,12 @@ def test_real_league_shadow_executes_selected_preseason_market() -> None:
         )
     )
     audit = json.loads(execution.audit_payload)
-    assert audit["trade_market"]["selected_offers"]
-    assert audit["trade_market"]["execution_audits"]
-    assert all(item["replay_verified"] for item in audit["trade_market"]["execution_audits"])
+    assert audit["trade_clearing_choice"] in {"bilateral", "three-team"}
+    selected_market = (
+        audit["trade_market"]
+        if audit["trade_clearing_choice"] == "bilateral"
+        else audit["three_team_market"]
+    )
+    assert selected_market["selected_offers"]
+    assert selected_market["execution_audits"]
+    assert all(item["replay_verified"] for item in selected_market["execution_audits"])

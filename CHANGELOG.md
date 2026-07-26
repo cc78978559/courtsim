@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.20.0] - 2026-07-26
+
+- Discover deterministic cyclic player routes across every three-team combination.
+- Search bounded future-pick compensation when an initial cycle is rejected.
+- Rank positive-surplus three-team offers and lock participants against conflicts.
+- Compare bilateral and three-team plans on combined rational gain before execution.
+- Integrate the winning market into the real preseason Shadow league adapter with replay audits.
+
 ## [0.19.0] - 2026-07-26
 
 - Add native three-team offers with explicit player and pick routes.
