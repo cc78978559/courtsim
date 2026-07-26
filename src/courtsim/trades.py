@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
-from courtsim.career import DraftPickAsset
+from courtsim.draft_assets import TradableDraftPick
 from courtsim.management import (
     ContractRules,
     LeagueManagementState,
@@ -101,9 +101,9 @@ class TradeResult:
     contract_rules: ContractRules
     offer: TradeOffer
     initial_management: LeagueManagementState
-    initial_picks: tuple[DraftPickAsset, ...]
+    initial_picks: tuple[TradableDraftPick, ...]
     final_management: LeagueManagementState
-    final_picks: tuple[DraftPickAsset, ...]
+    final_picks: tuple[TradableDraftPick, ...]
     version: str = TRADE_VERSION
 
     def __post_init__(self) -> None:
@@ -123,7 +123,7 @@ class TradeAudit:
 
 def trade_rejections(
     management: LeagueManagementState,
-    picks: tuple[DraftPickAsset, ...],
+    picks: tuple[TradableDraftPick, ...],
     offer: TradeOffer,
     contract_rules: ContractRules,
     trade_rules: TradeRules,
@@ -203,7 +203,7 @@ def trade_rejections(
 
 def apply_trade(
     management: LeagueManagementState,
-    picks: tuple[DraftPickAsset, ...],
+    picks: tuple[TradableDraftPick, ...],
     offer: TradeOffer,
     contract_rules: ContractRules,
     trade_rules: TradeRules = DEFAULT_TRADE_RULES,

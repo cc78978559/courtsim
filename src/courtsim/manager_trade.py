@@ -6,8 +6,9 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, fields
 from typing import cast
 
-from courtsim.career import CareerPlayer, DraftPickAsset
+from courtsim.career import CareerPlayer
 from courtsim.domain.player import AbilityRatings, SizeClass
+from courtsim.draft_assets import TradableDraftPick
 from courtsim.management import ContractRules, LeagueManagementState
 from courtsim.manager_ai import (
     DecisionContribution,
@@ -76,7 +77,7 @@ def evaluate_trade_shadow(
     *,
     management: LeagueManagementState,
     players: Sequence[CareerPlayer],
-    picks: tuple[DraftPickAsset, ...],
+    picks: tuple[TradableDraftPick, ...],
     offer: TradeOffer,
     profiles: Mapping[str, ManagerProfile],
     contract_rules: ContractRules,
@@ -201,7 +202,7 @@ def evaluate_trade_shadow(
 def _trade_contributions(
     management: LeagueManagementState,
     player_map: Mapping[int, CareerPlayer],
-    picks: tuple[DraftPickAsset, ...],
+    picks: tuple[TradableDraftPick, ...],
     team_id: str,
     outgoing_players: tuple[int, ...],
     incoming_players: tuple[int, ...],
@@ -293,7 +294,7 @@ def _player_value(
     )
 
 
-def _pick_value(pick: DraftPickAsset, profile: ManagerProfile) -> float:
+def _pick_value(pick: TradableDraftPick, profile: ManagerProfile) -> float:
     base = 0.42 if pick.round_number == 1 else 0.15 / max(1, pick.round_number - 1)
     development = 0.75 + profile.development_bias / 100 * 0.35
     risk = 0.9 + profile.risk_tolerance / 100 * 0.2

@@ -137,6 +137,7 @@ def test_adapter_runs_real_season_playoffs_and_offseason_deterministically() -> 
     assert first == second
     next_state = league_state_from_json(first.next_state_payload)
     assert next_state.management.season_year == 2029
+    assert {pick.draft_year for pick in next_state.draft_assets.picks} == {2030, 2031}
     assert len(first.metrics) == 4
     assert all(0 <= metric.win_rate <= 1 for metric in first.metrics)
     audit = json.loads(first.audit_payload)
@@ -150,9 +151,11 @@ def test_adapter_runs_real_season_playoffs_and_offseason_deterministically() -> 
         "prospect_class",
         "rotations",
         "trade_market",
+        "draft_assets",
     }
     assert audit["prospect_class"] is None
     assert audit["trade_market"] is None
+    assert audit["draft_assets"]["draft_year"] == 2029
     assert audit["playoffs"]["champion_team_id"] in TEAM_IDS
     assert len(audit["offseason"]["selections"]) == 4
     assert set(audit["rotations"]) == set(TEAM_IDS)
@@ -163,7 +166,9 @@ def test_adapter_runs_real_season_playoffs_and_offseason_deterministically() -> 
             state_payload=first.next_state_payload,
         )
     )
-    assert league_state_from_json(following.next_state_payload).management.season_year == 2030
+    following_state = league_state_from_json(following.next_state_payload)
+    assert following_state.management.season_year == 2030
+    assert {pick.draft_year for pick in following_state.draft_assets.picks} == {2031, 2032}
     following_audit = json.loads(following.audit_payload)
     assert following_audit["prospect_class"]["draft_year"] == 2030
     assert len(following_audit["offseason"]["selections"]) == 4

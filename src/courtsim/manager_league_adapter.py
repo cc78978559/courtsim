@@ -28,6 +28,15 @@ from courtsim.domain.player_serialization import (
     player_profile_from_dict,
     player_profile_to_dict,
 )
+from courtsim.draft_assets import (
+    DraftAssetLedger,
+    DraftAssetSettlement,
+    FutureDraftPickAsset,
+    draft_asset_ledger_from_dict,
+    draft_asset_ledger_to_dict,
+    seed_future_draft_picks,
+    settle_draft_assets,
+)
 from courtsim.management import (
     ContractRules,
     LeagueManagementState,
@@ -115,6 +124,7 @@ class CourtSimLeagueState:
     contract_rules: ContractRules
     management: LeagueManagementState
     players: tuple[CareerPlayer, ...]
+    draft_assets: DraftAssetLedger = field(default_factory=DraftAssetLedger)
     version: str = MANAGER_LEAGUE_ADAPTER_VERSION
 
     def __post_init__(self) -> None:
@@ -131,6 +141,17 @@ class CourtSimLeagueState:
         } | set(self.management.free_agent_ids)
         if not governed_ids <= set(player_ids):
             raise ValueError("manager league management references unknown players")
+        team_ids = {roster.team_id for roster in self.management.rosters}
+        if any(
+            pick.original_team_id not in team_ids or pick.owner_team_id not in team_ids
+            for pick in self.draft_assets.picks
+        ):
+            raise ValueError("manager league draft picks reference unknown teams")
+        if any(
+            swap.controller_team_id not in team_ids or swap.target_original_team_id not in team_ids
+            for swap in self.draft_assets.swaps
+        ):
+            raise ValueError("manager league draft swaps reference unknown teams")
 
 
 @dataclass(frozen=True, slots=True)
@@ -177,6 +198,10 @@ class CourtSimManagerLeagueAdapter:
             request=request,
             rules=self.prospect_rules,
         )
+        state = _ensure_future_draft_assets(
+            state,
+            draft_rules=self.draft_rules,
+        )
         if (
             not state.contract_rules.minimum_salary
             <= self.draft_rules.rookie_salary
@@ -197,7 +222,7 @@ class CourtSimManagerLeagueAdapter:
             trade_shadow = generate_trade_market_shadow(
                 management=state.management,
                 players=state.players,
-                picks=(),
+                picks=state.draft_assets.picks,
                 profiles=profiles,
                 contract_rules=state.contract_rules,
                 trade_rules=self.trade_rules,
@@ -206,12 +231,22 @@ class CourtSimManagerLeagueAdapter:
             )
             trade_execution = apply_trade_market_plan(
                 state.management,
-                (),
+                state.draft_assets.picks,
                 trade_shadow.plan,
                 state.contract_rules,
                 self.trade_rules,
             )
-            state = replace(state, management=trade_execution.final_management)
+            state = replace(
+                state,
+                management=trade_execution.final_management,
+                draft_assets=replace(
+                    state.draft_assets,
+                    picks=cast(
+                        tuple[FutureDraftPickAsset, ...],
+                        trade_execution.final_picks,
+                    ),
+                ),
+            )
             trade_audit = _trade_market_audit(trade_shadow, trade_execution)
             trade_ledger = asdict(trade_shadow.ledger)
 
@@ -263,11 +298,20 @@ class CourtSimManagerLeagueAdapter:
             request.season_year,
             "offseason",
         )
+        draft_settlement = _draft_asset_settlement(
+            season,
+            state,
+            summaries,
+            master_seed=offseason_seed,
+            career_rules=self.career_rules,
+            draft_rules=self.draft_rules,
+        )
+        picks = draft_settlement.picks
         draft_plan, market_plan, manager_audit = _offseason_plans(
             state,
-            season,
             summaries,
             profiles,
+            picks,
             arm=request.arm,
             master_seed=offseason_seed,
             career_rules=self.career_rules,
@@ -275,14 +319,6 @@ class CourtSimManagerLeagueAdapter:
         )
         if trade_ledger is not None:
             manager_audit["trade"] = trade_ledger
-        picks = _draft_picks(
-            season,
-            state,
-            summaries,
-            master_seed=offseason_seed,
-            career_rules=self.career_rules,
-            draft_rules=self.draft_rules,
-        )
         offseason = advance_offseason(
             season_year=request.season_year,
             master_seed=offseason_seed,
@@ -300,6 +336,7 @@ class CourtSimManagerLeagueAdapter:
             state.contract_rules,
             offseason.final_management,
             offseason.final_players,
+            draft_settlement.final_ledger,
         )
         metrics = _manager_metrics(season, playoffs, next_state)
         audit = {
@@ -312,6 +349,7 @@ class CourtSimManagerLeagueAdapter:
             "prospect_class": prospect_audit,
             "rotations": rotation_audit,
             "trade_market": trade_audit,
+            "draft_assets": asdict(draft_settlement),
         }
         return ManagerSeasonExecution(
             league_state_to_json(next_state),
@@ -365,10 +403,11 @@ def league_state_to_json(state: CourtSimLeagueState) -> str:
         )
     )
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "version": state.version,
         "management": management,
         "players": [_career_player_to_dict(player) for player in state.players],
+        "draft_assets": draft_asset_ledger_to_dict(state.draft_assets),
     }
     return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
@@ -377,12 +416,14 @@ def league_state_from_json(payload: str) -> CourtSimLeagueState:
     try:
         value: object = json.loads(payload)
         raw = _object(value, "manager league state")
-        _exact(
-            raw,
-            {"schema_version", "version", "management", "players"},
-            "manager league state",
+        schema_version = raw.get("schema_version")
+        expected_keys = (
+            {"schema_version", "version", "management", "players"}
+            if schema_version == 1
+            else {"schema_version", "version", "management", "players", "draft_assets"}
         )
-        if raw["schema_version"] != 1 or raw["version"] != MANAGER_LEAGUE_ADAPTER_VERSION:
+        _exact(raw, expected_keys, "manager league state")
+        if schema_version not in {1, 2} or raw["version"] != MANAGER_LEAGUE_ADAPTER_VERSION:
             raise ManagerLeagueAdapterError("unsupported manager league state")
         market = market_result_from_dict(raw["management"])
         if market.actions or market.initial_state != market.final_state:
@@ -391,7 +432,12 @@ def league_state_from_json(payload: str) -> CourtSimLeagueState:
         if not isinstance(raw_players, list):
             raise ManagerLeagueAdapterError("manager league players must be a list")
         players = tuple(_career_player_from_dict(item) for item in raw_players)
-        return CourtSimLeagueState(market.rules, market.final_state, players)
+        draft_assets = (
+            DraftAssetLedger()
+            if schema_version == 1
+            else draft_asset_ledger_from_dict(raw["draft_assets"])
+        )
+        return CourtSimLeagueState(market.rules, market.final_state, players, draft_assets)
     except (KeyError, TypeError, ValueError) as error:
         if isinstance(error, ManagerLeagueAdapterError):
             raise
@@ -430,8 +476,25 @@ def _ensure_annual_prospects(
         state.contract_rules,
         state.management,
         tuple(sorted((*state.players, *generated.players), key=lambda item: item.player_id)),
+        state.draft_assets,
     )
     return updated, prospect_class_to_dict(generated)
+
+
+def _ensure_future_draft_assets(
+    state: CourtSimLeagueState,
+    *,
+    draft_rules: DraftRules,
+) -> CourtSimLeagueState:
+    team_ids = tuple(roster.team_id for roster in state.management.rosters)
+    first_draft_year = state.management.season_year + 1
+    ledger = seed_future_draft_picks(
+        state.draft_assets,
+        team_ids=team_ids,
+        draft_years=tuple(range(first_draft_year, first_draft_year + 3)),
+        rounds=draft_rules.rounds,
+    )
+    return replace(state, draft_assets=ledger)
 
 
 def _round_robin_schedule(
@@ -721,7 +784,7 @@ def _sync_player_statuses(
     return tuple(result)
 
 
-def _draft_picks(
+def _draft_asset_settlement(
     season: SeasonResult,
     state: CourtSimLeagueState,
     summaries: tuple[PlayerSeasonSummary, ...],
@@ -729,7 +792,7 @@ def _draft_picks(
     master_seed: int,
     career_rules: CareerRules,
     draft_rules: DraftRules,
-) -> tuple[DraftPickAsset, ...]:
+) -> DraftAssetSettlement:
     management, players = _transition_preview(
         state,
         summaries,
@@ -738,40 +801,36 @@ def _draft_picks(
     )
     available = sum(player.status is CareerStatus.PROSPECT for player in players)
     standings = tuple(reversed(season.standings))
+    settlement = settle_draft_assets(
+        state.draft_assets,
+        draft_year=state.management.season_year + 1,
+        original_team_order=tuple(standing.team_id for standing in standings),
+    )
     roster_sizes = {roster.team_id: len(roster.player_ids) for roster in management.rosters}
     payrolls = {roster.team_id: 0 for roster in management.rosters}
     for contract in management.contracts:
         payrolls[contract.team_id] += contract.annual_salary
     picks: list[DraftPickAsset] = []
-    for round_number in range(1, draft_rules.rounds + 1):
-        for round_pick, standing in enumerate(standings, start=1):
-            if len(picks) >= available:
-                break
-            team_id = standing.team_id
-            if (
-                roster_sizes[team_id] >= state.contract_rules.maximum_roster_players
-                or payrolls[team_id] + draft_rules.rookie_salary > state.contract_rules.salary_cap
-            ):
-                continue
-            picks.append(
-                DraftPickAsset(
-                    len(picks) + 1,
-                    round_number,
-                    round_pick,
-                    team_id,
-                    team_id,
-                )
-            )
-            roster_sizes[team_id] += 1
-            payrolls[team_id] += draft_rules.rookie_salary
-    return tuple(picks)
+    for pick in settlement.picks:
+        if len(picks) >= available:
+            break
+        team_id = pick.owner_team_id
+        if (
+            roster_sizes[team_id] >= state.contract_rules.maximum_roster_players
+            or payrolls[team_id] + draft_rules.rookie_salary > state.contract_rules.salary_cap
+        ):
+            continue
+        picks.append(replace(pick, selection_number=len(picks) + 1))
+        roster_sizes[team_id] += 1
+        payrolls[team_id] += draft_rules.rookie_salary
+    return replace(settlement, picks=tuple(picks))
 
 
 def _offseason_plans(
     state: CourtSimLeagueState,
-    season: SeasonResult,
     summaries: tuple[PlayerSeasonSummary, ...],
     profiles: dict[str, ManagerProfile],
+    picks: tuple[DraftPickAsset, ...],
     *,
     arm: ManagerExperimentArm,
     master_seed: int,
@@ -783,14 +842,6 @@ def _offseason_plans(
         summaries,
         master_seed=master_seed,
         career_rules=career_rules,
-    )
-    picks = _draft_picks(
-        season,
-        state,
-        summaries,
-        master_seed=master_seed,
-        career_rules=career_rules,
-        draft_rules=draft_rules,
     )
     decision_audit: dict[str, object] = {}
     if arm is ManagerExperimentArm.SHADOW and picks:

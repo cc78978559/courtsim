@@ -38,7 +38,7 @@ execution audits, and the manager decision ledger.
 
 ## Current boundary
 
-The adapter currently supplies no preseason draft picks because league state does not yet
-persist future-pick inventories. Pick counteroffers work when a caller supplies current
-`DraftPickAsset` values. Future-year picks, protections, swaps, multi-player packages,
-negotiation rounds, deadlines, and trade exceptions remain future versioned work.
+The adapter supplies the persisted three-year pick inventory defined by `draft-asset-v1`.
+Future-year picks, top-N protections, and one-way swaps are therefore live inputs. Multi-player
+packages, negotiation rounds, deadlines, conditional multi-outcome conversion, and trade
+exceptions remain future versioned work.

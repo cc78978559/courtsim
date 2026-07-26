@@ -15,6 +15,9 @@
   "trade_engine": "trade-v1",
   "trade_market_engine": "trade-market-v1",
   "trade_market_stage": "preseason-shadow",
+  "draft_asset_engine": "draft-asset-v1",
+  "league_state_schema_version": 2,
+  "future_pick_horizon": 3,
   "playoff_safety_tiebreak": "derived-seed-v1",
   "automatic_activation": false
 }

@@ -50,7 +50,7 @@ The function has `SHADOW` authority and never calls `apply_trade`.
 
 ## Current boundary
 
-This version supplies the transaction and approval foundation. It does not yet generate offers,
-negotiate counters, model pick protections or swaps, trade picks from future season ledgers, or
-insert approved offers into the multi-season league adapter. Those are the next integration
-layer and require paired evidence before any authority beyond Shadow.
+This version supplies the transaction and approval foundation. `trade-market-v1` now generates
+offers and counteroffers, while `draft-asset-v1` supplies future picks, top-N protection, and
+one-way swaps to the multi-season adapter. Multi-round negotiation, multi-team packages, and
+authority beyond paired Shadow experiments remain outside this contract.

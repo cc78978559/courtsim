@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.17.0] - 2026-07-26
+
+- Add persistent future-pick identities, ownership, years, rounds, and strict ledger JSON.
+- Maintain a rolling three-draft asset horizon in multi-season league state.
+- Resolve top-N protection, bounded obligation deferral, and one-way better-slot swaps.
+- Convert settled future assets into canonical current draft picks using reverse standings.
+- Allow preseason white-box trade markets to include persisted future picks.
+
 ## [0.16.0] - 2026-07-26
 
 - Generate deterministic direct, pick-counter, and player-for-pick trade candidates.

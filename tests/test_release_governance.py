@@ -21,6 +21,7 @@ from courtsim.career import (
     DraftRules,
 )
 from courtsim.cli import DEFAULT_MODEL_PARAMETERS, DEFAULT_MODEL_SCHEMA
+from courtsim.draft_assets import DRAFT_ASSET_SCHEMA_VERSION, DRAFT_ASSET_VERSION
 from courtsim.management import (
     CONTRACT_VERSION,
     FREE_AGENCY_VERSION,
@@ -83,11 +84,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "trades",
         "manager_trade",
         "trade_market",
+        "draft_assets",
         "model",
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 16
+    assert release["format_version"] == 17
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -354,6 +356,9 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "trade_engine": TRADE_VERSION,
         "trade_market_engine": TRADE_MARKET_VERSION,
         "trade_market_stage": "preseason-shadow",
+        "draft_asset_engine": DRAFT_ASSET_VERSION,
+        "league_state_schema_version": 2,
+        "future_pick_horizon": 3,
         "playoff_safety_tiebreak": "derived-seed-v1",
         "automatic_activation": False,
     }
@@ -422,7 +427,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "salary_matching_threshold": trade_rules.salary_matching_threshold,
         "maximum_incoming_salary_bps": trade_rules.maximum_incoming_salary_bps,
         "salary_matching_buffer": trade_rules.salary_matching_buffer,
-        "supported_assets": ["player", "draft-pick"],
+        "supported_assets": ["player", "draft-pick", "future-draft-pick"],
         "contract_follows_player": True,
         "atomic_state_transition": True,
         "replay_audit_required": True,
@@ -475,6 +480,29 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "team_and_asset_locking": True,
         "default_mode": ManagerPolicyMode.SHADOW.name.lower(),
         "automatic_activation": False,
+    }
+    draft_asset_registry = release["draft_assets"]
+    assert set(draft_asset_registry) == {
+        "draft_asset_version",
+        "path",
+        "file_sha256",
+    }
+    draft_asset_path = ROOT / draft_asset_registry["path"]
+    draft_asset_config = json.loads(draft_asset_path.read_text(encoding="utf-8"))
+    assert _sha256(draft_asset_path) == draft_asset_registry["file_sha256"]
+    assert draft_asset_registry["draft_asset_version"] == DRAFT_ASSET_VERSION
+    assert draft_asset_config == {
+        "format_version": 1,
+        "draft_asset_version": DRAFT_ASSET_VERSION,
+        "schema_version": DRAFT_ASSET_SCHEMA_VERSION,
+        "league_state_schema_version": 2,
+        "future_year_horizon": 3,
+        "supported_protection": "top-n",
+        "protection_rollover": True,
+        "supported_swap": "one-way-better-slot",
+        "stable_asset_identity": True,
+        "original_team_identity_immutable": True,
+        "owner_team_transferable": True,
     }
 
     model = release["model"]

@@ -5,7 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 
-from courtsim.career import CareerPlayer, DraftPickAsset
+from courtsim.career import CareerPlayer
+from courtsim.draft_assets import TradableDraftPick
 from courtsim.management import ContractRules, LeagueManagementState
 from courtsim.manager_ai import (
     ManagerDecisionLedger,
@@ -102,9 +103,9 @@ class TradeMarketShadowResult:
 class TradeMarketExecution:
     plan: TradeMarketPlan
     initial_management: LeagueManagementState
-    initial_picks: tuple[DraftPickAsset, ...]
+    initial_picks: tuple[TradableDraftPick, ...]
     final_management: LeagueManagementState
-    final_picks: tuple[DraftPickAsset, ...]
+    final_picks: tuple[TradableDraftPick, ...]
     audits: tuple[TradeAudit, ...]
     trade_version: str = TRADE_VERSION
     version: str = TRADE_MARKET_VERSION
@@ -126,7 +127,7 @@ def generate_trade_market_shadow(
     *,
     management: LeagueManagementState,
     players: Sequence[CareerPlayer],
-    picks: tuple[DraftPickAsset, ...],
+    picks: tuple[TradableDraftPick, ...],
     profiles: Mapping[str, ManagerProfile],
     contract_rules: ContractRules,
     trade_rules: TradeRules = DEFAULT_TRADE_RULES,
@@ -210,7 +211,7 @@ def generate_trade_market_shadow(
 
 def apply_trade_market_plan(
     management: LeagueManagementState,
-    picks: tuple[DraftPickAsset, ...],
+    picks: tuple[TradableDraftPick, ...],
     plan: TradeMarketPlan,
     contract_rules: ContractRules,
     trade_rules: TradeRules = DEFAULT_TRADE_RULES,
@@ -242,7 +243,7 @@ def apply_trade_market_plan(
 
 def _candidate_offers(
     management: LeagueManagementState,
-    picks: tuple[DraftPickAsset, ...],
+    picks: tuple[TradableDraftPick, ...],
     rules: TradeMarketRules,
 ) -> tuple[_RawOffer, ...]:
     rosters = {roster.team_id: roster.player_ids for roster in management.rosters}
