@@ -43,5 +43,7 @@ The frozen configuration is
 ## Validation evidence
 
 - focused config, seeding, home-court, advancement, incomplete/extra-game, audit, and JSON tests;
-- Ruff formatting and lint checks in the restricted local runtime;
-- full Python 3.11 strict-type and coverage gates pending environment permission restoration.
+- Ruff formatting and lint checks;
+- full Python 3.11 strict typing;
+- 324 passing tests with one Windows symlink test skipped;
+- 85% coverage, meeting the project quality gate.

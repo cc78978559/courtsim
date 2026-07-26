@@ -177,7 +177,9 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "playoff_version",
         "path",
         "file_sha256",
+        "source_pull_request",
     }
+    assert playoff_registry["source_pull_request"] == 43
     playoff_path = ROOT / playoff_registry["path"]
     playoff_config = json.loads(playoff_path.read_text(encoding="utf-8"))
     assert _sha256(playoff_path) == playoff_registry["file_sha256"]

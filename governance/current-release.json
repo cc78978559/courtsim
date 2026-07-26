@@ -38,7 +38,8 @@
   "playoffs": {
     "playoff_version": "playoff-v1",
     "path": "governance/playoffs-v1.json",
-    "file_sha256": "e7846de35b3942ad904f4702bf2c0626f39b0cad03d2d0f1d7d6496b95a6513b"
+    "file_sha256": "e7846de35b3942ad904f4702bf2c0626f39b0cad03d2d0f1d7d6496b95a6513b",
+    "source_pull_request": 43
   },
   "model": {
     "schema_version": "demo-v1.12",
