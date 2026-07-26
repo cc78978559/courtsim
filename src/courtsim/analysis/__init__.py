@@ -50,6 +50,12 @@ from courtsim.analysis.nba_reference import (
     calculate_nba_core_metrics,
     calculate_nba_team_metrics,
 )
+from courtsim.analysis.quick_sim_artifacts import (
+    QuickSimCheckpointReceipt,
+    QuickSimReferenceReceipt,
+    run_quick_sim_checkpoint,
+    write_observed_quick_sim_reference,
+)
 from courtsim.analysis.quick_sim_batch import (
     QuickSimBatchError,
     QuickSimBatchResult,
@@ -66,6 +72,7 @@ from courtsim.analysis.quick_sim_comparison import (
     build_quick_sim_reference,
     compare_quick_sim_summaries,
     load_quick_sim_reference,
+    quick_sim_reference_to_json,
     quick_sim_report_to_json,
     summarize_quick_sim_season,
 )
@@ -98,9 +105,11 @@ __all__ = [
     "QuickSimBatchError",
     "QuickSimBatchResult",
     "QuickSimBatchSpec",
+    "QuickSimCheckpointReceipt",
     "QuickSimComparisonError",
     "QuickSimComparisonReport",
     "QuickSimReference",
+    "QuickSimReferenceReceipt",
     "QuickSimSeasonSummary",
     "RealismMetricTarget",
     "RealismScoreReport",
@@ -135,12 +144,15 @@ __all__ = [
     "merge_batch_audit_shards",
     "quick_sim_batch_from_json",
     "quick_sim_batch_to_json",
+    "quick_sim_reference_to_json",
     "quick_sim_report_to_json",
     "realism_score_report_to_json",
     "restore_artifact_archive",
     "run_quick_sim_batch",
+    "run_quick_sim_checkpoint",
     "score_audit_against_realism_targets",
     "summarize_quick_sim_season",
     "verify_artifact_archive",
     "write_batch_audit_bundle",
+    "write_observed_quick_sim_reference",
 ]

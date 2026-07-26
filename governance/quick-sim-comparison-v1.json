@@ -19,5 +19,6 @@
   "incomplete_template_rejected_for_scoring": true,
   "fabricated_2k_targets": false,
   "strict_reference_json": true,
+  "canonical_reference_json": true,
   "canonical_report_json": true
 }

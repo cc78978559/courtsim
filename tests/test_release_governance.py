@@ -8,6 +8,7 @@ from courtsim.analysis import (
     load_audit_gates,
     load_distribution_audit,
 )
+from courtsim.analysis.quick_sim_artifacts import QUICK_SIM_ARTIFACT_VERSION
 from courtsim.analysis.quick_sim_batch import QUICK_SIM_BATCH_VERSION
 from courtsim.analysis.quick_sim_comparison import (
     QUICK_SIM_COMPARISON_VERSION,
@@ -110,11 +111,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "manager_learning",
         "quick_sim_comparison",
         "quick_sim_batch",
+        "quick_sim_artifact",
         "model",
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 39
+    assert release["format_version"] == 40
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -913,6 +915,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "incomplete_template_rejected_for_scoring": True,
         "fabricated_2k_targets": False,
         "strict_reference_json": True,
+        "canonical_reference_json": True,
         "canonical_report_json": True,
     }
     quick_sim_batch_registry = release["quick_sim_batch"]
@@ -938,6 +941,31 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "batch_sha256": True,
         "observed_reference_builder": True,
         "reference_range_method": "observed-min-max",
+    }
+    quick_sim_artifact_registry = release["quick_sim_artifact"]
+    assert set(quick_sim_artifact_registry) == {
+        "quick_sim_artifact_version",
+        "path",
+        "file_sha256",
+    }
+    quick_sim_artifact_path = ROOT / quick_sim_artifact_registry["path"]
+    quick_sim_artifact_config = json.loads(quick_sim_artifact_path.read_text(encoding="utf-8"))
+    assert _sha256(quick_sim_artifact_path) == quick_sim_artifact_registry["file_sha256"]
+    assert quick_sim_artifact_registry["quick_sim_artifact_version"] == QUICK_SIM_ARTIFACT_VERSION
+    assert quick_sim_artifact_config == {
+        "format_version": 1,
+        "quick_sim_artifact_version": QUICK_SIM_ARTIFACT_VERSION,
+        "quick_sim_batch_version": QUICK_SIM_BATCH_VERSION,
+        "quick_sim_comparison_version": QUICK_SIM_COMPARISON_VERSION,
+        "checkpoint_write": "atomic-after-every-season",
+        "resume_mode": "verified-contiguous-prefix",
+        "completed_cells_reexecuted": False,
+        "single_writer_required": True,
+        "canonical_checkpoint_json": True,
+        "canonical_reference_json": True,
+        "checkpoint_file_sha256_receipt": True,
+        "reference_file_sha256_receipt": True,
+        "complete_batch_required_for_reference": True,
     }
 
     model = release["model"]

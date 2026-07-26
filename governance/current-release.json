@@ -1,7 +1,7 @@
 {
-  "format_version": 39,
+  "format_version": 40,
   "status": "frozen",
-  "engine_version": "0.39.0",
+  "engine_version": "0.40.0",
   "rules": {
     "version": "nba-v1",
     "path": "governance/game-rules-nba-v1.json",
@@ -147,12 +147,17 @@
   "quick_sim_comparison": {
     "quick_sim_comparison_version": "quick-sim-comparison-v1",
     "path": "governance/quick-sim-comparison-v1.json",
-    "file_sha256": "d87472ddfd0271a221b67f98f9e414944dbcf490ab54705328f5fb5cd850594c"
+    "file_sha256": "03a08bac367a3a0d3e366f582d14b65fad85e628030fe881d5c5ccca84629334"
   },
   "quick_sim_batch": {
     "quick_sim_batch_version": "quick-sim-batch-v1",
     "path": "governance/quick-sim-batch-v1.json",
     "file_sha256": "51b2fcb2f75429a461d946c38f616c7d3c279727893c5150d2b54f4ac425c81c"
+  },
+  "quick_sim_artifact": {
+    "quick_sim_artifact_version": "quick-sim-artifact-v1",
+    "path": "governance/quick-sim-artifact-v1.json",
+    "file_sha256": "9ce0f7f8225d04c6c330e61aaf0b0de2888475e6fe196c9640ef3864dbfd3af5"
   },
   "model": {
     "schema_version": "demo-v1.12",

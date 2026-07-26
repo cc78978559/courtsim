@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.40.0] - 2026-07-26
+
+- Persist an atomic quick-simulation checkpoint after every completed season.
+- Resume verified checkpoints without repeating completed seasons.
+- Return logical batch and physical artifact SHA-256 receipts.
+- Add canonical observed-reference JSON output.
+- Reject partial batches when exporting benchmark references.
+
 ## [0.39.0] - 2026-07-26
 
 - Add deterministic, resumable multi-season quick-simulation batches.

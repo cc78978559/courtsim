@@ -326,6 +326,32 @@ def load_quick_sim_reference(payload: str) -> QuickSimReference:
     )
 
 
+def quick_sim_reference_to_json(reference: QuickSimReference) -> str:
+    return json.dumps(
+        {
+            "version": reference.version,
+            "reference_id": reference.reference_id,
+            "source_label": reference.source_label,
+            "game_version": reference.game_version,
+            "roster_date": reference.roster_date,
+            "team_count": reference.team_count,
+            "observed_seasons": reference.observed_seasons,
+            "source_status": reference.source_status,
+            "metrics": [
+                {
+                    "metric": item.metric,
+                    "minimum": item.minimum,
+                    "maximum": item.maximum,
+                }
+                for item in reference.metrics
+            ],
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
 def quick_sim_report_to_json(report: QuickSimComparisonReport) -> str:
     return json.dumps(
         {

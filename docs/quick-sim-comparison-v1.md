@@ -15,6 +15,8 @@ seasons and retain every metric's observed value, target interval, and pass stat
 The observed-reference builder derives each interval directly from the minimum and maximum
 of supplied season summaries. `quick-sim-batch-v1` provides deterministic collection,
 checkpoint, integrity, and resume semantics for those summaries.
+Observed references also have a canonical JSON serializer for stable local artifacts and
+content hashes.
 
 The repository includes an NBA 2K reference template with null target values. Templates are
 valid documentation artifacts but are rejected for scoring. Real exported 2K observations must
