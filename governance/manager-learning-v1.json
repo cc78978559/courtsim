@@ -1,0 +1,17 @@
+{
+  "format_version": 1,
+  "manager_learning_version": "manager-learning-v1",
+  "cross_season_memory": true,
+  "observation_weight": "games-observed",
+  "tracked_opponent_dimensions": [
+    "offense-strength",
+    "defense-strength",
+    "pace",
+    "three-point-rate",
+    "rim-rate"
+  ],
+  "maximum_adjustment_bps": 2500,
+  "rotation_integration": true,
+  "white_box_contributions": true,
+  "automatic_activation": false
+}

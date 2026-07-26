@@ -3,13 +3,13 @@ from dataclasses import fields
 import pytest
 from test_game_runtime import player
 
-from courtsim.career import CareerStatus
+from courtsim.career import CareerPlayer, CareerStatus
 from courtsim.domain.player import AbilityRatings
 from courtsim.prospects import generate_prospect_class
 from courtsim.scouting import ScoutingRules, generate_scouting_reports
 
 
-def prospects():
+def prospects() -> tuple[CareerPlayer, ...]:
     return generate_prospect_class(
         draft_year=2030,
         master_seed=77,

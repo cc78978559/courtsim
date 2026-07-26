@@ -12,6 +12,7 @@ from courtsim.analysis.realism_targets import (
     load_realism_target_set,
     score_audit_against_realism_targets,
 )
+from courtsim.cap_mechanics import CAP_MECHANICS_VERSION, CapMechanicsRules
 from courtsim.career import (
     CAREER_VERSION,
     DRAFT_VERSION,
@@ -38,14 +39,17 @@ from courtsim.manager_evaluation import (
 )
 from courtsim.manager_experiment import MANAGER_EXPERIMENT_VERSION
 from courtsim.manager_league_adapter import MANAGER_LEAGUE_ADAPTER_VERSION
+from courtsim.manager_learning import MANAGER_LEARNING_VERSION
 from courtsim.manager_rotation import MANAGER_ROTATION_VERSION, ManagerRotationRules
 from courtsim.manager_trade import MANAGER_TRADE_VERSION, ManagerTradeRules
+from courtsim.nba_league import NBA_LEAGUE_VERSION, NBARegularSeasonRules
 from courtsim.parameters import load_model_parameters
 from courtsim.playoffs import PLAYOFF_SCHEMA_VERSION, PLAYOFF_VERSION, PlayoffConfig
 from courtsim.prospects import PROSPECT_GENERATION_VERSION, ProspectGenerationRules
 from courtsim.rosters import ROSTER_VERSION, RosterRules
 from courtsim.rotations import FATIGUE_VERSION, ROTATION_VERSION, FatigueConfig
 from courtsim.rules import GameRules
+from courtsim.scouting import SCOUTING_VERSION, ScoutingRules
 from courtsim.season import (
     INJURY_VERSION,
     SEASON_SCHEMA_VERSION,
@@ -91,11 +95,15 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "draft_lottery",
         "three_team_trades",
         "three_team_market",
+        "scouting",
+        "cap_mechanics",
+        "nba_league",
+        "manager_learning",
         "model",
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 22
+    assert release["format_version"] == 26
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -358,6 +366,8 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "contract_engine": CONTRACT_VERSION,
         "free_agency_engine": FREE_AGENCY_VERSION,
         "prospect_engine": PROSPECT_GENERATION_VERSION,
+        "scouting_engine": SCOUTING_VERSION,
+        "scouting_stage": "predraft-shadow",
         "rotation_engine": MANAGER_ROTATION_VERSION,
         "trade_engine": TRADE_VERSION,
         "trade_market_engine": TRADE_MARKET_VERSION,
@@ -419,6 +429,8 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "clock_addressed": True,
         "emergency_substitutes_retained": True,
         "development_feedback": True,
+        "opponent_model_engine": MANAGER_LEARNING_VERSION,
+        "opponent_specific_adjustments": True,
     }
     trade_registry = release["trades"]
     assert set(trade_registry) == {
@@ -607,6 +619,88 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "team_locking": True,
         "unified_bilateral_comparison": True,
         "default_mode": ManagerPolicyMode.SHADOW.name.lower(),
+        "automatic_activation": False,
+    }
+    scouting_registry = release["scouting"]
+    scouting_path = ROOT / scouting_registry["path"]
+    scouting_config = json.loads(scouting_path.read_text(encoding="utf-8"))
+    scouting_rules = ScoutingRules()
+    assert _sha256(scouting_path) == scouting_registry["file_sha256"]
+    assert scouting_registry["scouting_version"] == SCOUTING_VERSION
+    assert scouting_config == {
+        "format_version": 1,
+        "scouting_version": SCOUTING_VERSION,
+        "base_uncertainty": scouting_rules.base_uncertainty,
+        "minimum_uncertainty": scouting_rules.minimum_uncertainty,
+        "uncertainty_reduction_per_exposure": (scouting_rules.uncertainty_reduction_per_exposure),
+        "maximum_exposures": scouting_rules.maximum_exposures,
+        "team_specific_reports": True,
+        "field_level_potential_estimates": True,
+        "true_potential_hidden_from_manager": True,
+        "addressed_randomness": True,
+    }
+    cap_registry = release["cap_mechanics"]
+    cap_path = ROOT / cap_registry["path"]
+    cap_config = json.loads(cap_path.read_text(encoding="utf-8"))
+    cap_rules = CapMechanicsRules()
+    assert _sha256(cap_path) == cap_registry["file_sha256"]
+    assert cap_registry["cap_mechanics_version"] == CAP_MECHANICS_VERSION
+    assert cap_config == {
+        "format_version": 1,
+        "cap_mechanics_version": CAP_MECHANICS_VERSION,
+        "salary_cap": cap_rules.salary_cap,
+        "first_apron": cap_rules.first_apron,
+        "second_apron": cap_rules.second_apron,
+        "bird_rights_levels": ["non-bird", "early-bird", "full-bird"],
+        "small_outgoing_threshold": cap_rules.small_outgoing_threshold,
+        "medium_outgoing_threshold": cap_rules.medium_outgoing_threshold,
+        "matching_buffer": cap_rules.matching_buffer,
+        "medium_matching_allowance": cap_rules.medium_matching_allowance,
+        "exception_buffer": cap_rules.exception_buffer,
+        "exception_lifetime_years": cap_rules.exception_lifetime_years,
+        "exception_aggregation": False,
+        "atomic_exception_ledger": True,
+    }
+    nba_registry = release["nba_league"]
+    nba_path = ROOT / nba_registry["path"]
+    nba_config = json.loads(nba_path.read_text(encoding="utf-8"))
+    nba_rules = NBARegularSeasonRules()
+    assert _sha256(nba_path) == nba_registry["file_sha256"]
+    assert nba_registry["nba_league_version"] == NBA_LEAGUE_VERSION
+    assert nba_config == {
+        "format_version": 1,
+        "nba_league_version": NBA_LEAGUE_VERSION,
+        "team_count": nba_rules.team_count,
+        "games_per_team": nba_rules.games_per_team,
+        "regular_season_games": 1230,
+        "conferences": 2,
+        "play_in_seeds": [7, 8, 9, 10],
+        "playoff_teams": 16,
+        "playoff_series": 15,
+        "series_best_of": 7,
+        "deterministic_schedule": True,
+        "derived_bracket_validation": True,
+    }
+    learning_registry = release["manager_learning"]
+    learning_path = ROOT / learning_registry["path"]
+    learning_config = json.loads(learning_path.read_text(encoding="utf-8"))
+    assert _sha256(learning_path) == learning_registry["file_sha256"]
+    assert learning_registry["manager_learning_version"] == MANAGER_LEARNING_VERSION
+    assert learning_config == {
+        "format_version": 1,
+        "manager_learning_version": MANAGER_LEARNING_VERSION,
+        "cross_season_memory": True,
+        "observation_weight": "games-observed",
+        "tracked_opponent_dimensions": [
+            "offense-strength",
+            "defense-strength",
+            "pace",
+            "three-point-rate",
+            "rim-rate",
+        ],
+        "maximum_adjustment_bps": 2500,
+        "rotation_integration": True,
+        "white_box_contributions": True,
         "automatic_activation": False,
     }
 

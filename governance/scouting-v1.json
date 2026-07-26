@@ -1,0 +1,12 @@
+{
+  "format_version": 1,
+  "scouting_version": "scouting-v1",
+  "base_uncertainty": 14,
+  "minimum_uncertainty": 3,
+  "uncertainty_reduction_per_exposure": 2,
+  "maximum_exposures": 5,
+  "team_specific_reports": true,
+  "field_level_potential_estimates": true,
+  "true_potential_hidden_from_manager": true,
+  "addressed_randomness": true
+}

@@ -11,6 +11,8 @@
   "contract_engine": "contract-v1",
   "free_agency_engine": "free-agency-v1",
   "prospect_engine": "prospect-generation-v1",
+  "scouting_engine": "scouting-v1",
+  "scouting_stage": "predraft-shadow",
   "rotation_engine": "manager-rotation-v1",
   "trade_engine": "trade-v1",
   "trade_market_engine": "trade-market-v1",

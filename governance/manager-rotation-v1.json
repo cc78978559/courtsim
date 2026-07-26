@@ -7,5 +7,7 @@
   "style_contribution_limit": 0.04,
   "clock_addressed": true,
   "emergency_substitutes_retained": true,
-  "development_feedback": true
+  "development_feedback": true,
+  "opponent_model_engine": "manager-learning-v1",
+  "opponent_specific_adjustments": true
 }

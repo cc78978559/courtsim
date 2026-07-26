@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.26.0] - 2026-07-26
+
+- Hide true prospect potential behind deterministic, team-specific field-level scouting reports.
+- Reduce scouting uncertainty through repeated exposure and feed estimates into Shadow drafting.
+- Add Non-Bird, Early Bird, and Full Bird signings with first- and second-apron enforcement.
+- Add tiered salary matching plus atomic, expiring, partially consumable trade exceptions.
+- Generate a deterministic 30-team, 1,230-game schedule with 82 games per team.
+- Resolve both conference play-ins and a derived 16-team, 15-series playoff bracket.
+- Persist opponent observations across seasons and compile them into white-box rotation changes.
+
 ## [0.22.0] - 2026-07-26
 
 - Rank each hub team's bounded candidate lane by aggregate net player-salary imbalance.
