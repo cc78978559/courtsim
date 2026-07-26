@@ -30,12 +30,18 @@ from courtsim.career import (
     apply_draft,
     offseason_result_to_dict,
 )
-from courtsim.domain.enums import Coverage, PlayFamily
+from courtsim.domain.enums import Coverage, PlayFamily, ShotZone
 from courtsim.domain.game import GameClockConfig
 from courtsim.domain.player import AbilityRatings, PlayerProfile
 from courtsim.domain.player_serialization import (
     player_profile_from_dict,
     player_profile_to_dict,
+)
+from courtsim.domain.results import (
+    BlockedShotSegmentResult,
+    MadeShotSegmentResult,
+    MissedShotSegmentResult,
+    ShootingFoulSegmentResult,
 )
 from courtsim.draft_assets import (
     DraftAssetLedger,
@@ -517,6 +523,7 @@ class CourtSimManagerLeagueAdapter:
             season,
             state.manager_learning,
             profiles,
+            self.game_config,
             completed_season=request.season_year,
         )
         next_state = CourtSimLeagueState(
@@ -826,13 +833,14 @@ def _advance_manager_learning(
     season: SeasonResult,
     existing: tuple[ManagerLearningState, ...],
     profiles: dict[str, ManagerProfile],
+    game_config: GameClockConfig,
     *,
     completed_season: int,
 ) -> tuple[ManagerLearningState, ...]:
     existing_by_team = {item.team_id: item for item in existing}
     result = []
     for team_id in sorted(profiles):
-        totals: dict[str, list[int]] = defaultdict(lambda: [0, 0, 0])
+        totals: dict[str, list[int]] = defaultdict(lambda: [0] * 8)
         for record in season.games:
             scheduled = record.scheduled_game
             if scheduled.home_team_id == team_id:
@@ -846,16 +854,29 @@ def _advance_manager_learning(
             totals[opponent][0] += 1
             totals[opponent][1] += opponent_points
             totals[opponent][2] += team_points
+            if record.result is None:
+                continue
+            for possession in record.result.possessions:
+                offense_index = 3 if possession.offense_team_id == opponent else 4
+                totals[opponent][offense_index] += 1
+                if possession.offense_team_id != opponent:
+                    continue
+                for segment in possession.result.segments:
+                    if not isinstance(
+                        segment,
+                        (
+                            MadeShotSegmentResult,
+                            MissedShotSegmentResult,
+                            BlockedShotSegmentResult,
+                            ShootingFoulSegmentResult,
+                        ),
+                    ):
+                        continue
+                    totals[opponent][5] += 1
+                    totals[opponent][6] += segment.zone is ShotZone.THREE
+                    totals[opponent][7] += segment.zone is ShotZone.RIM
         observations = tuple(
-            OpponentObservation(
-                opponent,
-                values[0],
-                _bounded_rating(values[1] // max(1, values[0]) // 2),
-                _bounded_rating(100 - values[2] // max(1, values[0]) // 2),
-                _bounded_rating((values[1] + values[2]) // max(1, values[0]) // 4),
-                50,
-                50,
-            )
+            _opponent_observation(opponent, values, game_config)
             for opponent, values in sorted(totals.items())
         )
         profile = profiles[team_id]
@@ -881,6 +902,42 @@ def _advance_manager_learning(
             )
         )
     return tuple(result)
+
+
+def _opponent_observation(
+    opponent_team_id: str,
+    totals: list[int],
+    game_config: GameClockConfig,
+) -> OpponentObservation:
+    (
+        games,
+        opponent_points,
+        team_points,
+        opponent_possessions,
+        team_possessions,
+        opponent_shots,
+        opponent_threes,
+        opponent_rim_shots,
+    ) = totals
+    reference_possessions = (
+        game_config.regulation_periods
+        * game_config.period_seconds
+        / (2 * game_config.possession_seconds)
+    )
+    possessions_per_game = opponent_possessions / max(1, games)
+    return OpponentObservation(
+        opponent_team_id,
+        games,
+        _bounded_rating(round(opponent_points * 50 / max(1, opponent_possessions))),
+        _bounded_rating(100 - round(team_points * 50 / max(1, team_possessions))),
+        _bounded_rating(round(50 * possessions_per_game / reference_possessions)),
+        _percentage(opponent_threes, opponent_shots),
+        _percentage(opponent_rim_shots, opponent_shots),
+    )
+
+
+def _percentage(part: int, whole: int) -> int:
+    return 50 if whole == 0 else _bounded_rating(round(part * 100 / whole))
 
 
 def _bounded_rating(value: int) -> int:

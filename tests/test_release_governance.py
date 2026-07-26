@@ -103,7 +103,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 32
+    assert release["format_version"] == 33
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -387,6 +387,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "regular_season_matchup_tactics": True,
         "postseason_matchup_tactics": True,
         "matchup_tactical_dimensions": ["offense", "defense", "tempo"],
+        "manager_learning_observation_source": "season-game-event-ledger",
         "postseason_state_continuity": True,
         "postseason_rest_days": 2,
         "playoff_game_rest_days": 1,
@@ -741,6 +742,11 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "manager_learning_version": MANAGER_LEARNING_VERSION,
         "cross_season_memory": True,
         "observation_weight": "games-observed",
+        "observation_source": "canonical-game-event-ledger",
+        "strength_normalization": "points-per-100-possessions",
+        "pace_normalization": "clock-config-neutral-possessions",
+        "shot_profile_source": "shot-segment-zone",
+        "empty_shot_profile_fallback": 50,
         "tracked_opponent_dimensions": [
             "offense-strength",
             "defense-strength",

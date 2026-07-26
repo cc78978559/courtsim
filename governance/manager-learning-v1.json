@@ -3,6 +3,11 @@
   "manager_learning_version": "manager-learning-v1",
   "cross_season_memory": true,
   "observation_weight": "games-observed",
+  "observation_source": "canonical-game-event-ledger",
+  "strength_normalization": "points-per-100-possessions",
+  "pace_normalization": "clock-config-neutral-possessions",
+  "shot_profile_source": "shot-segment-zone",
+  "empty_shot_profile_fallback": 50,
   "tracked_opponent_dimensions": [
     "offense-strength",
     "defense-strength",

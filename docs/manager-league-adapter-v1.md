@@ -34,6 +34,12 @@ from one through eight observed games, then remains capped. The same matchup tea
 for regular-season and postseason games, and the audit records every bias, confidence, tempo
 delta, and effective tempo. An unseen opponent retains the exact neutral strategy.
 
+At season completion, the adapter rebuilds opponent observations from canonical game events.
+Offensive and defensive strength use possession-normalized scoring, pace uses the configured
+neutral possession count, and three-point/rim rates count shot-segment zones. This makes short
+test games and full NBA-length games comparable and ensures automatically learned defensive
+coverage is driven by real simulated behavior rather than placeholder shot rates.
+
 When the state has no waiting prospects, `prospect-generation-v1` adds an identical addressed
 class to both policy arms for the following draft. A supplied complete class is preserved.
 

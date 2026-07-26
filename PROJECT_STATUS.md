@@ -8,7 +8,7 @@ statistics ledger rather than continuous court physics.
 
 ## Current versions
 
-- Engine release candidate: `0.32.0`.
+- Engine release candidate: `0.33.0`.
 - Latest mechanics: schema `demo-v1.12`, parameters `demo-1.4.0`.
 - Frozen realism baseline: `demo-1.4.0`.
 - Game rules: `nba-v1`.
@@ -107,6 +107,9 @@ promotion.
 - Evidence-scaled opponent tactics that change offensive play-family selection, defensive
   coverage selection, and tempo in both regular-season and postseason games, with explicit
   matchup audit values and bounded behavior for sparse samples.
+- Event-ledger opponent observations using possession-normalized offense/defense, clock-
+  normalized pace, and actual three-point/rim shot zones, closing the automatic multi-season
+  feedback path into matchup tactics.
 - League-state schema 4 persistence for Bird rights, trade exceptions, manager opponent memory,
   and optional 30-team conference/division alignment, with deterministic schema 1/2/3 migration.
 - Roster-safe per-game team resolution and opponent-specific white-box rotations throughout
@@ -127,7 +130,7 @@ promotion.
 
 - Ruff formatting and lint: passed.
 - mypy strict: passed.
-- pytest: 446 passed; one Windows symlink test skipped when link privileges are absent.
+- pytest: 449 passed; one Windows symlink test skipped when link privileges are absent.
 - Coverage: 85%, meeting the required minimum of 85%.
 - Runtime dependencies: Python standard library only.
 - Frozen `demo-1.4.0` audit: 10 core realism targets, 3 free-throw targets, and

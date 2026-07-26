@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.33.0] - 2026-07-26
+
+- Derive automatic opponent observations from canonical possession and shot-event ledgers.
+- Normalize offense and defense by possessions and pace by the configured neutral game length.
+- Learn real three-point and rim attempt shares instead of fixed placeholder values.
+- Feed the persisted event-derived profile into the following season's matchup tactics.
+- Verify deterministic replay and consecutive-season tactical activation end to end.
+
 ## [0.32.0] - 2026-07-26
 
 - Compile persistent opponent memory into matchup-specific offense, defense, and tempo tactics.
