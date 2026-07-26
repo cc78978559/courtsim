@@ -71,6 +71,7 @@ OFF_BALL_ACTION
 | 白盒经理 Shadow 决策 | `src/courtsim/manager_ai.py` |
 | 经理反事实证据与发布回滚 | `src/courtsim/manager_evaluation.py` |
 | 可续跑经理实验编排 | `src/courtsim/manager_experiment.py` |
+| 真实联盟经理实验适配 | `src/courtsim/manager_league_adapter.py` |
 | 命令入口 | `src/courtsim/cli.py`、`tools.ps1` |
 
 详细阶段契约按需读取：
@@ -91,6 +92,7 @@ OFF_BALL_ACTION
 - `manager-ai-v1.md`：经理档案、白盒评分、Shadow 选秀和自由市场建议。
 - `manager-evidence-v1.md`：多赛季配对证据、晋级门禁和策略回滚。
 - `manager-experiment-v1.md`：双臂多赛季编排、续跑和完整性清单。
+- `manager-league-adapter-v1.md`：真实赛季、季后赛和休赛期实验适配。
 
 ## 必须保持的不变量
 
@@ -157,7 +159,8 @@ OFF_BALL_ACTION
 ## 当前边界
 
 当前仍未实现的主要边界包括选秀乐透/保护、球探不确定性、交易 AI、经理学习、
-生产级联盟赛季执行适配器、Shadow 之外的人工批准权限、附加赛和完整玩法 UI。
+年度新秀生成、经理轮换、季后赛状态连续、Shadow 之外的人工批准权限、附加赛和
+完整玩法 UI。
 轮换、体力、伤病、完整比赛规则、赛季、交易执行、合同、生涯、选秀、首版白盒
 经理建议以及证据晋级/回滚契约已经实现。
 

@@ -35,6 +35,7 @@ from courtsim.manager_evaluation import (
     ManagerEvidenceThresholds,
 )
 from courtsim.manager_experiment import MANAGER_EXPERIMENT_VERSION
+from courtsim.manager_league_adapter import MANAGER_LEAGUE_ADAPTER_VERSION
 from courtsim.parameters import load_model_parameters
 from courtsim.playoffs import PLAYOFF_SCHEMA_VERSION, PLAYOFF_VERSION, PlayoffConfig
 from courtsim.rosters import ROSTER_VERSION, RosterRules
@@ -71,11 +72,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "manager_ai",
         "manager_evidence",
         "manager_experiment",
+        "manager_league_adapter",
         "model",
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 11
+    assert release["format_version"] == 12
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -313,6 +315,31 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "multiseason_state_continuity_required": True,
         "resumable_cells": True,
         "hash_verified_manifest": True,
+        "automatic_activation": False,
+    }
+    adapter_registry = release["manager_league_adapter"]
+    assert set(adapter_registry) == {
+        "manager_league_adapter_version",
+        "path",
+        "file_sha256",
+    }
+    adapter_path = ROOT / adapter_registry["path"]
+    adapter_config = json.loads(adapter_path.read_text(encoding="utf-8"))
+    assert _sha256(adapter_path) == adapter_registry["file_sha256"]
+    assert adapter_registry["manager_league_adapter_version"] == MANAGER_LEAGUE_ADAPTER_VERSION
+    assert adapter_config == {
+        "format_version": 1,
+        "manager_league_adapter_version": MANAGER_LEAGUE_ADAPTER_VERSION,
+        "team_count": 4,
+        "schedule": "round-robin",
+        "paired_common_random_numbers": True,
+        "season_engine": SEASON_VERSION,
+        "playoff_engine": PLAYOFF_VERSION,
+        "career_engine": CAREER_VERSION,
+        "draft_engine": DRAFT_VERSION,
+        "contract_engine": CONTRACT_VERSION,
+        "free_agency_engine": FREE_AGENCY_VERSION,
+        "playoff_safety_tiebreak": "derived-seed-v1",
         "automatic_activation": False,
     }
 

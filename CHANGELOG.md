@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.0] - 2026-07-26
+
+- Add a strict, deterministic league-state payload for manager experiments.
+- Connect real regular seasons and sampled playoff brackets to the paired experiment runner.
+- Derive career summaries and execute growth, retirement, contracts, draft, and free agency.
+- Apply incumbent and white-box Shadow offseason policies with common random numbers.
+- Emit complete season/playoff/offseason audit payloads and normalized manager outcomes.
+
 ## [0.11.0] - 2026-07-26
 
 - Add resumable incumbent/Shadow manager experiment orchestration across independent sources.

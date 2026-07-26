@@ -147,3 +147,7 @@ evidence-gated policy activation, rejection, retirement, and rollback.
 The [`manager-experiment-v1` runner](docs/manager-experiment-v1.md) executes or resumes paired
 manager-policy arms across independent seeds and multi-season state chains, then hash-verifies
 every cell and derives the governed evidence report.
+
+The [`manager-league-adapter-v1` layer](docs/manager-league-adapter-v1.md) connects that runner
+to real CourtSim seasons, sampled playoffs, career transitions, contracts, draft, free agency,
+white-box manager decisions, and complete next-season league state.

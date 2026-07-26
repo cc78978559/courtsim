@@ -53,8 +53,9 @@ derived from stored outcomes.
 The runner produces an activation recommendation and evidence digest only. It does not modify a
 release registry or grant `ASSIST`/`ACTIVE` authority. Those remain separate, explicit actions.
 
-## Remaining adapter work
+## CourtSim adapter
 
-The orchestration contract is complete. A production CourtSim adapter must still translate the
-canonical league state into schedules, games, playoffs and offseason execution, then calculate
-the four normalized outcome metrics from their audited ledgers.
+`manager-league-adapter-v1` now translates canonical league state into real schedules, games,
+playoffs and offseason execution, then calculates the four normalized outcome metrics from
+their audited ledgers. Other leagues or alternative policy environments can still provide
+their own executor implementing the same request/result boundary.

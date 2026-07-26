@@ -1,0 +1,15 @@
+{
+  "format_version": 1,
+  "manager_league_adapter_version": "manager-league-adapter-v1",
+  "team_count": 4,
+  "schedule": "round-robin",
+  "paired_common_random_numbers": true,
+  "season_engine": "season-v1",
+  "playoff_engine": "playoff-v1",
+  "career_engine": "career-v1",
+  "draft_engine": "draft-v1",
+  "contract_engine": "contract-v1",
+  "free_agency_engine": "free-agency-v1",
+  "playoff_safety_tiebreak": "derived-seed-v1",
+  "automatic_activation": false
+}
