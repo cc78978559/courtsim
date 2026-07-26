@@ -56,9 +56,9 @@ itself never executes it.
 ## Promotion boundary
 
 `SHADOW` is the only supported operational default. `ASSIST` and `ACTIVE` are reserved authority
-labels, not automatic promotion rules. A later phase must add matched-seed, multi-season
-counterfactual evaluation and explicit safety/quality gates before either mode controls a live
-offseason.
+labels, not automatic promotion rules. Matched-seed, multi-season evidence gates and release
+rollback are defined by `manager-evidence-v1`; human approval and live offseason authority
+remain outside both contracts.
 
 ## Known limits
 
@@ -67,4 +67,4 @@ offseason.
 - Free agency supports one proposed signing per team and fixed offered terms.
 - Trades, waivers, draft lottery/protections, scouting uncertainty, negotiation, and owner
   objectives are outside v1.
-- Decision-ledger persistence and release-registry rollback remain future work.
+- Decision-ledger persistence remains future work.

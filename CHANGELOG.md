@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.10.0] - 2026-07-26
+
+- Add exact-address paired incumbent/Shadow manager outcomes across multiple seasons.
+- Add source-isolated evidence gates for utility, win rate, loss frequency, and worst-source
+  safety.
+- Prevent sample-count-only promotion and repeated-seed pseudo-replication.
+- Add evidence digests and a strict JSON manager policy release registry.
+- Add evidence-required activation, explicit rejection, retirement, and safety rollback.
+
 ## [0.9.0] - 2026-07-26
 
 - Add a generic white-box manager decision contract with hard rejections, rational scoring,

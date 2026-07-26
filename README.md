@@ -139,3 +139,7 @@ ownership, rookie contracts, canonical offseason ordering, strict JSON, and repl
 The [`manager-ai-v1` layer](docs/manager-ai-v1.md) adds explainable manager profiles, hard
 legality gates, rational candidate scoring, bounded personality effects, incumbent comparison,
 and non-executing Shadow recommendations for the draft and free-agent market.
+
+The [`manager-evidence-v1` layer](docs/manager-evidence-v1.md) evaluates exact paired,
+multi-season incumbent/Shadow outcomes, blocks sample-count-only promotion, and records
+evidence-gated policy activation, rejection, retirement, and rollback.

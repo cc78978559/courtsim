@@ -1,7 +1,7 @@
 {
-  "format_version": 9,
+  "format_version": 10,
   "status": "frozen",
-  "engine_version": "0.9.0",
+  "engine_version": "0.10.0",
   "rules": {
     "version": "nba-v1",
     "path": "governance/game-rules-nba-v1.json",
@@ -52,6 +52,12 @@
     "manager_ai_version": "manager-ai-v1",
     "path": "governance/manager-ai-v1.json",
     "file_sha256": "b6617b516a2e7beabd5c1b2f97923004d8a06d90494d131859d00dbec1f2dce5"
+  },
+  "manager_evidence": {
+    "manager_evidence_version": "manager-evidence-v1",
+    "release_registry_version": "manager-release-registry-v1",
+    "path": "governance/manager-evidence-v1.json",
+    "file_sha256": "2c4d503a626912d5cfeb8421cdd237c9de07af07b6bc37d7295c45b62d626b08"
   },
   "model": {
     "schema_version": "demo-v1.12",

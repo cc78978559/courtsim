@@ -1,0 +1,21 @@
+{
+  "format_version": 1,
+  "manager_evidence_version": "manager-evidence-v1",
+  "release_registry_version": "manager-release-registry-v1",
+  "weights": {
+    "win_rate": 0.45,
+    "playoff_progress": 0.2,
+    "roster_value": 0.25,
+    "cap_flexibility": 0.1
+  },
+  "thresholds": {
+    "minimum_independent_sources": 30,
+    "minimum_seasons_per_source": 2,
+    "minimum_mean_utility_delta": 0.005,
+    "minimum_win_rate_delta": -0.002,
+    "maximum_loss_rate": 0.45,
+    "minimum_worst_source_delta": -0.04,
+    "neutral_band": 0.001
+  },
+  "automatic_activation": false
+}

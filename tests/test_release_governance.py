@@ -28,6 +28,12 @@ from courtsim.management import (
     ContractRules,
 )
 from courtsim.manager_ai import MANAGER_AI_VERSION, ManagerPolicyMode
+from courtsim.manager_evaluation import (
+    MANAGER_EVIDENCE_VERSION,
+    MANAGER_RELEASE_REGISTRY_VERSION,
+    ManagerEvaluationWeights,
+    ManagerEvidenceThresholds,
+)
 from courtsim.parameters import load_model_parameters
 from courtsim.playoffs import PLAYOFF_SCHEMA_VERSION, PLAYOFF_VERSION, PlayoffConfig
 from courtsim.rosters import ROSTER_VERSION, RosterRules
@@ -62,11 +68,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "playoffs",
         "career_draft",
         "manager_ai",
+        "manager_evidence",
         "model",
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 9
+    assert release["format_version"] == 10
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -250,6 +257,41 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "reasonable_band": 0.08,
         "style_contribution_limit": 0.04,
         "supported_stages": ["draft", "market"],
+    }
+    evidence_registry = release["manager_evidence"]
+    assert set(evidence_registry) == {
+        "manager_evidence_version",
+        "release_registry_version",
+        "path",
+        "file_sha256",
+    }
+    evidence_path = ROOT / evidence_registry["path"]
+    evidence_config = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert _sha256(evidence_path) == evidence_registry["file_sha256"]
+    assert evidence_registry["manager_evidence_version"] == MANAGER_EVIDENCE_VERSION
+    assert evidence_registry["release_registry_version"] == MANAGER_RELEASE_REGISTRY_VERSION
+    weights = ManagerEvaluationWeights()
+    thresholds = ManagerEvidenceThresholds()
+    assert evidence_config == {
+        "format_version": 1,
+        "manager_evidence_version": MANAGER_EVIDENCE_VERSION,
+        "release_registry_version": MANAGER_RELEASE_REGISTRY_VERSION,
+        "weights": {
+            "win_rate": weights.win_rate,
+            "playoff_progress": weights.playoff_progress,
+            "roster_value": weights.roster_value,
+            "cap_flexibility": weights.cap_flexibility,
+        },
+        "thresholds": {
+            "minimum_independent_sources": thresholds.minimum_independent_sources,
+            "minimum_seasons_per_source": thresholds.minimum_seasons_per_source,
+            "minimum_mean_utility_delta": thresholds.minimum_mean_utility_delta,
+            "minimum_win_rate_delta": thresholds.minimum_win_rate_delta,
+            "maximum_loss_rate": thresholds.maximum_loss_rate,
+            "minimum_worst_source_delta": thresholds.minimum_worst_source_delta,
+            "neutral_band": thresholds.neutral_band,
+        },
+        "automatic_activation": False,
     }
 
     model = release["model"]
