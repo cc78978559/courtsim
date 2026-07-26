@@ -13,6 +13,10 @@ from courtsim.analysis.quick_sim_comparison import (
 )
 from courtsim.career import CareerPlayer, CareerStatus, PlayerSeasonSummary
 from courtsim.domain.game import GameClockConfig
+from courtsim.manager_learning import (
+    OpponentObservationTotals,
+    opponent_observation_totals_from_game,
+)
 from courtsim.model.game_runtime import GameMatchups, GameTeam, sample_game
 from courtsim.model.interaction_compiler import DefensiveMatchups, Matchup
 from courtsim.model.trace_mode import TraceMode
@@ -42,7 +46,7 @@ from courtsim.season import (
     sample_season,
 )
 
-NBA_QUICK_SIM_EXECUTOR_VERSION = "nba-quick-sim-executor-v4"
+NBA_QUICK_SIM_EXECUTOR_VERSION = "nba-quick-sim-executor-v5"
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,6 +82,7 @@ class NBAQuickSimPostseasonState:
     player_seconds: tuple[tuple[int, int], ...]
     player_games: tuple[tuple[int, int], ...]
     team_games: tuple[tuple[str, int], ...]
+    learning_totals: tuple[OpponentObservationTotals, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -253,6 +258,7 @@ class _PostseasonRuntime:
     player_seconds: dict[int, int] = field(default_factory=lambda: defaultdict(int))
     player_games: dict[int, int] = field(default_factory=lambda: defaultdict(int))
     team_games: dict[str, int] = field(default_factory=lambda: defaultdict(int))
+    learning_totals: list[OpponentObservationTotals] = field(default_factory=list)
 
     @classmethod
     def from_season(
@@ -422,6 +428,14 @@ class _PostseasonRuntime:
                 forfeit_team_id,
             )
         )
+        self.learning_totals.extend(
+            opponent_observation_totals_from_game(
+                home_team_id,
+                away_team_id,
+                *scores,
+                sampled.result if sampled is not None else None,
+            )
+        )
         self.team_games[home_team_id] += 1
         self.team_games[away_team_id] += 1
         self.day += self.game_rest_days + 1
@@ -488,6 +502,7 @@ class _PostseasonRuntime:
             tuple(sorted(self.player_seconds.items())),
             tuple(sorted(self.player_games.items())),
             tuple(sorted(self.team_games.items())),
+            tuple(self.learning_totals),
         )
 
 

@@ -98,6 +98,17 @@ def test_franchise_season_composes_into_a_second_complete_season() -> None:
         and len(learning.opponents) == 29
         for learning in first.final_state.manager_learning
     )
+    assert len(first.simulation.postseason_state.learning_totals) == (
+        len(first.simulation.postseason_state.games) * 2
+    )
+    assert (
+        sum(
+            opponent.games_observed
+            for learning in first.final_state.manager_learning
+            for opponent in learning.opponents
+        )
+        == 2_460 + len(first.simulation.postseason_state.games) * 2
+    )
     assert len(first.simulation.season.games) == 1_230
     assert len(first.offseason.offseason.selections) == 30
     assert {len(roster.player_ids) for roster in first.final_state.management.rosters} == {6}
@@ -139,6 +150,15 @@ def test_franchise_season_composes_into_a_second_complete_season() -> None:
         opponent.games_observed > first_games[(learning.team_id, opponent.opponent_team_id)]
         for learning in second.final_state.manager_learning
         for opponent in learning.opponents
+    )
+    assert sum(
+        opponent.games_observed
+        for learning in second.final_state.manager_learning
+        for opponent in learning.opponents
+    ) == (
+        4_920
+        + len(first.simulation.postseason_state.games) * 2
+        + len(second.simulation.postseason_state.games) * 2
     )
     assert len(second.simulation.postseason.series) == 15
     assert len(second.offseason.offseason.selections) == 30

@@ -46,7 +46,7 @@ from courtsim.prospects import (
 from courtsim.randomness import derive_seed
 from courtsim.season import SeasonConfig
 
-NBA_FRANCHISE_VERSION = "nba-franchise-v2"
+NBA_FRANCHISE_VERSION = "nba-franchise-v3"
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,6 +157,7 @@ def execute_nba_franchise_season(
         profiles,
         game_config,
         completed_season=state.management.season_year,
+        additional_totals=simulation.postseason_state.learning_totals,
     )
     summaries = build_nba_player_season_summaries(simulation, players)
     lottery = resolve_nba_draft_lottery_from_results(

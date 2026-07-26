@@ -8,7 +8,7 @@ statistics ledger rather than continuous court physics.
 
 ## Current versions
 
-- Engine release candidate: `0.49.0`.
+- Engine release candidate: `0.50.0`.
 - Latest mechanics: schema `demo-v1.12`, parameters `demo-1.4.0`.
 - Frozen realism baseline: `demo-1.4.0`.
 - Game rules: `nba-v1`.
@@ -26,7 +26,7 @@ statistics ledger rather than continuous court physics.
 - Versioned external quick-simulation comparison: `quick-sim-comparison-v1`.
 - Resumable multi-season quick-simulation batches: `quick-sim-batch-v1`.
 - Atomic quick-simulation checkpoints and reference artifacts: `quick-sim-artifact-v1`.
-- Direct 30-team quick-simulation execution: `nba-quick-sim-executor-v4`.
+- Direct 30-team quick-simulation execution: `nba-quick-sim-executor-v5`.
 - Manager counterfactual evidence and release registry:
   `manager-evidence-v1 / manager-release-registry-v1`.
 - Resumable paired manager experiment orchestration: `manager-experiment-v1`.
@@ -41,7 +41,7 @@ statistics ledger rather than continuous court physics.
 - NBA lottery-aware persistent pick settlement: `nba-draft-asset-settlement-v1`.
 - Thirty-team white-box manager draft execution: `nba-draft-offseason-v1`.
 - Complete thirty-team career and management offseason: `nba-offseason-v1`.
-- Learning-aware composable thirty-team franchise loop: `nba-franchise-v2`.
+- Complete-season learning-aware thirty-team franchise loop: `nba-franchise-v3`.
 - Native routed three-team transactions: `three-team-trade-v1`.
 - Automatic cyclic/hub three-team discovery and unified clearing: `three-team-market-v1`.
 - Team-specific hidden-potential scouting: `scouting-v1`.
@@ -158,6 +158,8 @@ promotion.
 - Persistent franchise manager learning with 29 games-weighted opponent models per team
   and 870 directed matchup variants applied across the following regular season, play-in,
   and playoffs, with explicit matchup-count audit.
+- Exact postseason feedback with two directed score/possession/shot-zone observations per
+  play-in and playoff game, merged with all 2,460 directed regular-season observations.
 - League-state schema 4 persistence for Bird rights, trade exceptions, manager opponent memory,
   and optional 30-team conference/division alignment, with deterministic schema 1/2/3 migration.
 - Roster-safe per-game team resolution and opponent-specific white-box rotations throughout
@@ -196,9 +198,8 @@ Run the complete local gate with:
 - Broader offensive vocabulary and stronger player-level usage calibration.
 - Multi-team and player-level real-data calibration beyond the current selected targets.
 - Advanced conditional-pick rules, seven-year Stepien edge cases, four-plus-round and
-  contract-dependent negotiation, postseason event ingestion for manager learning, persisted
-  franchise checkpoints, causal tactical experiments, human-approved promotion beyond Shadow
-  mode, and fantasy-manager gameplay.
+  contract-dependent negotiation, persisted franchise checkpoints, causal tactical
+  experiments, human-approved promotion beyond Shadow mode, and fantasy-manager gameplay.
 
 ## Repository boundary
 

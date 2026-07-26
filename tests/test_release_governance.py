@@ -131,7 +131,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 49
+    assert release["format_version"] == 50
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -1161,6 +1161,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "regular_season_matchup_resolution": True,
         "postseason_matchup_resolution": True,
         "matchup_team_count_audit": True,
+        "postseason_learning_totals": True,
+        "directed_learning_totals_per_game": 2,
+        "learning_score_totals": True,
+        "learning_possession_totals": True,
+        "learning_shot_zone_totals": True,
+        "forfeit_learning_totals": True,
     }
     nba_franchise_registry = release["nba_franchise"]
     assert set(nba_franchise_registry) == {
@@ -1202,7 +1208,10 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "maximum_directed_matchup_teams": 870,
         "first_season_base_matchups": True,
         "regular_season_event_learning": True,
-        "postseason_event_learning": False,
+        "postseason_event_learning": True,
+        "directed_regular_season_game_samples": 2_460,
+        "directed_postseason_samples_per_game": 2,
+        "exact_learning_sample_accounting": True,
         "regular_and_postseason_tactic_application": True,
         "manager_change_resets_team_memory": True,
         "roster_identity_rebuilt_from_management": True,

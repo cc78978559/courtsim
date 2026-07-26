@@ -1,7 +1,7 @@
 {
-  "format_version": 49,
+  "format_version": 50,
   "status": "frozen",
-  "engine_version": "0.49.0",
+  "engine_version": "0.50.0",
   "rules": {
     "version": "nba-v1",
     "path": "governance/game-rules-nba-v1.json",
@@ -135,9 +135,9 @@
     "file_sha256": "00aa3bbc33cf96489cc89d05a3bd83ec58d3286278b5561cfecb800614688568"
   },
   "nba_franchise": {
-    "nba_franchise_version": "nba-franchise-v2",
-    "path": "governance/nba-franchise-v2.json",
-    "file_sha256": "af33b564fbf14a17ac7e1acb661bad5f06acdf990ae22c273deb63ef109975bd"
+    "nba_franchise_version": "nba-franchise-v3",
+    "path": "governance/nba-franchise-v3.json",
+    "file_sha256": "2f2c694522199c86dbccb71619c65fc5614af7deb43570efe8b351f176f6c648"
   },
   "three_team_trades": {
     "three_team_trade_version": "three-team-trade-v1",
@@ -185,9 +185,9 @@
     "file_sha256": "9ce0f7f8225d04c6c330e61aaf0b0de2888475e6fe196c9640ef3864dbfd3af5"
   },
   "nba_quick_sim_executor": {
-    "nba_quick_sim_executor_version": "nba-quick-sim-executor-v4",
-    "path": "governance/nba-quick-sim-executor-v4.json",
-    "file_sha256": "78dd23490b27946d5faa872e695649ceab64e3ffbd1f9472d544ed94e45a6472"
+    "nba_quick_sim_executor_version": "nba-quick-sim-executor-v5",
+    "path": "governance/nba-quick-sim-executor-v5.json",
+    "file_sha256": "705d49465f9e02bef453a2f6ac1ac35599e78035edae7c9de03a95ddf731f402"
   },
   "model": {
     "schema_version": "demo-v1.12",

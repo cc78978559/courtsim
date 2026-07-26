@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.50.0] - 2026-07-26
+
+- Emit two directed manager-learning observations for every postseason game.
+- Preserve postseason scores, possessions, three-point attempts, and rim attempts.
+- Merge regular-season, play-in, and playoff ledgers into games-weighted memory.
+- Enforce exact complete-season learning sample accounting across chained seasons.
+- Keep aggregate-only simulation compatible with postseason learning.
+
 ## [0.49.0] - 2026-07-26
 
 - Persist all 30 managers' event-ledger opponent memories in franchise state.

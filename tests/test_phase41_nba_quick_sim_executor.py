@@ -52,6 +52,7 @@ def test_executor_runs_complete_nba_path_deterministically() -> None:
     assert len(first.postseason.series) == 15
     assert first.postseason_state.initial_player_states == first.season.final_player_states
     assert len(first.postseason_state.games) >= 66
+    assert len(first.postseason_state.learning_totals) == (len(first.postseason_state.games) * 2)
     assert sum(dict(first.postseason_state.team_games).values()) == (
         len(first.postseason_state.games) * 2
     )

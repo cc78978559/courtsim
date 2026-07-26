@@ -7,7 +7,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 
 from courtsim.domain.enums import Coverage, PlayFamily, ShotZone
-from courtsim.domain.game import GameClockConfig
+from courtsim.domain.game import GameClockConfig, GameResult
 from courtsim.domain.results import (
     BlockedShotSegmentResult,
     MadeShotSegmentResult,
@@ -45,6 +45,61 @@ class OpponentObservation:
             for value in ratings
         ):
             raise ValueError("opponent observation ratings must be from zero through one hundred")
+
+
+@dataclass(frozen=True, slots=True)
+class OpponentObservationTotals:
+    observer_team_id: str
+    opponent_team_id: str
+    games: int
+    opponent_points: int
+    team_points: int
+    opponent_possessions: int
+    team_possessions: int
+    opponent_shots: int
+    opponent_threes: int
+    opponent_rim_shots: int
+
+    def __post_init__(self) -> None:
+        if (
+            not self.observer_team_id.strip()
+            or not self.opponent_team_id.strip()
+            or self.observer_team_id == self.opponent_team_id
+        ):
+            raise ValueError("opponent observation totals identity is invalid")
+        values = (
+            self.games,
+            self.opponent_points,
+            self.team_points,
+            self.opponent_possessions,
+            self.team_possessions,
+            self.opponent_shots,
+            self.opponent_threes,
+            self.opponent_rim_shots,
+        )
+        if (
+            any(
+                not isinstance(value, int) or isinstance(value, bool) or value < 0
+                for value in values
+            )
+            or self.games < 1
+            or self.opponent_threes > self.opponent_shots
+            or self.opponent_rim_shots > self.opponent_shots
+        ):
+            raise ValueError("opponent observation totals are invalid")
+
+    @property
+    def values(self) -> tuple[int, int, int, int, int, int, int, int]:
+        return (
+            self.games,
+            self.opponent_points,
+            self.team_points,
+            self.opponent_possessions,
+            self.team_possessions,
+            self.opponent_shots,
+            self.opponent_threes,
+            self.opponent_rim_shots,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -229,49 +284,35 @@ def advance_manager_learning_from_season(
     game_config: GameClockConfig,
     *,
     completed_season: int,
+    additional_totals: Sequence[OpponentObservationTotals] = (),
 ) -> tuple[ManagerLearningState, ...]:
-    """Update every manager from the canonical regular-season event ledger."""
+    """Update every manager from regular-season and optional postseason ledgers."""
     existing_by_team = {item.team_id: item for item in existing}
+    raw_totals = [
+        total
+        for record in season.games
+        for total in opponent_observation_totals_from_game(
+            record.scheduled_game.home_team_id,
+            record.scheduled_game.away_team_id,
+            record.home_score,
+            record.away_score,
+            record.result,
+        )
+    ]
+    raw_totals.extend(additional_totals)
+    totals_by_matchup: dict[tuple[str, str], list[int]] = defaultdict(lambda: [0] * 8)
+    for total in raw_totals:
+        if total.observer_team_id not in profiles or total.opponent_team_id not in profiles:
+            raise ValueError("opponent observation totals reference a team outside the league")
+        aggregate = totals_by_matchup[(total.observer_team_id, total.opponent_team_id)]
+        for index, value in enumerate(total.values):
+            aggregate[index] += value
     result = []
     for team_id in sorted(profiles):
-        totals: dict[str, list[int]] = defaultdict(lambda: [0] * 8)
-        for record in season.games:
-            scheduled = record.scheduled_game
-            if scheduled.home_team_id == team_id:
-                opponent = scheduled.away_team_id
-                team_points, opponent_points = record.home_score, record.away_score
-            elif scheduled.away_team_id == team_id:
-                opponent = scheduled.home_team_id
-                team_points, opponent_points = record.away_score, record.home_score
-            else:
-                continue
-            totals[opponent][0] += 1
-            totals[opponent][1] += opponent_points
-            totals[opponent][2] += team_points
-            if record.result is None:
-                continue
-            for possession in record.result.possessions:
-                offense_index = 3 if possession.offense_team_id == opponent else 4
-                totals[opponent][offense_index] += 1
-                if possession.offense_team_id != opponent:
-                    continue
-                for segment in possession.result.segments:
-                    if not isinstance(
-                        segment,
-                        (
-                            MadeShotSegmentResult,
-                            MissedShotSegmentResult,
-                            BlockedShotSegmentResult,
-                            ShootingFoulSegmentResult,
-                        ),
-                    ):
-                        continue
-                    totals[opponent][5] += 1
-                    totals[opponent][6] += segment.zone is ShotZone.THREE
-                    totals[opponent][7] += segment.zone is ShotZone.RIM
         observations = tuple(
             opponent_observation_from_totals(opponent, values, game_config)
-            for opponent, values in sorted(totals.items())
+            for (observer, opponent), values in sorted(totals_by_matchup.items())
+            if observer == team_id
         )
         profile = profiles[team_id]
         prior = existing_by_team.get(
@@ -296,6 +337,42 @@ def advance_manager_learning_from_season(
             )
         )
     return tuple(result)
+
+
+def opponent_observation_totals_from_game(
+    home_team_id: str,
+    away_team_id: str,
+    home_score: int,
+    away_score: int,
+    result: GameResult | None,
+) -> tuple[OpponentObservationTotals, OpponentObservationTotals]:
+    home = [1, away_score, home_score, 0, 0, 0, 0, 0]
+    away = [1, home_score, away_score, 0, 0, 0, 0, 0]
+    if result is not None:
+        for possession in result.possessions:
+            opponent_is_away = possession.offense_team_id == away_team_id
+            observer = home if opponent_is_away else away
+            other = away if opponent_is_away else home
+            observer[3] += 1
+            other[4] += 1
+            for segment in possession.result.segments:
+                if not isinstance(
+                    segment,
+                    (
+                        MadeShotSegmentResult,
+                        MissedShotSegmentResult,
+                        BlockedShotSegmentResult,
+                        ShootingFoulSegmentResult,
+                    ),
+                ):
+                    continue
+                observer[5] += 1
+                observer[6] += segment.zone is ShotZone.THREE
+                observer[7] += segment.zone is ShotZone.RIM
+    return (
+        OpponentObservationTotals(home_team_id, away_team_id, *home),
+        OpponentObservationTotals(away_team_id, home_team_id, *away),
+    )
 
 
 def opponent_rotation_adjustment(
