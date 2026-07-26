@@ -2,8 +2,12 @@ from dataclasses import replace
 from typing import cast
 
 from test_game_runtime import PARAMETERS, player
+from test_phase12_manager_league_adapter import career_player
 
-from courtsim.analysis.nba_quick_sim_executor import NBAQuickSimExecutor
+from courtsim.analysis.nba_quick_sim_executor import (
+    NBAQuickSimExecutor,
+    build_nba_player_season_summaries,
+)
 from courtsim.domain.game import GameClockConfig
 from courtsim.domain.plans import Lineup
 from courtsim.model.game_runtime import GameTeam
@@ -48,6 +52,9 @@ def test_executor_runs_complete_nba_path_deterministically() -> None:
     assert len(first.postseason.series) == 15
     assert first.postseason_state.initial_player_states == first.season.final_player_states
     assert len(first.postseason_state.games) >= 66
+    assert sum(dict(first.postseason_state.team_games).values()) == (
+        len(first.postseason_state.games) * 2
+    )
     assert all(
         game.day < following.day
         for game, following in zip(
@@ -59,6 +66,13 @@ def test_executor_runs_complete_nba_path_deterministically() -> None:
     assert first.summary.team_count == 30
     assert first.summary.games == 1_230
     assert first.summary.champion_seed is not None
+    career_summaries = build_nba_player_season_summaries(
+        first,
+        tuple(career_player(player_id) for player_id in range(1, 151)),
+    )
+    assert len(career_summaries) == 150
+    assert all(summary.games_available >= 82 for summary in career_summaries)
+    assert sum(summary.seconds_played for summary in career_summaries) > 0
     assert executor("nba-season", 20260726) == first.summary
 
     injury_run = replace(

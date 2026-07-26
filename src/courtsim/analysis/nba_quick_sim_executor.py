@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass, field, replace
 from typing import cast
 
@@ -9,6 +10,7 @@ from courtsim.analysis.quick_sim_comparison import (
     QuickSimSeasonSummary,
     summarize_quick_sim_season,
 )
+from courtsim.career import CareerPlayer, CareerStatus, PlayerSeasonSummary
 from courtsim.domain.game import GameClockConfig
 from courtsim.model.game_runtime import GameMatchups, GameTeam, sample_game
 from courtsim.model.interaction_compiler import DefensiveMatchups, Matchup
@@ -38,7 +40,7 @@ from courtsim.season import (
     sample_season,
 )
 
-NBA_QUICK_SIM_EXECUTOR_VERSION = "nba-quick-sim-executor-v2"
+NBA_QUICK_SIM_EXECUTOR_VERSION = "nba-quick-sim-executor-v3"
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +63,9 @@ class NBAQuickSimPostseasonState:
     final_player_states: tuple[PlayerSeasonState, ...]
     injuries: tuple[InjuryRecord, ...]
     games: tuple[NBAQuickSimPostseasonGame, ...]
+    player_seconds: tuple[tuple[int, int], ...]
+    player_games: tuple[tuple[int, int], ...]
+    team_games: tuple[tuple[str, int], ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -198,6 +203,9 @@ class _PostseasonRuntime:
     day: int
     injuries: list[InjuryRecord] = field(default_factory=list)
     games: list[NBAQuickSimPostseasonGame] = field(default_factory=list)
+    player_seconds: dict[int, int] = field(default_factory=lambda: defaultdict(int))
+    player_games: dict[int, int] = field(default_factory=lambda: defaultdict(int))
+    team_games: dict[str, int] = field(default_factory=lambda: defaultdict(int))
 
     @classmethod
     def from_season(
@@ -334,6 +342,10 @@ class _PostseasonRuntime:
             participants = tuple(
                 item.player_id for item in sampled.result.playing_time if item.seconds > 0
             )
+            for item in sampled.result.playing_time:
+                self.player_seconds[item.player_id] += item.seconds
+                if item.seconds > 0:
+                    self.player_games[item.player_id] += 1
             self._sample_injuries(
                 (home, away),
                 participants,
@@ -355,6 +367,8 @@ class _PostseasonRuntime:
                 forfeit_team_id,
             )
         )
+        self.team_games[home_team_id] += 1
+        self.team_games[away_team_id] += 1
         self.day += self.game_rest_days + 1
         return scores
 
@@ -416,7 +430,54 @@ class _PostseasonRuntime:
             tuple(self.states[key] for key in sorted(self.states)),
             tuple(self.injuries),
             tuple(self.games),
+            tuple(sorted(self.player_seconds.items())),
+            tuple(sorted(self.player_games.items())),
+            tuple(sorted(self.team_games.items())),
         )
+
+
+def build_nba_player_season_summaries(
+    execution: NBAQuickSimExecution,
+    players: tuple[CareerPlayer, ...],
+) -> tuple[PlayerSeasonSummary, ...]:
+    seconds: dict[int, int] = defaultdict(int)
+    games_played: dict[int, int] = defaultdict(int)
+    injury_days: dict[int, int] = defaultdict(int)
+    scheduled_games: dict[str, int] = defaultdict(int)
+    for game in execution.season.schedule.games:
+        scheduled_games[game.home_team_id] += 1
+        scheduled_games[game.away_team_id] += 1
+    for record in execution.season.games:
+        if record.result is None:
+            continue
+        for item in record.result.playing_time:
+            seconds[item.player_id] += item.seconds
+            if item.seconds > 0:
+                games_played[item.player_id] += 1
+    for injury in (*execution.season.injuries, *execution.postseason_state.injuries):
+        injury_days[injury.player_id] += max(0, injury.return_day - injury.injury_day - 1)
+    for player_id, value in execution.postseason_state.player_seconds:
+        seconds[player_id] += value
+    for player_id, value in execution.postseason_state.player_games:
+        games_played[player_id] += value
+    postseason_team_games = dict(execution.postseason_state.team_games)
+    team_by_player = {
+        player_id: roster.team_id
+        for roster in execution.season.initial_rosters
+        for player_id in roster.player_ids
+    }
+    return tuple(
+        PlayerSeasonSummary(
+            player.player_id,
+            scheduled_games.get(team_by_player.get(player.player_id, ""), 0)
+            + postseason_team_games.get(team_by_player.get(player.player_id, ""), 0),
+            games_played[player.player_id],
+            seconds[player.player_id],
+            injury_days[player.player_id],
+        )
+        for player in players
+        if player.status in {CareerStatus.ACTIVE, CareerStatus.FREE_AGENT}
+    )
 
 
 def _conference_seeds(

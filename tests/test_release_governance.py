@@ -129,7 +129,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 46
+    assert release["format_version"] == 47
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -1120,6 +1120,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "nba_quick_sim_executor_version": NBA_QUICK_SIM_EXECUTOR_VERSION,
         "quick_sim_comparison_version": QUICK_SIM_COMPARISON_VERSION,
         "nba_league_version": NBA_LEAGUE_VERSION,
+        "career_version": CAREER_VERSION,
         "team_count": 30,
         "regular_season_games": 1_230,
         "games_per_team": 82,
@@ -1146,6 +1147,10 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "default_round_rest_days": 2,
         "postseason_game_availability_ledger": True,
         "postseason_initial_final_state_audit": True,
+        "postseason_player_seconds": True,
+        "postseason_player_games": True,
+        "postseason_team_games": True,
+        "career_summary_regular_and_postseason": True,
         "deterministic_forfeit_resolution": True,
     }
 

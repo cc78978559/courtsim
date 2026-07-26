@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.47.0] - 2026-07-26
+
+- Attribute play-in and playoff seconds and appearances to every player.
+- Count postseason games for each participating team.
+- Combine regular-season and postseason injury days.
+- Build complete player-season summaries for the career engine.
+- Close the workload-data gap before multi-season franchise execution.
+
 ## [0.46.0] - 2026-07-26
 
 - Add one complete deterministic 30-team offseason transaction.

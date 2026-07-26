@@ -8,7 +8,7 @@ statistics ledger rather than continuous court physics.
 
 ## Current versions
 
-- Engine release candidate: `0.46.0`.
+- Engine release candidate: `0.47.0`.
 - Latest mechanics: schema `demo-v1.12`, parameters `demo-1.4.0`.
 - Frozen realism baseline: `demo-1.4.0`.
 - Game rules: `nba-v1`.
@@ -26,7 +26,7 @@ statistics ledger rather than continuous court physics.
 - Versioned external quick-simulation comparison: `quick-sim-comparison-v1`.
 - Resumable multi-season quick-simulation batches: `quick-sim-batch-v1`.
 - Atomic quick-simulation checkpoints and reference artifacts: `quick-sim-artifact-v1`.
-- Direct 30-team quick-simulation execution: `nba-quick-sim-executor-v2`.
+- Direct 30-team quick-simulation execution: `nba-quick-sim-executor-v3`.
 - Manager counterfactual evidence and release registry:
   `manager-evidence-v1 / manager-release-registry-v1`.
 - Resumable paired manager experiment orchestration: `manager-experiment-v1`.
@@ -149,6 +149,8 @@ promotion.
 - Full 30-team postseason continuity carrying regular-season fatigue and unresolved injuries,
   adding addressed playoff injuries, calendar recovery, availability/forfeit game ledgers,
   and auditable initial/final player states.
+- Combined regular-season and postseason career summaries with player seconds, appearances,
+  team games, and injury days feeding development, decline, injury burden, and retirement.
 - League-state schema 4 persistence for Bird rights, trade exceptions, manager opponent memory,
   and optional 30-team conference/division alignment, with deterministic schema 1/2/3 migration.
 - Roster-safe per-game team resolution and opponent-specific white-box rotations throughout

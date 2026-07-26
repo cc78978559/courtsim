@@ -48,6 +48,7 @@ from courtsim.analysis.nba_quick_sim_executor import (
     NBAQuickSimExecutor,
     NBAQuickSimPostseasonGame,
     NBAQuickSimPostseasonState,
+    build_nba_player_season_summaries,
 )
 from courtsim.analysis.nba_reference import (
     NbaReferenceError,
@@ -137,6 +138,7 @@ __all__ = [
     "build_artifact_inventory",
     "build_artifact_retention_report",
     "build_nba_core_target_payload",
+    "build_nba_player_season_summaries",
     "build_nba_team_target_payload",
     "build_quick_sim_reference",
     "calculate_nba_core_metrics",
