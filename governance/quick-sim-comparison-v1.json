@@ -14,6 +14,8 @@
   "season_source": "canonical-season-ledger",
   "postseason_source": "canonical-playoff-ledger",
   "observed_reference_required": true,
+  "observed_reference_builder": true,
+  "observed_reference_range_method": "observed-min-max",
   "incomplete_template_rejected_for_scoring": true,
   "fabricated_2k_targets": false,
   "strict_reference_json": true,

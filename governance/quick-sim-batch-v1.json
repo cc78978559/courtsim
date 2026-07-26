@@ -1,0 +1,14 @@
+{
+  "format_version": 1,
+  "quick_sim_batch_version": "quick-sim-batch-v1",
+  "quick_sim_comparison_version": "quick-sim-comparison-v1",
+  "default_team_count": 30,
+  "maximum_seasons": 10000,
+  "deterministic_season_seeds": true,
+  "resumable_contiguous_checkpoints": true,
+  "strict_checkpoint_json": true,
+  "summary_sha256": true,
+  "batch_sha256": true,
+  "observed_reference_builder": true,
+  "reference_range_method": "observed-min-max"
+}

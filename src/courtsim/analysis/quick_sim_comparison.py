@@ -195,18 +195,7 @@ def compare_quick_sim_summaries(
         raise QuickSimComparisonError("quick-sim team count does not match the reference")
     if len({summary.season_id for summary in summaries}) != len(summaries):
         raise QuickSimComparisonError("quick-sim season ids must be unique")
-    values = {
-        "win-rate-stddev": fmean(item.win_rate_stddev for item in summaries),
-        "pace-possessions-per-team": fmean(item.pace_possessions_per_team for item in summaries),
-        "offensive-rating": fmean(item.offensive_rating for item in summaries),
-        "point-differential-stddev": fmean(item.point_differential_stddev for item in summaries),
-        "playoff-upset-rate": fmean(
-            cast(float, _required_postseason(item).playoff_upset_rate) for item in summaries
-        ),
-        "champion-seed-mean": fmean(
-            cast(int, _required_postseason(item).champion_seed) for item in summaries
-        ),
-    }
+    values = _aggregate_metric_values(summaries)
     comparisons = tuple(
         QuickSimMetricComparison(
             target.metric,
@@ -224,6 +213,71 @@ def compare_quick_sim_summaries(
         comparisons,
         all(item.passed for item in comparisons),
     )
+
+
+def build_quick_sim_reference(
+    summaries: tuple[QuickSimSeasonSummary, ...],
+    *,
+    reference_id: str,
+    source_label: str,
+    game_version: str,
+    roster_date: str,
+) -> QuickSimReference:
+    if not summaries:
+        raise QuickSimComparisonError("quick-sim reference requires observed seasons")
+    team_count = summaries[0].team_count
+    if any(item.team_count != team_count for item in summaries):
+        raise QuickSimComparisonError("quick-sim reference seasons must use one team count")
+    if len({item.season_id for item in summaries}) != len(summaries):
+        raise QuickSimComparisonError("quick-sim reference season ids must be unique")
+    per_season = tuple(_season_metric_values(item) for item in summaries)
+    metrics = tuple(
+        QuickSimMetricRange(
+            metric,
+            min(values[metric] for values in per_season),
+            max(values[metric] for values in per_season),
+        )
+        for metric in QUICK_SIM_METRICS
+    )
+    return QuickSimReference(
+        reference_id,
+        source_label,
+        game_version,
+        roster_date,
+        team_count,
+        len(summaries),
+        "observed",
+        metrics,
+    )
+
+
+def _aggregate_metric_values(
+    summaries: tuple[QuickSimSeasonSummary, ...],
+) -> dict[str, float]:
+    return {
+        "win-rate-stddev": fmean(item.win_rate_stddev for item in summaries),
+        "pace-possessions-per-team": fmean(item.pace_possessions_per_team for item in summaries),
+        "offensive-rating": fmean(item.offensive_rating for item in summaries),
+        "point-differential-stddev": fmean(item.point_differential_stddev for item in summaries),
+        "playoff-upset-rate": fmean(
+            cast(float, _required_postseason(item).playoff_upset_rate) for item in summaries
+        ),
+        "champion-seed-mean": fmean(
+            cast(int, _required_postseason(item).champion_seed) for item in summaries
+        ),
+    }
+
+
+def _season_metric_values(summary: QuickSimSeasonSummary) -> dict[str, float]:
+    postseason = _required_postseason(summary)
+    return {
+        "win-rate-stddev": summary.win_rate_stddev,
+        "pace-possessions-per-team": summary.pace_possessions_per_team,
+        "offensive-rating": summary.offensive_rating,
+        "point-differential-stddev": summary.point_differential_stddev,
+        "playoff-upset-rate": cast(float, postseason.playoff_upset_rate),
+        "champion-seed-mean": float(cast(int, postseason.champion_seed)),
+    }
 
 
 def load_quick_sim_reference(payload: str) -> QuickSimReference:

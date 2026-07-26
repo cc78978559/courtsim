@@ -12,6 +12,10 @@ References must name the exact game version, roster date, source, team count, an
 season count. Each metric supplies an observed minimum and maximum. Reports average CourtSim
 seasons and retain every metric's observed value, target interval, and pass status.
 
+The observed-reference builder derives each interval directly from the minimum and maximum
+of supplied season summaries. `quick-sim-batch-v1` provides deterministic collection,
+checkpoint, integrity, and resume semantics for those summaries.
+
 The repository includes an NBA 2K reference template with null target values. Templates are
 valid documentation artifacts but are rejected for scoring. Real exported 2K observations must
 replace those values before any comparison can claim a result.

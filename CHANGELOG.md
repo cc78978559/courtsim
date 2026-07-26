@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.39.0] - 2026-07-26
+
+- Add deterministic, resumable multi-season quick-simulation batches.
+- Derive stable season seeds and identifiers from an immutable batch specification.
+- Protect season summaries and ordered checkpoints with SHA-256 integrity hashes.
+- Reject unknown fields, implicit type coercion, gaps, and mismatched completion state.
+- Build versioned external comparison intervals from real observed season summaries.
+
 ## [0.38.0] - 2026-07-26
 
 - Add canonical multi-season basketball quick-simulation summaries.

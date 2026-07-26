@@ -8,7 +8,7 @@ statistics ledger rather than continuous court physics.
 
 ## Current versions
 
-- Engine release candidate: `0.38.0`.
+- Engine release candidate: `0.39.0`.
 - Latest mechanics: schema `demo-v1.12`, parameters `demo-1.4.0`.
 - Frozen realism baseline: `demo-1.4.0`.
 - Game rules: `nba-v1`.
@@ -24,6 +24,7 @@ statistics ledger rather than continuous court physics.
 - Unified manager stage authority and execution receipts: `manager-authority-v1`.
 - Annual white-box manager strategy objectives: `manager-objective-v1`.
 - Versioned external quick-simulation comparison: `quick-sim-comparison-v1`.
+- Resumable multi-season quick-simulation batches: `quick-sim-batch-v1`.
 - Manager counterfactual evidence and release registry:
   `manager-evidence-v1 / manager-release-registry-v1`.
 - Resumable paired manager experiment orchestration: `manager-experiment-v1`.
@@ -125,6 +126,8 @@ promotion.
 - Multi-season 30-team quick-simulation summaries and strict external-reference comparison for
   win distribution, pace, offensive rating, point differential, playoff upsets, and champion
   seed, with an explicitly incomplete NBA 2K data template.
+- Deterministic multi-season quick-simulation batches with stable per-season seeds, resumable
+  hash-verified checkpoints, strict JSON, and observed min/max reference construction.
 - League-state schema 4 persistence for Bird rights, trade exceptions, manager opponent memory,
   and optional 30-team conference/division alignment, with deterministic schema 1/2/3 migration.
 - Roster-safe per-game team resolution and opponent-specific white-box rotations throughout
@@ -145,7 +148,7 @@ promotion.
 
 - Ruff formatting and lint: passed.
 - mypy strict: passed.
-- pytest: 461 passed; one Windows symlink test skipped when link privileges are absent.
+- pytest: 467 passed; one Windows symlink test skipped when link privileges are absent.
 - Coverage: 85%, meeting the required minimum of 85%.
 - Runtime dependencies: Python standard library only.
 - Frozen `demo-1.4.0` audit: 10 core realism targets, 3 free-throw targets, and
