@@ -12,6 +12,14 @@ from courtsim.analysis.realism_targets import (
     load_realism_target_set,
     score_audit_against_realism_targets,
 )
+from courtsim.career import (
+    CAREER_VERSION,
+    DRAFT_VERSION,
+    OFFSEASON_SCHEMA_VERSION,
+    RETIREMENT_VERSION,
+    CareerRules,
+    DraftRules,
+)
 from courtsim.cli import DEFAULT_MODEL_PARAMETERS, DEFAULT_MODEL_SCHEMA
 from courtsim.management import (
     CONTRACT_VERSION,
@@ -51,11 +59,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "roster_transactions",
         "contracts_free_agency",
         "playoffs",
+        "career_draft",
         "model",
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 7
+    assert release["format_version"] == 8
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -192,6 +201,35 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "default_best_of": PlayoffConfig().best_of,
         "default_higher_seed_home": list(PlayoffConfig().higher_seed_home),
         "playoff_schema_version": PLAYOFF_SCHEMA_VERSION,
+    }
+    career_registry = release["career_draft"]
+    assert set(career_registry) == {
+        "career_version",
+        "draft_version",
+        "retirement_version",
+        "path",
+        "file_sha256",
+    }
+    career_path = ROOT / career_registry["path"]
+    career_config = json.loads(career_path.read_text(encoding="utf-8"))
+    assert _sha256(career_path) == career_registry["file_sha256"]
+    assert career_registry["career_version"] == CAREER_VERSION
+    assert career_registry["draft_version"] == DRAFT_VERSION
+    assert career_registry["retirement_version"] == RETIREMENT_VERSION
+    assert career_config == {
+        "format_version": 1,
+        "career_version": CAREER_VERSION,
+        "draft_version": DRAFT_VERSION,
+        "retirement_version": RETIREMENT_VERSION,
+        "offseason_schema_version": OFFSEASON_SCHEMA_VERSION,
+        "minimum_player_age": CareerRules().minimum_player_age,
+        "minimum_retirement_age": CareerRules().minimum_retirement_age,
+        "maximum_player_age": CareerRules().maximum_player_age,
+        "heavy_injury_days": CareerRules().heavy_injury_days,
+        "low_minutes_per_game": CareerRules().low_minutes_per_game,
+        "draft_rounds": DraftRules().rounds,
+        "rookie_salary": DraftRules().rookie_salary,
+        "rookie_contract_years": DraftRules().rookie_contract_years,
     }
 
     model = release["model"]

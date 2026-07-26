@@ -131,3 +131,7 @@ pools, atomic sign/waive plans, and strict management ledgers.
 The [`playoff-v1` layer](docs/playoffs-v1.md) resolves a canonical four-team bracket with
 configurable best-of series and home-court patterns, strict game ordering, deterministic
 advancement, championship facts, JSON round trips, and replay audits.
+
+The [`career-v1 / draft-v1 / retirement-v1` layer](docs/career-draft-v1.md) adds immutable
+career state, field-level growth and decline, deterministic retirement, explicit draft-pick
+ownership, rookie contracts, canonical offseason ordering, strict JSON, and replay audits.

@@ -8,7 +8,7 @@ statistics ledger rather than continuous court physics.
 
 ## Current versions
 
-- Engine release candidate: `0.7.0`.
+- Engine release candidate: `0.8.0`.
 - Latest mechanics: schema `demo-v1.12`, parameters `demo-1.4.0`.
 - Frozen realism baseline: `demo-1.4.0`.
 - Game rules: `nba-v1`.
@@ -17,6 +17,8 @@ statistics ledger rather than continuous court physics.
 - Roster transaction state: `roster-v1`; season result schema `2`.
 - Contract and free-agency state: `contract-v1 / free-agency-v1`.
 - Playoff state: `playoff-v1`; playoff result schema `1`.
+- Career, draft, and retirement state: `career-v1 / draft-v1 / retirement-v1`;
+  offseason schema `1`.
 
 The latest mechanics are now the formal baseline after a complete independent
 100-game event audit, realism scoring, manifest verification, and regression-gate
@@ -42,6 +44,9 @@ promotion.
   pools, ordered sign/waive plans, and auditable management JSON.
 - Deterministic four-team playoff seeding, best-of series, home-court patterns, bracket
   advancement, championship resolution, strict JSON, and replay audits.
+- Immutable career state, field-level potential, player-addressed annual growth and decline,
+  injury burden, retirement, explicit draft-pick ownership, rookie contracts, and a canonical
+  retirement/expiration/draft/free-agency offseason pipeline.
 - Canonical JSONL event ledgers, replay, SHA-256 manifests, and statistics attribution.
 - Parallel deterministic batches, resumable experiment matrices, paired-seed
   counterfactuals, multi-seed robustness checks, and realism/regression gates.
@@ -52,7 +57,7 @@ promotion.
 
 - Ruff formatting and lint: passed.
 - mypy strict: passed.
-- pytest: 324 passed; one Windows symlink test skipped when link privileges are absent.
+- pytest: 335 passed; one Windows symlink test skipped when link privileges are absent.
 - Coverage: 85%, meeting the required minimum of 85%.
 - Runtime dependencies: Python standard library only.
 - Frozen `demo-1.4.0` audit: 10 core realism targets, 3 free-throw targets, and
@@ -69,7 +74,8 @@ Run the complete local gate with:
 
 - Broader offensive vocabulary and stronger player-level usage calibration.
 - Multi-team and player-level real-data calibration beyond the current selected targets.
-- Development, draft, play-in and larger playoff formats, and fantasy-manager gameplay.
+- Draft lottery/protections, scouting uncertainty, AI general managers, play-in and larger
+  playoff formats, and fantasy-manager gameplay.
 
 ## Repository boundary
 

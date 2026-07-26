@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.0] - 2026-07-26
+
+- Add immutable player career state with field-level potential and no global overall rating.
+- Add player-addressed annual ability growth, age decline, injury burden, and retirement.
+- Add explicit draft-pick ownership, ordered selections, roster insertion, and rookie contracts.
+- Add a canonical offseason pipeline for retirement, expirations, draft, and free agency.
+- Add strict offseason JSON, full replay audits, and frozen career/draft governance.
+
 ## [0.7.0] - 2026-07-26
 
 - Add a deterministic four-team playoff bracket with 1/3/5/7-game series.
