@@ -22,6 +22,7 @@ from courtsim.career import (
 )
 from courtsim.cli import DEFAULT_MODEL_PARAMETERS, DEFAULT_MODEL_SCHEMA
 from courtsim.draft_assets import DRAFT_ASSET_SCHEMA_VERSION, DRAFT_ASSET_VERSION
+from courtsim.draft_lottery import DRAFT_LOTTERY_VERSION, DraftLotteryRules
 from courtsim.management import (
     CONTRACT_VERSION,
     FREE_AGENCY_VERSION,
@@ -85,11 +86,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "manager_trade",
         "trade_market",
         "draft_assets",
+        "draft_lottery",
         "model",
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 17
+    assert release["format_version"] == 18
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -359,6 +361,8 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "draft_asset_engine": DRAFT_ASSET_VERSION,
         "league_state_schema_version": 2,
         "future_pick_horizon": 3,
+        "draft_lottery_engine": DRAFT_LOTTERY_VERSION,
+        "draft_lottery_stage": "postseason-first-round",
         "playoff_safety_tiebreak": "derived-seed-v1",
         "automatic_activation": False,
     }
@@ -427,6 +431,8 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "salary_matching_threshold": trade_rules.salary_matching_threshold,
         "maximum_incoming_salary_bps": trade_rules.maximum_incoming_salary_bps,
         "salary_matching_buffer": trade_rules.salary_matching_buffer,
+        "enforce_stepien_rule": trade_rules.enforce_stepien_rule,
+        "stepien_round_number": trade_rules.stepien_round_number,
         "supported_assets": ["player", "draft-pick", "future-draft-pick"],
         "contract_follows_player": True,
         "atomic_state_transition": True,
@@ -476,6 +482,8 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "minimum_combined_rational_gain": trade_market_rules.minimum_combined_rational_gain,
         "generate_pick_counteroffers": trade_market_rules.generate_pick_counteroffers,
         "generate_player_for_pick_offers": trade_market_rules.generate_player_for_pick_offers,
+        "generate_two_for_one_offers": trade_market_rules.generate_two_for_one_offers,
+        "candidate_kind_mixing": True,
         "stable_candidate_order": True,
         "team_and_asset_locking": True,
         "default_mode": ManagerPolicyMode.SHADOW.name.lower(),
@@ -503,6 +511,27 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "stable_asset_identity": True,
         "original_team_identity_immutable": True,
         "owner_team_transferable": True,
+    }
+    lottery_registry = release["draft_lottery"]
+    assert set(lottery_registry) == {
+        "draft_lottery_version",
+        "path",
+        "file_sha256",
+    }
+    lottery_path = ROOT / lottery_registry["path"]
+    lottery_config = json.loads(lottery_path.read_text(encoding="utf-8"))
+    assert _sha256(lottery_path) == lottery_registry["file_sha256"]
+    assert lottery_registry["draft_lottery_version"] == DRAFT_LOTTERY_VERSION
+    lottery_rules = DraftLotteryRules()
+    assert lottery_config == {
+        "format_version": 1,
+        "draft_lottery_version": DRAFT_LOTTERY_VERSION,
+        "drawn_slots": lottery_rules.drawn_slots,
+        "weight_bps": list(lottery_rules.weight_bps),
+        "draw_without_replacement": True,
+        "addressed_randomness": True,
+        "first_round_only": True,
+        "complete_draw_ledger": True,
     }
 
     model = release["model"]

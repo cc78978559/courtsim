@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
+from itertools import combinations
 
 from courtsim.career import CareerPlayer
 from courtsim.draft_assets import TradableDraftPick
@@ -35,11 +36,12 @@ TRADE_MARKET_VERSION = "trade-market-v1"
 
 @dataclass(frozen=True, slots=True)
 class TradeMarketRules:
-    maximum_candidates_per_pair: int = 64
+    maximum_candidates_per_pair: int = 96
     maximum_trades_per_team: int = 1
     minimum_combined_rational_gain: float = 0.001
     generate_pick_counteroffers: bool = True
     generate_player_for_pick_offers: bool = True
+    generate_two_for_one_offers: bool = True
     version: str = TRADE_MARKET_VERSION
 
     def __post_init__(self) -> None:
@@ -66,7 +68,12 @@ class TradeMarketEvaluation:
     shadow: TradeShadowResult
 
     def __post_init__(self) -> None:
-        if self.kind not in {"direct", "pick-counter", "player-for-pick"}:
+        if self.kind not in {
+            "direct",
+            "pick-counter",
+            "player-for-pick",
+            "multi-player",
+        }:
             raise ValueError("unsupported trade market candidate kind")
         if self.kind == "direct" and self.parent_trade_id is not None:
             raise ValueError("a direct offer cannot reference a parent")
@@ -256,9 +263,11 @@ def _candidate_offers(
     for first_index, team_a_id in enumerate(team_ids):
         for team_b_id in team_ids[first_index + 1 :]:
             pair: list[_RawOffer] = []
+            direct_indices: dict[tuple[int, int], int] = {}
             for player_a in rosters[team_a_id]:
                 for player_b in rosters[team_b_id]:
                     direct_index = len(result) + len(pair)
+                    direct_indices[(player_a, player_b)] = direct_index
                     pair.append(
                         _RawOffer(
                             team_a_id,
@@ -271,7 +280,39 @@ def _candidate_offers(
                             None,
                         )
                     )
-                    if rules.generate_pick_counteroffers:
+            if rules.generate_two_for_one_offers:
+                for first_a, second_a in combinations(rosters[team_a_id], 2):
+                    for player_b in rosters[team_b_id]:
+                        pair.append(
+                            _RawOffer(
+                                team_a_id,
+                                team_b_id,
+                                (first_a, second_a),
+                                (player_b,),
+                                (),
+                                (),
+                                "multi-player",
+                                direct_indices[(first_a, player_b)],
+                            )
+                        )
+                for player_a in rosters[team_a_id]:
+                    for first_b, second_b in combinations(rosters[team_b_id], 2):
+                        pair.append(
+                            _RawOffer(
+                                team_a_id,
+                                team_b_id,
+                                (player_a,),
+                                (first_b, second_b),
+                                (),
+                                (),
+                                "multi-player",
+                                direct_indices[(player_a, first_b)],
+                            )
+                        )
+            if rules.generate_pick_counteroffers:
+                for player_a in rosters[team_a_id]:
+                    for player_b in rosters[team_b_id]:
+                        direct_index = direct_indices[(player_a, player_b)]
                         pair.extend(
                             _RawOffer(
                                 team_a_id,
@@ -327,8 +368,41 @@ def _candidate_offers(
                         )
                         for pick_id in picks_by_team[team_a_id]
                     )
-            result.extend(pair[: rules.maximum_candidates_per_pair])
+            result.extend(
+                _bounded_candidate_mix(
+                    pair,
+                    rules.maximum_candidates_per_pair,
+                )
+            )
     return tuple(result)
+
+
+def _bounded_candidate_mix(
+    candidates: list[_RawOffer],
+    limit: int,
+) -> list[_RawOffer]:
+    direct = [candidate for candidate in candidates if candidate.kind == "direct"]
+    selected = direct[:limit]
+    if len(selected) == limit or len(selected) != len(direct):
+        return selected
+    queues = [
+        [candidate for candidate in candidates if candidate.kind == kind]
+        for kind in ("multi-player", "pick-counter", "player-for-pick")
+    ]
+    indexes = [0] * len(queues)
+    while len(selected) < limit:
+        progressed = False
+        for queue_index, queue in enumerate(queues):
+            if indexes[queue_index] >= len(queue):
+                continue
+            selected.append(queue[indexes[queue_index]])
+            indexes[queue_index] += 1
+            progressed = True
+            if len(selected) == limit:
+                break
+        if not progressed:
+            break
+    return selected
 
 
 def _nearest_direct_index(existing: list[_RawOffer], pair: list[_RawOffer]) -> int:

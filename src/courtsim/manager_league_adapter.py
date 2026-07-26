@@ -37,6 +37,11 @@ from courtsim.draft_assets import (
     seed_future_draft_picks,
     settle_draft_assets,
 )
+from courtsim.draft_lottery import (
+    DraftLotteryResult,
+    DraftLotteryRules,
+    resolve_draft_lottery,
+)
 from courtsim.management import (
     ContractRules,
     LeagueManagementState,
@@ -161,6 +166,7 @@ class CourtSimManagerLeagueAdapter:
     manager_profiles: tuple[ManagerProfile, ...]
     career_rules: CareerRules = field(default_factory=CareerRules)
     draft_rules: DraftRules = field(default_factory=DraftRules)
+    lottery_rules: DraftLotteryRules = field(default_factory=DraftLotteryRules)
     season_config: SeasonConfig = field(default_factory=SeasonConfig)
     fatigue_config: FatigueConfig = field(default_factory=FatigueConfig)
     game_rules: GameRules = field(default_factory=GameRules)
@@ -298,13 +304,14 @@ class CourtSimManagerLeagueAdapter:
             request.season_year,
             "offseason",
         )
-        draft_settlement = _draft_asset_settlement(
+        draft_settlement, draft_lottery = _draft_asset_settlement(
             season,
             state,
             summaries,
             master_seed=offseason_seed,
             career_rules=self.career_rules,
             draft_rules=self.draft_rules,
+            lottery_rules=self.lottery_rules,
         )
         picks = draft_settlement.picks
         draft_plan, market_plan, manager_audit = _offseason_plans(
@@ -350,6 +357,7 @@ class CourtSimManagerLeagueAdapter:
             "rotations": rotation_audit,
             "trade_market": trade_audit,
             "draft_assets": asdict(draft_settlement),
+            "draft_lottery": asdict(draft_lottery),
         }
         return ManagerSeasonExecution(
             league_state_to_json(next_state),
@@ -792,7 +800,8 @@ def _draft_asset_settlement(
     master_seed: int,
     career_rules: CareerRules,
     draft_rules: DraftRules,
-) -> DraftAssetSettlement:
+    lottery_rules: DraftLotteryRules,
+) -> tuple[DraftAssetSettlement, DraftLotteryResult]:
     management, players = _transition_preview(
         state,
         summaries,
@@ -801,10 +810,18 @@ def _draft_asset_settlement(
     )
     available = sum(player.status is CareerStatus.PROSPECT for player in players)
     standings = tuple(reversed(season.standings))
+    base_order = tuple(standing.team_id for standing in standings)
+    lottery = resolve_draft_lottery(
+        draft_year=state.management.season_year + 1,
+        master_seed=master_seed,
+        base_order=base_order,
+        rules=lottery_rules,
+    )
     settlement = settle_draft_assets(
         state.draft_assets,
         draft_year=state.management.season_year + 1,
-        original_team_order=tuple(standing.team_id for standing in standings),
+        original_team_order=base_order,
+        first_round_order=lottery.final_order,
     )
     roster_sizes = {roster.team_id: len(roster.player_ids) for roster in management.rosters}
     payrolls = {roster.team_id: 0 for roster in management.rosters}
@@ -823,7 +840,7 @@ def _draft_asset_settlement(
         picks.append(replace(pick, selection_number=len(picks) + 1))
         roster_sizes[team_id] += 1
         payrolls[team_id] += draft_rules.rookie_salary
-    return replace(settlement, picks=tuple(picks))
+    return replace(settlement, picks=tuple(picks)), lottery
 
 
 def _offseason_plans(

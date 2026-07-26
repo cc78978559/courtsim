@@ -18,6 +18,8 @@
   "draft_asset_engine": "draft-asset-v1",
   "league_state_schema_version": 2,
   "future_pick_horizon": 3,
+  "draft_lottery_engine": "draft-lottery-v1",
+  "draft_lottery_stage": "postseason-first-round",
   "playoff_safety_tiebreak": "derived-seed-v1",
   "automatic_activation": false
 }

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from itertools import pairwise
 
-from courtsim.draft_assets import TradableDraftPick
+from courtsim.draft_assets import FutureDraftPickAsset, TradableDraftPick
 from courtsim.management import (
     ContractRules,
     LeagueManagementState,
@@ -21,6 +22,8 @@ class TradeRules:
     salary_matching_threshold: int = 100_000_000
     maximum_incoming_salary_bps: int = 12_500
     salary_matching_buffer: int = 250_000
+    enforce_stepien_rule: bool = True
+    stepien_round_number: int = 1
     version: str = TRADE_VERSION
 
     def __post_init__(self) -> None:
@@ -29,6 +32,7 @@ class TradeRules:
             self.salary_matching_threshold,
             self.maximum_incoming_salary_bps,
             self.salary_matching_buffer,
+            self.stepien_round_number,
         )
         if any(not isinstance(value, int) or isinstance(value, bool) for value in values):
             raise ValueError("trade rule values must be integers")
@@ -38,6 +42,8 @@ class TradeRules:
             raise ValueError("salary matching values must be non-negative")
         if self.maximum_incoming_salary_bps < 10_000:
             raise ValueError("maximum incoming salary cannot be below outgoing salary")
+        if not isinstance(self.enforce_stepien_rule, bool):
+            raise ValueError("enforce_stepien_rule must be boolean")
         if self.version != TRADE_VERSION:
             raise ValueError(f"unsupported trade version: {self.version}")
 
@@ -198,6 +204,46 @@ def trade_rejections(
             )
             if incoming > maximum:
                 rejected.append(f"salary-match:{team_id}")
+    if trade_rules.enforce_stepien_rule:
+        rejected.extend(_stepien_rejections(picks, offer, trade_rules))
+    return tuple(rejected)
+
+
+def _stepien_rejections(
+    picks: tuple[TradableDraftPick, ...],
+    offer: TradeOffer,
+    rules: TradeRules,
+) -> tuple[str, ...]:
+    future = tuple(
+        pick
+        for pick in picks
+        if isinstance(pick, FutureDraftPickAsset)
+        and pick.round_number == rules.stepien_round_number
+    )
+    years = tuple(sorted({pick.draft_year for pick in future}))
+    if len(years) < 2:
+        return ()
+    a_out = set(offer.picks_from_a)
+    b_out = set(offer.picks_from_b)
+
+    def final_owner(pick: FutureDraftPickAsset) -> str:
+        if pick.asset_id in a_out:
+            return offer.team_b_id
+        if pick.asset_id in b_out:
+            return offer.team_a_id
+        return pick.owner_team_id
+
+    rejected: list[str] = []
+    for team_id in (offer.team_a_id, offer.team_b_id):
+        owns = {
+            year: any(pick.draft_year == year and final_owner(pick) == team_id for pick in future)
+            for year in years
+        }
+        if any(
+            following == year + 1 and not owns[year] and not owns[following]
+            for year, following in pairwise(years)
+        ):
+            rejected.append(f"stepien-consecutive-firsts:{team_id}")
     return tuple(rejected)
 
 

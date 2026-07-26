@@ -165,6 +165,7 @@ def settle_draft_assets(
     *,
     draft_year: int,
     original_team_order: tuple[str, ...],
+    first_round_order: tuple[str, ...] | None = None,
 ) -> DraftAssetSettlement:
     """Resolve protections and swaps from worst-to-best original-team order."""
     if original_team_order != tuple(dict.fromkeys(original_team_order)):
@@ -172,6 +173,13 @@ def settle_draft_assets(
     due = tuple(pick for pick in ledger.picks if pick.draft_year == draft_year)
     future = [pick for pick in ledger.picks if pick.draft_year != draft_year]
     order = {team_id: index + 1 for index, team_id in enumerate(original_team_order)}
+    first_order = (
+        order
+        if first_round_order is None
+        else {team_id: index + 1 for index, team_id in enumerate(first_round_order)}
+    )
+    if set(first_order) != set(order):
+        raise ValueError("first_round_order must cover the same original teams")
     if any(pick.original_team_id not in order for pick in due):
         raise ValueError("draft order does not cover every due original team")
     protected: list[int] = []
@@ -179,7 +187,8 @@ def settle_draft_assets(
     current: list[tuple[FutureDraftPickAsset, str]] = []
     next_id_cursor = ledger.next_asset_id
     for pick in due:
-        round_pick = order[pick.original_team_id]
+        round_order = first_order if pick.round_number == 1 else order
+        round_pick = round_order[pick.original_team_id]
         owner = pick.owner_team_id
         if (
             owner != pick.original_team_id
@@ -200,7 +209,11 @@ def settle_draft_assets(
     current.sort(
         key=lambda item: (
             item[0].round_number,
-            order[item[0].original_team_id],
+            (
+                first_order[item[0].original_team_id]
+                if item[0].round_number == 1
+                else order[item[0].original_team_id]
+            ),
             item[0].asset_id,
         )
     )
@@ -208,7 +221,11 @@ def settle_draft_assets(
         DraftPickAsset(
             index,
             pick.round_number,
-            order[pick.original_team_id],
+            (
+                first_order[pick.original_team_id]
+                if pick.round_number == 1
+                else order[pick.original_team_id]
+            ),
             pick.original_team_id,
             owner,
         )

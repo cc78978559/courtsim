@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.18.0] - 2026-07-26
+
+- Add a deterministic weighted first-round lottery with address-isolated draw records.
+- Preserve reverse standings for undrawn teams and every later draft round.
+- Enforce a future first-round Stepien consecutive-gap legality gate on trades.
+- Generate bounded two-for-one player packages in both trade directions.
+- Mix direct, multi-player, pick-counter, and player-for-pick candidates within fixed budgets.
+
 ## [0.17.0] - 2026-07-26
 
 - Add persistent future-pick identities, ownership, years, rounds, and strict ledger JSON.
