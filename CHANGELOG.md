@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.51.0] - 2026-07-26
+
+- Serialize the complete 30-team franchise state as strict canonical JSON.
+- Persist contract rules, management, careers, assets, learning, teams, and rotations.
+- Write crash-safe checkpoints through flush, fsync, and atomic replacement.
+- Verify embedded state and optional expected file SHA-256 digests on load.
+- Resume the next complete season from an exact cross-process state round trip.
+
 ## [0.50.0] - 2026-07-26
 
 - Emit two directed manager-learning observations for every postseason game.

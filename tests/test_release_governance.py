@@ -58,6 +58,7 @@ from courtsim.nba_draft_lottery import (
 )
 from courtsim.nba_draft_offseason import NBA_DRAFT_OFFSEASON_VERSION
 from courtsim.nba_franchise import NBA_FRANCHISE_VERSION
+from courtsim.nba_franchise_artifacts import NBA_FRANCHISE_ARTIFACT_VERSION
 from courtsim.nba_league import NBA_LEAGUE_VERSION, NBARegularSeasonRules
 from courtsim.nba_offseason import NBA_OFFSEASON_VERSION
 from courtsim.parameters import load_model_parameters
@@ -117,6 +118,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "nba_draft_offseason",
         "nba_offseason",
         "nba_franchise",
+        "nba_franchise_artifact",
         "three_team_trades",
         "three_team_market",
         "scouting",
@@ -131,7 +133,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 50
+    assert release["format_version"] == 51
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -1220,6 +1222,48 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "persistent_manager_learning_integration": True,
         "opponent_specific_rotation_rebuild": True,
         "disk_resume": False,
+    }
+    nba_franchise_artifact_registry = release["nba_franchise_artifact"]
+    assert set(nba_franchise_artifact_registry) == {
+        "nba_franchise_artifact_version",
+        "path",
+        "file_sha256",
+    }
+    nba_franchise_artifact_path = ROOT / nba_franchise_artifact_registry["path"]
+    nba_franchise_artifact_config = json.loads(
+        nba_franchise_artifact_path.read_text(encoding="utf-8")
+    )
+    assert _sha256(nba_franchise_artifact_path) == nba_franchise_artifact_registry["file_sha256"]
+    assert (
+        nba_franchise_artifact_registry["nba_franchise_artifact_version"]
+        == NBA_FRANCHISE_ARTIFACT_VERSION
+    )
+    assert nba_franchise_artifact_config == {
+        "format_version": 1,
+        "nba_franchise_artifact_version": NBA_FRANCHISE_ARTIFACT_VERSION,
+        "nba_franchise_version": NBA_FRANCHISE_VERSION,
+        "manager_league_state_schema": 4,
+        "franchise_state_schema": 1,
+        "checkpoint_envelope_schema": 1,
+        "canonical_state_json": True,
+        "strict_state_keys": True,
+        "atomic_checkpoint_write": True,
+        "embedded_state_sha256": True,
+        "checkpoint_file_sha256_receipt": True,
+        "expected_file_sha256_verification": True,
+        "corrupted_state_rejected": True,
+        "unsupported_version_rejected": True,
+        "contract_rules_persisted": True,
+        "management_persisted": True,
+        "career_players_persisted": True,
+        "draft_assets_persisted": True,
+        "manager_learning_persisted": True,
+        "conference_alignment_persisted": True,
+        "game_team_profiles_persisted": True,
+        "team_strategies_persisted": True,
+        "rotation_plans_persisted": True,
+        "exact_round_trip": True,
+        "next_season_resume": True,
     }
 
     model = release["model"]

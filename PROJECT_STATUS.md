@@ -8,7 +8,7 @@ statistics ledger rather than continuous court physics.
 
 ## Current versions
 
-- Engine release candidate: `0.50.0`.
+- Engine release candidate: `0.51.0`.
 - Latest mechanics: schema `demo-v1.12`, parameters `demo-1.4.0`.
 - Frozen realism baseline: `demo-1.4.0`.
 - Game rules: `nba-v1`.
@@ -42,6 +42,7 @@ statistics ledger rather than continuous court physics.
 - Thirty-team white-box manager draft execution: `nba-draft-offseason-v1`.
 - Complete thirty-team career and management offseason: `nba-offseason-v1`.
 - Complete-season learning-aware thirty-team franchise loop: `nba-franchise-v3`.
+- Atomic hash-verified franchise checkpoints: `nba-franchise-artifact-v1`.
 - Native routed three-team transactions: `three-team-trade-v1`.
 - Automatic cyclic/hub three-team discovery and unified clearing: `three-team-market-v1`.
 - Team-specific hidden-potential scouting: `scouting-v1`.
@@ -160,6 +161,9 @@ promotion.
   and playoffs, with explicit matchup-count audit.
 - Exact postseason feedback with two directed score/possession/shot-zone observations per
   play-in and playoff game, merged with all 2,460 directed regular-season observations.
+- Strict canonical franchise JSON preserving management, careers, assets, learning, alignment,
+  team profiles, strategies, and rotations, with atomic writes, embedded state hashes,
+  expected-file verification, and direct next-season resume.
 - League-state schema 4 persistence for Bird rights, trade exceptions, manager opponent memory,
   and optional 30-team conference/division alignment, with deterministic schema 1/2/3 migration.
 - Roster-safe per-game team resolution and opponent-specific white-box rotations throughout
@@ -180,7 +184,7 @@ promotion.
 
 - Ruff formatting and lint: passed.
 - mypy strict: passed.
-- pytest: 479 passed; one Windows symlink test skipped when link privileges are absent.
+- pytest: 481 passed; one Windows symlink test skipped when link privileges are absent.
 - Coverage: 85%, meeting the required minimum of 85%.
 - Runtime dependencies: Python standard library only.
 - Frozen `demo-1.4.0` audit: 10 core realism targets, 3 free-throw targets, and
@@ -198,8 +202,9 @@ Run the complete local gate with:
 - Broader offensive vocabulary and stronger player-level usage calibration.
 - Multi-team and player-level real-data calibration beyond the current selected targets.
 - Advanced conditional-pick rules, seven-year Stepien edge cases, four-plus-round and
-  contract-dependent negotiation, persisted franchise checkpoints, causal tactical
-  experiments, human-approved promotion beyond Shadow mode, and fantasy-manager gameplay.
+  contract-dependent negotiation, automatic multi-season checkpoint orchestration, causal
+  tactical experiments, human-approved promotion beyond Shadow mode, and fantasy-manager
+  gameplay.
 
 ## Repository boundary
 

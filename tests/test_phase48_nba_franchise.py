@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import cast
 
 import pytest
@@ -15,6 +16,10 @@ from courtsim.model.interaction_compiler import ProfileLineup
 from courtsim.nba_franchise import (
     NBAFranchiseState,
     execute_nba_franchise_season,
+)
+from courtsim.nba_franchise_artifacts import (
+    load_nba_franchise_checkpoint,
+    write_nba_franchise_checkpoint,
 )
 from courtsim.nba_league import NBAConferenceAlignment
 from courtsim.prospects import ProspectGenerationRules
@@ -70,7 +75,9 @@ def _state() -> tuple[NBAFranchiseState, dict[str, ManagerProfile], ContractRule
     )
 
 
-def test_franchise_season_composes_into_a_second_complete_season() -> None:
+def test_franchise_season_composes_into_a_second_complete_season(
+    tmp_path: Path,
+) -> None:
     state, profiles, contract_rules = _state()
     game_config = GameClockConfig(1, 5, 5, 5, 8, True)
     draft_rules = DraftRules(
@@ -121,13 +128,26 @@ def test_franchise_season_composes_into_a_second_complete_season() -> None:
         )
     )
 
-    second = execute_nba_franchise_season(
+    receipt = write_nba_franchise_checkpoint(
         first.final_state,
+        contract_rules,
+        tmp_path / "franchise.json",
+    )
+    restored, restored_rules, loaded_receipt = load_nba_franchise_checkpoint(
+        tmp_path / "franchise.json",
+        expected_file_sha256=receipt.file_sha256,
+    )
+    assert restored == first.final_state
+    assert restored_rules == contract_rules
+    assert loaded_receipt == receipt
+
+    second = execute_nba_franchise_season(
+        restored,
         seed=202,
         parameters=PARAMETERS,
         game_config=game_config,
         profiles=profiles,
-        contract_rules=contract_rules,
+        contract_rules=restored_rules,
         draft_rules=draft_rules,
         season_config=SeasonConfig(injury_probability_bps=0),
     )
