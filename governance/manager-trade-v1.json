@@ -7,6 +7,11 @@
   "style_contribution_limit": 0.04,
   "minimum_rational_gain": 0.0,
   "independent_bilateral_approval": true,
+  "supported_participant_counts": [
+    2,
+    3
+  ],
+  "unanimous_multi_team_approval": true,
   "automatic_execution": false,
   "automatic_activation": false
 }

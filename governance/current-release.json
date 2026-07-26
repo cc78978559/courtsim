@@ -1,7 +1,7 @@
 {
-  "format_version": 18,
+  "format_version": 19,
   "status": "frozen",
-  "engine_version": "0.18.0",
+  "engine_version": "0.19.0",
   "rules": {
     "version": "nba-v1",
     "path": "governance/game-rules-nba-v1.json",
@@ -87,7 +87,7 @@
   "manager_trade": {
     "manager_trade_version": "manager-trade-v1",
     "path": "governance/manager-trade-v1.json",
-    "file_sha256": "2f343f93cf6faa70da88c57b023aaa08238e9e6872721279bf104d7589fd5409"
+    "file_sha256": "43632114bcec739df5b652608c5d3a1134eed0ec39ae0e58d3ec68d8180f61fe"
   },
   "trade_market": {
     "trade_market_version": "trade-market-v1",
@@ -103,6 +103,11 @@
     "draft_lottery_version": "draft-lottery-v1",
     "path": "governance/draft-lottery-v1.json",
     "file_sha256": "e4faa7dadbaf21db56a0917350009f19e007013983b9631232a2285c221b5647"
+  },
+  "three_team_trades": {
+    "three_team_trade_version": "three-team-trade-v1",
+    "path": "governance/three-team-trades-v1.json",
+    "file_sha256": "c2807326895f34b3a96f703d7c04c88ce23604fbb9bebb17aa16af28efd3d669"
   },
   "model": {
     "schema_version": "demo-v1.12",

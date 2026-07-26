@@ -52,6 +52,7 @@ from courtsim.season import (
     SEASON_VERSION,
     SeasonConfig,
 )
+from courtsim.three_team_trades import THREE_TEAM_TRADE_VERSION
 from courtsim.trade_market import TRADE_MARKET_VERSION, TradeMarketRules
 from courtsim.trades import TRADE_VERSION, TradeRules
 
@@ -87,11 +88,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "trade_market",
         "draft_assets",
         "draft_lottery",
+        "three_team_trades",
         "model",
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 18
+    assert release["format_version"] == 19
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -458,6 +460,8 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "style_contribution_limit": manager_trade_rules.style_contribution_limit,
         "minimum_rational_gain": manager_trade_rules.minimum_rational_gain,
         "independent_bilateral_approval": True,
+        "supported_participant_counts": [2, 3],
+        "unanimous_multi_team_approval": True,
         "automatic_execution": False,
         "automatic_activation": False,
     }
@@ -532,6 +536,30 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "addressed_randomness": True,
         "first_round_only": True,
         "complete_draw_ledger": True,
+    }
+    three_team_registry = release["three_team_trades"]
+    assert set(three_team_registry) == {
+        "three_team_trade_version",
+        "path",
+        "file_sha256",
+    }
+    three_team_path = ROOT / three_team_registry["path"]
+    three_team_config = json.loads(three_team_path.read_text(encoding="utf-8"))
+    assert _sha256(three_team_path) == three_team_registry["file_sha256"]
+    assert three_team_registry["three_team_trade_version"] == THREE_TEAM_TRADE_VERSION
+    assert three_team_config == {
+        "format_version": 1,
+        "three_team_trade_version": THREE_TEAM_TRADE_VERSION,
+        "trade_version": TRADE_VERSION,
+        "manager_trade_version": MANAGER_TRADE_VERSION,
+        "participant_count": 3,
+        "explicit_asset_routes": True,
+        "supported_assets": ["player", "draft-pick", "future-draft-pick"],
+        "every_team_sends_and_receives": True,
+        "unanimous_manager_approval": True,
+        "atomic_state_transition": True,
+        "replay_audit_required": True,
+        "automatic_market_generation": False,
     }
 
     model = release["model"]

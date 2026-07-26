@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from itertools import pairwise
 
@@ -214,6 +215,33 @@ def _stepien_rejections(
     offer: TradeOffer,
     rules: TradeRules,
 ) -> tuple[str, ...]:
+    a_out = set(offer.picks_from_a)
+    b_out = set(offer.picks_from_b)
+    final_owners = {
+        pick.selection_number: (
+            offer.team_b_id
+            if pick.selection_number in a_out
+            else offer.team_a_id
+            if pick.selection_number in b_out
+            else pick.owner_team_id
+        )
+        for pick in picks
+    }
+    return stepien_rejections(
+        picks,
+        final_pick_owners=final_owners,
+        team_ids=(offer.team_a_id, offer.team_b_id),
+        rules=rules,
+    )
+
+
+def stepien_rejections(
+    picks: tuple[TradableDraftPick, ...],
+    *,
+    final_pick_owners: Mapping[int, str],
+    team_ids: tuple[str, ...],
+    rules: TradeRules,
+) -> tuple[str, ...]:
     future = tuple(
         pick
         for pick in picks
@@ -223,20 +251,14 @@ def _stepien_rejections(
     years = tuple(sorted({pick.draft_year for pick in future}))
     if len(years) < 2:
         return ()
-    a_out = set(offer.picks_from_a)
-    b_out = set(offer.picks_from_b)
-
-    def final_owner(pick: FutureDraftPickAsset) -> str:
-        if pick.asset_id in a_out:
-            return offer.team_b_id
-        if pick.asset_id in b_out:
-            return offer.team_a_id
-        return pick.owner_team_id
-
     rejected: list[str] = []
-    for team_id in (offer.team_a_id, offer.team_b_id):
+    for team_id in team_ids:
         owns = {
-            year: any(pick.draft_year == year and final_owner(pick) == team_id for pick in future)
+            year: any(
+                pick.draft_year == year
+                and final_pick_owners.get(pick.asset_id, pick.owner_team_id) == team_id
+                for pick in future
+            )
             for year in years
         }
         if any(

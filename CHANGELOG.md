@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.19.0] - 2026-07-26
+
+- Add native three-team offers with explicit player and pick routes.
+- Validate all participant rosters, payrolls, salary matching, ownership, and Stepien safety.
+- Move every routed player contract and draft asset in one atomic state transition.
+- Reuse the white-box per-team evaluator and require unanimous three-manager approval.
+- Add complete routed-offer replay audits without sequential bilateral intermediates.
+
 ## [0.18.0] - 2026-07-26
 
 - Add a deterministic weighted first-round lottery with address-isolated draw records.

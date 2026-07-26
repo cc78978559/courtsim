@@ -121,70 +121,23 @@ def evaluate_trade_shadow(
         ),
     ):
         profile = profiles[team_id]
-        contributions = _trade_contributions(
-            management,
-            player_map,
-            picks,
-            team_id,
-            outgoing_players,
-            incoming_players,
-            outgoing_picks,
-            incoming_picks,
-            profile,
-            contract_rules,
-        )
-        style = _trade_style(
-            player_map,
-            outgoing_players,
-            incoming_players,
-            profile,
-        )
-        trace = evaluate_manager_decision(
+        approval = evaluate_trade_team_approval(
+            management=management,
+            player_map=player_map,
+            picks=picks,
+            team_id=team_id,
+            profile=profile,
+            outgoing_players=outgoing_players,
+            incoming_players=incoming_players,
+            outgoing_picks=outgoing_picks,
+            incoming_picks=incoming_picks,
+            hard_rejections=rejected,
+            contract_rules=contract_rules,
+            manager_rules=manager_rules,
             decision_id=f"trade:{offer.trade_id}:{team_id}:{other_team_id}",
-            candidates=(
-                ManagerCandidate(
-                    "accept",
-                    rejected,
-                    contributions,
-                    style,
-                ),
-                ManagerCandidate(
-                    "reject",
-                    (),
-                    (
-                        DecisionContribution(
-                            "status-quo",
-                            "continuity",
-                            "competence",
-                            0.0,
-                            "retain current assets and contracts",
-                        ),
-                    ),
-                ),
-            ),
-            reasonable_band=manager_rules.reasonable_band,
-            style_contribution_limit=manager_rules.style_contribution_limit,
-            incumbent="reject",
         )
-        accept_candidate = next(
-            candidate for candidate in trace.candidates if candidate.candidate_id == "accept"
-        )
-        rational_gain = accept_candidate.rational_score
-        accepted = (
-            trace.selected == "accept"
-            and rational_gain is not None
-            and rational_gain >= manager_rules.minimum_rational_gain
-        )
-        approvals.append(
-            TradeManagerApproval(
-                team_id,
-                profile.manager_id,
-                accepted,
-                rational_gain,
-                trace,
-            )
-        )
-        ledger = ledger.add(trace=trace, stage="trade", profile=profile)
+        approvals.append(approval)
+        ledger = ledger.add(trace=approval.trace, stage="trade", profile=profile)
     pair = cast(
         tuple[TradeManagerApproval, TradeManagerApproval],
         tuple(approvals),
@@ -196,6 +149,86 @@ def evaluate_trade_shadow(
         rejected,
         pair,
         ledger,
+    )
+
+
+def evaluate_trade_team_approval(
+    *,
+    management: LeagueManagementState,
+    player_map: Mapping[int, CareerPlayer],
+    picks: tuple[TradableDraftPick, ...],
+    team_id: str,
+    profile: ManagerProfile,
+    outgoing_players: tuple[int, ...],
+    incoming_players: tuple[int, ...],
+    outgoing_picks: tuple[int, ...],
+    incoming_picks: tuple[int, ...],
+    hard_rejections: tuple[str, ...],
+    contract_rules: ContractRules,
+    decision_id: str,
+    manager_rules: ManagerTradeRules = DEFAULT_MANAGER_TRADE_RULES,
+) -> TradeManagerApproval:
+    """Evaluate one team's accept/reject choice for any routed trade structure."""
+    contributions = _trade_contributions(
+        management,
+        player_map,
+        picks,
+        team_id,
+        outgoing_players,
+        incoming_players,
+        outgoing_picks,
+        incoming_picks,
+        profile,
+        contract_rules,
+    )
+    style = _trade_style(
+        player_map,
+        outgoing_players,
+        incoming_players,
+        profile,
+    )
+    trace = evaluate_manager_decision(
+        decision_id=decision_id,
+        candidates=(
+            ManagerCandidate(
+                "accept",
+                hard_rejections,
+                contributions,
+                style,
+            ),
+            ManagerCandidate(
+                "reject",
+                (),
+                (
+                    DecisionContribution(
+                        "status-quo",
+                        "continuity",
+                        "competence",
+                        0.0,
+                        "retain current assets and contracts",
+                    ),
+                ),
+            ),
+        ),
+        reasonable_band=manager_rules.reasonable_band,
+        style_contribution_limit=manager_rules.style_contribution_limit,
+        incumbent="reject",
+    )
+    accept_candidate = next(
+        candidate for candidate in trace.candidates if candidate.candidate_id == "accept"
+    )
+    rational_gain = accept_candidate.rational_score
+    accepted = (
+        trace.selected == "accept"
+        and rational_gain is not None
+        and rational_gain >= manager_rules.minimum_rational_gain
+    )
+    return TradeManagerApproval(
+        team_id,
+        profile.manager_id,
+        accepted,
+        rational_gain,
+        trace,
     )
 
 
