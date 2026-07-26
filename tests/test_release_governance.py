@@ -41,6 +41,7 @@ from courtsim.manager_evaluation import (
 from courtsim.manager_experiment import MANAGER_EXPERIMENT_VERSION
 from courtsim.manager_league_adapter import MANAGER_LEAGUE_ADAPTER_VERSION
 from courtsim.manager_learning import MANAGER_LEARNING_VERSION
+from courtsim.manager_objectives import MANAGER_OBJECTIVE_VERSION, ManagerObjective
 from courtsim.manager_rotation import MANAGER_ROTATION_VERSION, ManagerRotationRules
 from courtsim.manager_trade import MANAGER_TRADE_VERSION, ManagerTradeRules
 from courtsim.nba_league import NBA_LEAGUE_VERSION, NBARegularSeasonRules
@@ -85,6 +86,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "career_draft",
         "manager_ai",
         "manager_authority",
+        "manager_objectives",
         "manager_evidence",
         "manager_experiment",
         "manager_league_adapter",
@@ -105,7 +107,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 35
+    assert release["format_version"] == 36
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -344,6 +346,52 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         ManagerDecisionStage.ROTATION,
         ManagerDecisionStage.TACTICS,
     )
+    objective_registry = release["manager_objectives"]
+    assert set(objective_registry) == {
+        "manager_objective_version",
+        "path",
+        "file_sha256",
+    }
+    objective_path = ROOT / objective_registry["path"]
+    objective_config = json.loads(objective_path.read_text(encoding="utf-8"))
+    assert _sha256(objective_path) == objective_registry["file_sha256"]
+    assert objective_registry["manager_objective_version"] == MANAGER_OBJECTIVE_VERSION
+    assert objective_config == {
+        "format_version": 1,
+        "manager_objective_version": MANAGER_OBJECTIVE_VERSION,
+        "objectives": [
+            "contend",
+            "develop",
+            "rebuild",
+            "cap-relief",
+            "balanced",
+        ],
+        "context_signals": [
+            "current-ability",
+            "potential",
+            "average-age",
+            "payroll-bps",
+            "future-firsts",
+        ],
+        "annual_recomputation": True,
+        "original_profile_preserved": True,
+        "effective_profile_bounds": [0, 100],
+        "effective_profile_consumers": [
+            "draft",
+            "free-agency",
+            "trade",
+            "rotation",
+        ],
+        "canonical_score_contributions": True,
+        "automatic_activation": False,
+    }
+    assert tuple(ManagerObjective) == (
+        ManagerObjective.CONTEND,
+        ManagerObjective.DEVELOP,
+        ManagerObjective.REBUILD,
+        ManagerObjective.CAP_RELIEF,
+        ManagerObjective.BALANCED,
+    )
     evidence_registry = release["manager_evidence"]
     assert set(evidence_registry) == {
         "manager_evidence_version",
@@ -414,6 +462,9 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "manager_league_adapter_version": MANAGER_LEAGUE_ADAPTER_VERSION,
         "manager_authority_engine": MANAGER_AUTHORITY_VERSION,
         "manager_authority_receipts": True,
+        "manager_objective_engine": MANAGER_OBJECTIVE_VERSION,
+        "manager_objective_audit": True,
+        "effective_profile_stages": ["draft", "free-agency", "trade", "rotation"],
         "team_count": 4,
         "schedule": "round-robin",
         "paired_common_random_numbers": True,

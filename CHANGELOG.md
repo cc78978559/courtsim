@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.36.0] - 2026-07-26
+
+- Add annual contend, develop, rebuild, cap-relief, and balanced manager objectives.
+- Score objectives from roster ability, potential, age, payroll, future firsts, and personality.
+- Preserve the original manager profile and derive one bounded effective profile.
+- Share the effective profile across draft, free agency, trade, and rotation policies.
+- Audit every objective score contribution and both original and effective profiles.
+
 ## [0.35.0] - 2026-07-26
 
 - Derive a matchup net-efficiency outcome signal from persistent opponent observations.

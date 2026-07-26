@@ -22,6 +22,11 @@ Every execution also emits `manager-authority-v1` receipts for draft, free agenc
 rotation, and tactics. These distinguish isolated Shadow execution from canonical Active
 runtime policy and reject any reported execution that lacks authority.
 
+Before those stages run, `manager-objective-v1` scores contend, develop, rebuild, cap-relief,
+and balanced plans from the current roster, payroll, future firsts, and original manager
+personality. The selected objective produces a bounded effective profile shared by draft,
+free agency, trade, and rotation. Both the original and effective profiles remain in the audit.
+
 State JSON is strict and deterministic. Management snapshots reuse the existing audited
 management serializer. Every experiment arm carries its own returned state into the following
 season.

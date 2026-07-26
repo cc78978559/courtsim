@@ -97,6 +97,11 @@ from courtsim.manager_learning import (
     opponent_tactical_adjustment,
     update_manager_learning,
 )
+from courtsim.manager_objectives import (
+    ManagerObjectiveContext,
+    manager_objective_to_dict,
+    select_manager_objective,
+)
 from courtsim.manager_rotation import (
     ManagerRotationResult,
     ManagerRotationRules,
@@ -341,9 +346,10 @@ class CourtSimManagerLeagueAdapter:
             raise ManagerLeagueAdapterError("league state season does not match experiment request")
         team_ids = tuple(roster.team_id for roster in state.management.rosters)
         cap_rules = cap_rules_for_salary_cap(state.contract_rules.salary_cap)
-        profiles = {profile.team_id: profile for profile in self.manager_profiles}
-        if team_ids != tuple(profiles):
+        base_profiles = {profile.team_id: profile for profile in self.manager_profiles}
+        if team_ids != tuple(base_profiles):
             raise ManagerLeagueAdapterError("league state teams do not match manager profiles")
+        profiles, objective_audit = _manager_objective_profiles(state, base_profiles)
 
         trade_audit: dict[str, object] | None = None
         three_team_audit: dict[str, object] | None = None
@@ -604,6 +610,7 @@ class CourtSimManagerLeagueAdapter:
                 authority_policy,
                 authority_receipts,
             ),
+            "manager_objectives": objective_audit,
             "season": season_result_to_dict(season),
             "playoffs": playoff_result_to_dict(playoffs),
             "postseason_continuity": _postseason_audit(postseason),
@@ -964,6 +971,45 @@ def _advance_manager_learning(
             )
         )
     return tuple(result)
+
+
+def _manager_objective_profiles(
+    state: CourtSimLeagueState,
+    profiles: dict[str, ManagerProfile],
+) -> tuple[dict[str, ManagerProfile], list[dict[str, object]]]:
+    player_map = {player.player_id: player for player in state.players}
+    payrolls: dict[str, int] = defaultdict(int)
+    roster_by_player = {
+        player_id: roster.team_id
+        for roster in state.management.rosters
+        for player_id in roster.player_ids
+    }
+    for contract in state.management.contracts:
+        team_id = roster_by_player.get(contract.player_id)
+        if team_id is not None:
+            payrolls[team_id] += contract.annual_salary
+    effective: dict[str, ManagerProfile] = {}
+    audit: list[dict[str, object]] = []
+    for roster in state.management.rosters:
+        players = tuple(player_map[player_id] for player_id in roster.player_ids)
+        player_count = len(players)
+        context = ManagerObjectiveContext(
+            roster.team_id,
+            round(
+                sum(_ability_mean(player.profile.abilities) for player in players) / player_count
+            ),
+            round(sum(_ability_mean(player.potential) for player in players) / player_count),
+            round(sum(player.age for player in players) / player_count),
+            round(payrolls[roster.team_id] * 10_000 / state.contract_rules.salary_cap),
+            sum(
+                pick.round_number == 1 and pick.owner_team_id == roster.team_id
+                for pick in state.draft_assets.picks
+            ),
+        )
+        decision = select_manager_objective(profiles[roster.team_id], context)
+        effective[roster.team_id] = decision.effective_profile
+        audit.append(manager_objective_to_dict(context, decision))
+    return effective, audit
 
 
 def _opponent_observation(

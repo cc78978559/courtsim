@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "manager_objective_version": "manager-objective-v1",
+  "objectives": [
+    "contend",
+    "develop",
+    "rebuild",
+    "cap-relief",
+    "balanced"
+  ],
+  "context_signals": [
+    "current-ability",
+    "potential",
+    "average-age",
+    "payroll-bps",
+    "future-firsts"
+  ],
+  "annual_recomputation": true,
+  "original_profile_preserved": true,
+  "effective_profile_bounds": [0, 100],
+  "effective_profile_consumers": [
+    "draft",
+    "free-agency",
+    "trade",
+    "rotation"
+  ],
+  "canonical_score_contributions": true,
+  "automatic_activation": false
+}
