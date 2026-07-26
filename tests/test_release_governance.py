@@ -58,6 +58,7 @@ from courtsim.nba_draft_lottery import (
 )
 from courtsim.nba_draft_offseason import NBA_DRAFT_OFFSEASON_VERSION
 from courtsim.nba_league import NBA_LEAGUE_VERSION, NBARegularSeasonRules
+from courtsim.nba_offseason import NBA_OFFSEASON_VERSION
 from courtsim.parameters import load_model_parameters
 from courtsim.playoffs import PLAYOFF_SCHEMA_VERSION, PLAYOFF_VERSION, PlayoffConfig
 from courtsim.prospects import PROSPECT_GENERATION_VERSION, ProspectGenerationRules
@@ -113,6 +114,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "nba_draft_lottery",
         "nba_draft_asset_settlement",
         "nba_draft_offseason",
+        "nba_offseason",
         "three_team_trades",
         "three_team_market",
         "scouting",
@@ -127,7 +129,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 45
+    assert release["format_version"] == 46
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -798,6 +800,43 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "career_draft_metadata_written": True,
         "execution_authority": "explicit-active-entrypoint",
         "atomic_draft_execution": True,
+    }
+    nba_offseason_registry = release["nba_offseason"]
+    assert set(nba_offseason_registry) == {
+        "nba_offseason_version",
+        "path",
+        "file_sha256",
+    }
+    nba_offseason_path = ROOT / nba_offseason_registry["path"]
+    nba_offseason_config = json.loads(nba_offseason_path.read_text(encoding="utf-8"))
+    assert _sha256(nba_offseason_path) == nba_offseason_registry["file_sha256"]
+    assert nba_offseason_registry["nba_offseason_version"] == NBA_OFFSEASON_VERSION
+    assert nba_offseason_config == {
+        "format_version": 1,
+        "nba_offseason_version": NBA_OFFSEASON_VERSION,
+        "career_version": CAREER_VERSION,
+        "retirement_version": RETIREMENT_VERSION,
+        "contract_version": CONTRACT_VERSION,
+        "nba_draft_offseason_version": NBA_DRAFT_OFFSEASON_VERSION,
+        "free_agency_version": FREE_AGENCY_VERSION,
+        "draft_asset_version": DRAFT_ASSET_VERSION,
+        "team_count": 30,
+        "stage_order": [
+            "career-development-retirement",
+            "contract-expiration",
+            "scouting",
+            "manager-draft",
+            "manager-free-agency",
+            "future-pick-reseed",
+        ],
+        "white_box_draft_plan": True,
+        "white_box_market_plan": True,
+        "draft_plan_execution_match": True,
+        "market_plan_execution_match": True,
+        "default_future_pick_horizon": 3,
+        "expired_picks_rejected": True,
+        "deterministic_replay": True,
+        "atomic_offseason_result": True,
     }
     three_team_registry = release["three_team_trades"]
     assert set(three_team_registry) == {

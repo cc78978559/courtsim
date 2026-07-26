@@ -8,7 +8,7 @@ statistics ledger rather than continuous court physics.
 
 ## Current versions
 
-- Engine release candidate: `0.45.0`.
+- Engine release candidate: `0.46.0`.
 - Latest mechanics: schema `demo-v1.12`, parameters `demo-1.4.0`.
 - Frozen realism baseline: `demo-1.4.0`.
 - Game rules: `nba-v1`.
@@ -40,6 +40,7 @@ statistics ledger rather than continuous court physics.
 - Fourteen-team NBA lottery and complete draft order: `nba-draft-lottery-v1`.
 - NBA lottery-aware persistent pick settlement: `nba-draft-asset-settlement-v1`.
 - Thirty-team white-box manager draft execution: `nba-draft-offseason-v1`.
+- Complete thirty-team career and management offseason: `nba-offseason-v1`.
 - Native routed three-team transactions: `three-team-trade-v1`.
 - Automatic cyclic/hub three-team discovery and unified clearing: `three-team-market-v1`.
 - Team-specific hidden-potential scouting: `scouting-v1`.
@@ -102,6 +103,8 @@ promotion.
   obligation rollover, and swap rights while preserving native-pick identity and ownership.
 - Thirty independent manager scouting boards, auditable first-round decisions, pick-owner
   control, atomic selection execution, rookie contracts, and career draft metadata.
+- One deterministic NBA offseason transaction spanning growth, decline, retirement, contract
+  expiry, manager draft, manager free agency, and a renewed three-year future-pick horizon.
 - Native three-team player/pick routing with simultaneous legality, atomic contract and asset
   movement, replay audit, and unanimous three-manager Shadow approval.
 - Deterministic cyclic three-team discovery, bounded future-pick compensation, positive-surplus
@@ -166,7 +169,7 @@ promotion.
 
 - Ruff formatting and lint: passed.
 - mypy strict: passed.
-- pytest: 476 passed; one Windows symlink test skipped when link privileges are absent.
+- pytest: 477 passed; one Windows symlink test skipped when link privileges are absent.
 - Coverage: 85%, meeting the required minimum of 85%.
 - Runtime dependencies: Python standard library only.
 - Frozen `demo-1.4.0` audit: 10 core realism targets, 3 free-throw targets, and

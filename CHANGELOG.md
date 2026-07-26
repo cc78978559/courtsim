@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.46.0] - 2026-07-26
+
+- Add one complete deterministic 30-team offseason transaction.
+- Advance growth, decline, retirement, contract expiration, draft, and free agency in order.
+- Plan draft and market decisions against exact preview state.
+- Require white-box plans to match canonical executed ledgers.
+- Replenish a clean three-year future first-round asset horizon.
+
 ## [0.45.0] - 2026-07-26
 
 - Execute a complete 30-team first round from settled NBA draft assets.

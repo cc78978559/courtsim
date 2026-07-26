@@ -1,0 +1,27 @@
+{
+  "format_version": 1,
+  "nba_offseason_version": "nba-offseason-v1",
+  "career_version": "career-v1",
+  "retirement_version": "retirement-v1",
+  "contract_version": "contract-v1",
+  "nba_draft_offseason_version": "nba-draft-offseason-v1",
+  "free_agency_version": "free-agency-v1",
+  "draft_asset_version": "draft-asset-v1",
+  "team_count": 30,
+  "stage_order": [
+    "career-development-retirement",
+    "contract-expiration",
+    "scouting",
+    "manager-draft",
+    "manager-free-agency",
+    "future-pick-reseed"
+  ],
+  "white_box_draft_plan": true,
+  "white_box_market_plan": true,
+  "draft_plan_execution_match": true,
+  "market_plan_execution_match": true,
+  "default_future_pick_horizon": 3,
+  "expired_picks_rejected": true,
+  "deterministic_replay": true,
+  "atomic_offseason_result": true
+}
