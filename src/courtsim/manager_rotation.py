@@ -16,6 +16,7 @@ from courtsim.manager_ai import (
     ManagerProfile,
     evaluate_manager_decision,
 )
+from courtsim.manager_learning import OpponentRotationAdjustment
 from courtsim.rotations import RotationPlan, RotationStint
 
 MANAGER_ROTATION_VERSION = "manager-rotation-v1"
@@ -108,6 +109,7 @@ def generate_manager_rotation(
     profile: ManagerProfile,
     game_config: GameClockConfig,
     rules: ManagerRotationRules | None = None,
+    opponent_adjustment: OpponentRotationAdjustment | None = None,
 ) -> ManagerRotationResult:
     """Select a rotation and emit clock-addressed stints without mutating the roster."""
     active_rules = rules or ManagerRotationRules()
@@ -127,7 +129,7 @@ def generate_manager_rotation(
     rotation_size = min(len(roster), active_rules.maximum_rotation_players)
     for slot in range(rotation_size):
         candidates = tuple(
-            _rotation_candidate(player, selected, profile)
+            _rotation_candidate(player, selected, profile, opponent_adjustment)
             for player in sorted(remaining.values(), key=lambda item: item.player_id)
         )
         trace = evaluate_manager_decision(
@@ -170,6 +172,7 @@ def _rotation_candidate(
     player: CareerPlayer,
     selected: list[CareerPlayer],
     profile: ManagerProfile,
+    opponent_adjustment: OpponentRotationAdjustment | None,
 ) -> ManagerCandidate:
     abilities = player.profile.abilities
     offense = _group_mean(abilities, _OFFENSE) / 100
@@ -180,12 +183,52 @@ def _rotation_candidate(
     current = _group_mean(abilities, set(_ability_names())) / 100
     ceiling = _group_mean(player.potential, set(_ability_names())) / 100
     upside = max(0.0, ceiling - current)
+    opponent = opponent_adjustment
+    perimeter_defense = (abilities.point_of_attack_defense + abilities.steal_skill) / 200
+    interior_defense = (
+        abilities.post_defense + abilities.rim_protection + abilities.defensive_rebounding
+    ) / 300
     rational = (
         _contribution("offense", offense * 0.34, "current offensive contribution"),
         _contribution("defense", defense * 0.30, "current defensive contribution"),
         _contribution("support", support * 0.14, "screening, rebounding and foul value"),
         _contribution("health", health * 0.12, "availability and injury burden"),
         _contribution("size-fit", fit * 0.10, "rotation size-class balance"),
+        _contribution(
+            "opponent-offense",
+            (
+                offense * opponent.offense_emphasis_bps / 10_000 * 0.12
+                if opponent is not None
+                else 0.0
+            ),
+            "offense emphasis learned from opponent defense",
+            source="opponent-model",
+        ),
+        _contribution(
+            "opponent-defense",
+            (
+                defense * opponent.defense_emphasis_bps / 10_000 * 0.12
+                if opponent is not None
+                else 0.0
+            ),
+            "defense emphasis learned from opponent offense",
+            source="opponent-model",
+        ),
+        _contribution(
+            "opponent-shot-profile",
+            (
+                (
+                    perimeter_defense * opponent.perimeter_defense_emphasis_bps
+                    + interior_defense * opponent.interior_defense_emphasis_bps
+                )
+                / 10_000
+                * 0.10
+                if opponent is not None
+                else 0.0
+            ),
+            "perimeter and interior defense matched to opponent shot profile",
+            source="opponent-model",
+        ),
     )
     style = (
         _contribution(
