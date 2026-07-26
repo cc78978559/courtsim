@@ -68,7 +68,7 @@ def league_state() -> CourtSimLeagueState:
         minimum_salary=1_000_000,
         maximum_salary=5_000_000,
         maximum_years=4,
-        maximum_roster_players=6,
+        maximum_roster_players=10,
     )
     rosters = tuple(
         RosterSnapshot(team_id, tuple(range(index * 5 + 1, index * 5 + 6)))
@@ -147,7 +147,9 @@ def test_adapter_runs_real_season_playoffs_and_offseason_deterministically() -> 
         "playoffs",
         "offseason",
         "manager_decisions",
+        "prospect_class",
     }
+    assert audit["prospect_class"] is None
     assert audit["playoffs"]["champion_team_id"] in TEAM_IDS
     assert len(audit["offseason"]["selections"]) == 4
     following = adapter()(
@@ -158,6 +160,9 @@ def test_adapter_runs_real_season_playoffs_and_offseason_deterministically() -> 
         )
     )
     assert league_state_from_json(following.next_state_payload).management.season_year == 2030
+    following_audit = json.loads(following.audit_payload)
+    assert following_audit["prospect_class"]["draft_year"] == 2030
+    assert len(following_audit["offseason"]["selections"]) == 4
 
 
 def test_shadow_uses_white_box_draft_and_market_ledgers() -> None:

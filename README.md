@@ -151,3 +151,7 @@ every cell and derives the governed evidence report.
 The [`manager-league-adapter-v1` layer](docs/manager-league-adapter-v1.md) connects that runner
 to real CourtSim seasons, sampled playoffs, career transitions, contracts, draft, free agency,
 white-box manager decisions, and complete next-season league state.
+
+The [`prospect-generation-v1` layer](docs/prospect-generation-v1.md) creates identical,
+address-stable annual draft classes for both manager-policy arms, with field-level abilities,
+potential and development traits.

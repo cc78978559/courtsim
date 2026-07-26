@@ -10,6 +10,7 @@
   "draft_engine": "draft-v1",
   "contract_engine": "contract-v1",
   "free_agency_engine": "free-agency-v1",
+  "prospect_engine": "prospect-generation-v1",
   "playoff_safety_tiebreak": "derived-seed-v1",
   "automatic_activation": false
 }

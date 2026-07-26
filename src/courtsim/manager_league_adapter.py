@@ -72,6 +72,11 @@ from courtsim.playoffs import (
     playoff_result_to_dict,
     resolve_playoffs,
 )
+from courtsim.prospects import (
+    ProspectGenerationRules,
+    generate_prospect_class,
+    prospect_class_to_dict,
+)
 from courtsim.randomness import RandomFrame, RandomFrameAddress, derive_seed
 from courtsim.rosters import RosterRules, RosterSnapshot
 from courtsim.rotations import FatigueConfig
@@ -126,6 +131,7 @@ class CourtSimManagerLeagueAdapter:
     fatigue_config: FatigueConfig = field(default_factory=FatigueConfig)
     game_rules: GameRules = field(default_factory=GameRules)
     playoff_config: PlayoffConfig = field(default_factory=lambda: PlayoffConfig(1, (True,)))
+    prospect_rules: ProspectGenerationRules = field(default_factory=ProspectGenerationRules)
     games_per_pair: int = 2
     trace_mode: TraceMode = TraceMode.AGGREGATE_ONLY
     version: str = MANAGER_LEAGUE_ADAPTER_VERSION
@@ -149,6 +155,11 @@ class CourtSimManagerLeagueAdapter:
 
     def __call__(self, request: ManagerSeasonRequest) -> ManagerSeasonExecution:
         state = league_state_from_json(request.state_payload)
+        state, prospect_audit = _ensure_annual_prospects(
+            state,
+            request=request,
+            rules=self.prospect_rules,
+        )
         if (
             not state.contract_rules.minimum_salary
             <= self.draft_rules.rookie_salary
@@ -250,6 +261,7 @@ class CourtSimManagerLeagueAdapter:
             "playoffs": playoff_result_to_dict(playoffs),
             "offseason": offseason_result_to_dict(offseason),
             "manager_decisions": manager_audit,
+            "prospect_class": prospect_audit,
         }
         return ManagerSeasonExecution(
             league_state_to_json(next_state),
@@ -299,6 +311,42 @@ def league_state_from_json(payload: str) -> CourtSimLeagueState:
         if isinstance(error, ManagerLeagueAdapterError):
             raise
         raise ManagerLeagueAdapterError(f"invalid manager league state: {error}") from error
+
+
+def _ensure_annual_prospects(
+    state: CourtSimLeagueState,
+    *,
+    request: ManagerSeasonRequest,
+    rules: ProspectGenerationRules,
+) -> tuple[CourtSimLeagueState, dict[str, object] | None]:
+    prospects = tuple(player for player in state.players if player.status is CareerStatus.PROSPECT)
+    if len(prospects) >= rules.class_size:
+        return state, None
+    if prospects:
+        raise ManagerLeagueAdapterError(
+            "league contains an incomplete prospect class; supply zero or a full class"
+        )
+    templates = tuple(
+        player.profile for player in state.players if player.status is CareerStatus.ACTIVE
+    )
+    generated = generate_prospect_class(
+        draft_year=request.season_year + 1,
+        master_seed=derive_seed(
+            request.master_seed,
+            MANAGER_LEAGUE_ADAPTER_VERSION,
+            request.season_year,
+            "prospect-class",
+        ),
+        templates=templates,
+        existing_player_ids=frozenset(player.player_id for player in state.players),
+        rules=rules,
+    )
+    updated = CourtSimLeagueState(
+        state.contract_rules,
+        state.management,
+        tuple(sorted((*state.players, *generated.players), key=lambda item: item.player_id)),
+    )
+    return updated, prospect_class_to_dict(generated)
 
 
 def _round_robin_schedule(

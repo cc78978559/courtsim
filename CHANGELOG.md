@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.13.0] - 2026-07-26
+
+- Add deterministic annual prospect classes with reserved stable player identities.
+- Generate field-level current abilities, potential ceilings, archetypes, ages, size classes,
+  and development traits from isolated semantic random addresses.
+- Preserve preloaded complete classes, reject ambiguous partial classes, and detect ID collisions.
+- Inject identical annual classes into incumbent/Shadow league experiments and retain their
+  complete audit payload.
+
 ## [0.12.0] - 2026-07-26
 
 - Add a strict, deterministic league-state payload for manager experiments.

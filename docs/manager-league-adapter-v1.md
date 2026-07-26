@@ -22,6 +22,9 @@ State JSON is strict and deterministic. Management snapshots reuse the existing 
 management serializer. Every experiment arm carries its own returned state into the following
 season.
 
+When the state has no waiting prospects, `prospect-generation-v1` adds an identical addressed
+class to both policy arms for the following draft. A supplied complete class is preserved.
+
 ## Season and playoff execution
 
 Version 1 requires exactly four teams. It creates a deterministic round-robin schedule and runs
@@ -71,7 +74,5 @@ These values feed `manager-evidence-v1`; they are not simulation-level overall r
 - Playoff fatigue and injuries do not yet carry between playoff games.
 - Default lineups use the first five roster entries; a manager-driven rotation layer is not yet
   included.
-- New prospect classes must already exist in the league state; procedural annual prospect
-  generation is future work.
 - Trades, lottery/protections, negotiation, scouting uncertainty, and owner objectives remain
   outside the adapter.

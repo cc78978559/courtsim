@@ -1,0 +1,14 @@
+{
+  "format_version": 1,
+  "prospect_generation_version": "prospect-generation-v1",
+  "class_size": 4,
+  "minimum_age": 18,
+  "maximum_age": 21,
+  "minimum_ability": 42,
+  "maximum_ability": 74,
+  "minimum_potential_gain": 6,
+  "maximum_potential_gain": 24,
+  "player_id_base": 10000000,
+  "field_level_potential": true,
+  "addressed_randomness": true
+}

@@ -38,6 +38,7 @@ from courtsim.manager_experiment import MANAGER_EXPERIMENT_VERSION
 from courtsim.manager_league_adapter import MANAGER_LEAGUE_ADAPTER_VERSION
 from courtsim.parameters import load_model_parameters
 from courtsim.playoffs import PLAYOFF_SCHEMA_VERSION, PLAYOFF_VERSION, PlayoffConfig
+from courtsim.prospects import PROSPECT_GENERATION_VERSION, ProspectGenerationRules
 from courtsim.rosters import ROSTER_VERSION, RosterRules
 from courtsim.rotations import FATIGUE_VERSION, ROTATION_VERSION, FatigueConfig
 from courtsim.rules import GameRules
@@ -73,11 +74,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "manager_evidence",
         "manager_experiment",
         "manager_league_adapter",
+        "prospect_generation",
         "model",
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 12
+    assert release["format_version"] == 13
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -339,8 +341,34 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "draft_engine": DRAFT_VERSION,
         "contract_engine": CONTRACT_VERSION,
         "free_agency_engine": FREE_AGENCY_VERSION,
+        "prospect_engine": PROSPECT_GENERATION_VERSION,
         "playoff_safety_tiebreak": "derived-seed-v1",
         "automatic_activation": False,
+    }
+    prospect_registry = release["prospect_generation"]
+    assert set(prospect_registry) == {
+        "prospect_generation_version",
+        "path",
+        "file_sha256",
+    }
+    prospect_path = ROOT / prospect_registry["path"]
+    prospect_config = json.loads(prospect_path.read_text(encoding="utf-8"))
+    assert _sha256(prospect_path) == prospect_registry["file_sha256"]
+    assert prospect_registry["prospect_generation_version"] == PROSPECT_GENERATION_VERSION
+    prospect_rules = ProspectGenerationRules()
+    assert prospect_config == {
+        "format_version": 1,
+        "prospect_generation_version": PROSPECT_GENERATION_VERSION,
+        "class_size": prospect_rules.class_size,
+        "minimum_age": prospect_rules.minimum_age,
+        "maximum_age": prospect_rules.maximum_age,
+        "minimum_ability": prospect_rules.minimum_ability,
+        "maximum_ability": prospect_rules.maximum_ability,
+        "minimum_potential_gain": prospect_rules.minimum_potential_gain,
+        "maximum_potential_gain": prospect_rules.maximum_potential_gain,
+        "player_id_base": prospect_rules.player_id_base,
+        "field_level_potential": True,
+        "addressed_randomness": True,
     }
 
     model = release["model"]
