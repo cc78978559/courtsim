@@ -100,6 +100,11 @@ from courtsim.randomness import RandomFrame, RandomFrameAddress, derive_seed
 from courtsim.rosters import RosterRules, RosterSnapshot
 from courtsim.rotations import FatigueConfig
 from courtsim.rules import GameRules
+from courtsim.scouting import (
+    ScoutingRules,
+    generate_scouting_reports,
+    scouting_reports_to_dict,
+)
 from courtsim.season import (
     ScheduledGame,
     SeasonConfig,
@@ -187,6 +192,7 @@ class CourtSimManagerLeagueAdapter:
     manager_trade_rules: ManagerTradeRules = field(default_factory=ManagerTradeRules)
     trade_market_rules: TradeMarketRules = field(default_factory=TradeMarketRules)
     three_team_market_rules: ThreeTeamMarketRules = field(default_factory=ThreeTeamMarketRules)
+    scouting_rules: ScoutingRules = field(default_factory=ScoutingRules)
     games_per_pair: int = 2
     trace_mode: TraceMode = TraceMode.AGGREGATE_ONLY
     version: str = MANAGER_LEAGUE_ADAPTER_VERSION
@@ -375,6 +381,7 @@ class CourtSimManagerLeagueAdapter:
             master_seed=offseason_seed,
             career_rules=self.career_rules,
             draft_rules=self.draft_rules,
+            scouting_rules=self.scouting_rules,
         )
         if trade_ledger is not None:
             manager_audit["trade"] = trade_ledger
@@ -964,6 +971,7 @@ def _offseason_plans(
     master_seed: int,
     career_rules: CareerRules,
     draft_rules: DraftRules,
+    scouting_rules: ScoutingRules,
 ) -> tuple[DraftPlan, MarketPlan, dict[str, object]]:
     management, players = _transition_preview(
         state,
@@ -973,6 +981,12 @@ def _offseason_plans(
     )
     decision_audit: dict[str, object] = {}
     if arm is ManagerExperimentArm.SHADOW and picks:
+        scouting_reports = generate_scouting_reports(
+            prospects=tuple(player for player in players if player.status is CareerStatus.PROSPECT),
+            scouts={team_id: profile.manager_id for team_id, profile in profiles.items()},
+            master_seed=master_seed,
+            rules=scouting_rules,
+        )
         shadow_draft = generate_draft_shadow(
             management=management,
             players=players,
@@ -980,9 +994,14 @@ def _offseason_plans(
             profiles=profiles,
             contract_rules=state.contract_rules,
             rookie_salary=draft_rules.rookie_salary,
+            scouted_potential={
+                (report.team_id, report.player_id): report.estimated_potential
+                for report in scouting_reports
+            },
         )
         draft_plan = shadow_draft.plan
         decision_audit["draft"] = asdict(shadow_draft.ledger)
+        decision_audit["scouting"] = scouting_reports_to_dict(scouting_reports)
     else:
         draft_plan = _incumbent_draft_plan(picks, players)
     drafted = apply_draft(

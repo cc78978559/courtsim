@@ -326,6 +326,7 @@ def generate_draft_shadow(
     contract_rules: ContractRules,
     rookie_salary: int,
     incumbent: DraftPlan | None = None,
+    scouted_potential: Mapping[tuple[str, int], AbilityRatings] | None = None,
 ) -> DraftShadowResult:
     """Create a deterministic draft plan and audit trail without executing it."""
     if rookie_salary < 1:
@@ -353,6 +354,11 @@ def generate_draft_shadow(
                 team_player_ids=provisional_rosters[pick.owner_team_id],
                 player_map=player_map,
                 salary=rookie_salary,
+                evaluated_potential=(
+                    scouted_potential.get((pick.owner_team_id, player_id))
+                    if scouted_potential is not None
+                    else None
+                ),
                 hard_rejections=_draft_rejections(
                     player_map[player_id],
                     available,
@@ -478,9 +484,10 @@ def _player_candidate(
     player_map: Mapping[int, CareerPlayer],
     salary: int,
     hard_rejections: tuple[str, ...],
+    evaluated_potential: AbilityRatings | None = None,
 ) -> ManagerCandidate:
     ability = _rating_mean(player.profile.abilities) / 100
-    potential = _rating_mean(player.potential) / 100
+    potential = _rating_mean(evaluated_potential or player.potential) / 100
     upside = max(0.0, potential - ability)
     fit = _size_need(player.profile.size_class, team_player_ids, player_map)
     age_value = max(0.0, min(1.0, (34 - player.age) / 16))

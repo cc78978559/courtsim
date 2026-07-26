@@ -196,6 +196,7 @@ def test_shadow_uses_white_box_draft_and_market_ledgers() -> None:
     assert set(shadow_audit["manager_decisions"]) == {
         "draft",
         "market",
+        "scouting",
         "trade",
         "three_team_trade",
     }
