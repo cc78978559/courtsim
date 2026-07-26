@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.43.0] - 2026-07-26
+
+- Add canonical odds for the fourteen-team NBA draft lottery.
+- Draw the first four selections without replacement using addressed randomness.
+- Derive non-playoff and playoff partitions from season and postseason results.
+- Order playoff teams by elimination round and regular-season record.
+- Produce a complete 30-team order ending with the Finals loser and champion.
+
 ## [0.42.0] - 2026-07-26
 
 - Carry regular-season fatigue and unresolved injuries into the 30-team postseason.

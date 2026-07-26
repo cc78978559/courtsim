@@ -1,0 +1,31 @@
+{
+  "format_version": 1,
+  "nba_draft_lottery_version": "nba-draft-lottery-v1",
+  "base_lottery_version": "draft-lottery-v1",
+  "lottery_teams": 14,
+  "playoff_teams": 16,
+  "drawn_slots": 4,
+  "weight_bps": [
+    1400,
+    1400,
+    1400,
+    1250,
+    1050,
+    900,
+    750,
+    600,
+    450,
+    300,
+    200,
+    150,
+    100,
+    50
+  ],
+  "draw_without_replacement": true,
+  "complete_thirty_team_order": true,
+  "non_playoff_order_source": "reverse-regular-season-standing",
+  "playoff_order_primary": "elimination-round",
+  "playoff_order_tiebreak": "reverse-regular-season-standing",
+  "champion_final_pick": true,
+  "addressed_randomness": true
+}

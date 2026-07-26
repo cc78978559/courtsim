@@ -51,6 +51,10 @@ from courtsim.manager_learning import MANAGER_LEARNING_VERSION
 from courtsim.manager_objectives import MANAGER_OBJECTIVE_VERSION, ManagerObjective
 from courtsim.manager_rotation import MANAGER_ROTATION_VERSION, ManagerRotationRules
 from courtsim.manager_trade import MANAGER_TRADE_VERSION, ManagerTradeRules
+from courtsim.nba_draft_lottery import (
+    NBA_DRAFT_LOTTERY_RULES,
+    NBA_DRAFT_LOTTERY_VERSION,
+)
 from courtsim.nba_league import NBA_LEAGUE_VERSION, NBARegularSeasonRules
 from courtsim.parameters import load_model_parameters
 from courtsim.playoffs import PLAYOFF_SCHEMA_VERSION, PLAYOFF_VERSION, PlayoffConfig
@@ -104,6 +108,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "trade_market",
         "draft_assets",
         "draft_lottery",
+        "nba_draft_lottery",
         "three_team_trades",
         "three_team_market",
         "scouting",
@@ -118,7 +123,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 42
+    assert release["format_version"] == 43
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -703,6 +708,32 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "addressed_randomness": True,
         "first_round_only": True,
         "complete_draw_ledger": True,
+    }
+    nba_lottery_registry = release["nba_draft_lottery"]
+    assert set(nba_lottery_registry) == {
+        "nba_draft_lottery_version",
+        "path",
+        "file_sha256",
+    }
+    nba_lottery_path = ROOT / nba_lottery_registry["path"]
+    nba_lottery_config = json.loads(nba_lottery_path.read_text(encoding="utf-8"))
+    assert _sha256(nba_lottery_path) == nba_lottery_registry["file_sha256"]
+    assert nba_lottery_registry["nba_draft_lottery_version"] == NBA_DRAFT_LOTTERY_VERSION
+    assert nba_lottery_config == {
+        "format_version": 1,
+        "nba_draft_lottery_version": NBA_DRAFT_LOTTERY_VERSION,
+        "base_lottery_version": DRAFT_LOTTERY_VERSION,
+        "lottery_teams": 14,
+        "playoff_teams": 16,
+        "drawn_slots": NBA_DRAFT_LOTTERY_RULES.drawn_slots,
+        "weight_bps": list(NBA_DRAFT_LOTTERY_RULES.weight_bps),
+        "draw_without_replacement": True,
+        "complete_thirty_team_order": True,
+        "non_playoff_order_source": "reverse-regular-season-standing",
+        "playoff_order_primary": "elimination-round",
+        "playoff_order_tiebreak": "reverse-regular-season-standing",
+        "champion_final_pick": True,
+        "addressed_randomness": True,
     }
     three_team_registry = release["three_team_trades"]
     assert set(three_team_registry) == {
