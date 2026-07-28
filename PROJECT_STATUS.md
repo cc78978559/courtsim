@@ -203,6 +203,10 @@ Run the complete local gate with:
 
 ## Known gaps
 
+- The 30-team `nba-franchise-v3` loop does not yet automatically schedule bilateral or
+  three-team trade markets, and its checkpoint state does not carry the separate cap ledger.
+  Those systems remain governed, callable manager-league entry points rather than stages of
+  the composed NBA franchise year.
 - Broader offensive vocabulary and stronger player-level usage calibration.
 - Multi-team and player-level real-data calibration beyond the current selected targets.
 - Advanced conditional-pick rules, seven-year Stepien edge cases, four-plus-round and

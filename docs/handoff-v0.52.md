@@ -143,11 +143,12 @@ python -c "import courtsim; print(courtsim.__version__)"
 
 优先级较高的后续工作：
 
-1. franchise checkpoint 的保留、压缩、归档和 schema 迁移；
-2. 更高级的条件选秀权和七年 Stepien 边界；
-3. 四轮以上及合同条件的交易谈判；
-4. 战术与经理学习的因果实验；
-5. 人工批准工作流和玩法/UI 层。
+1. 将双边/三方交易市场和 cap ledger 正式编排并持久化到 30 队 franchise 闭环；
+2. franchise checkpoint 的保留、压缩、归档和 schema 迁移；
+3. 更高级的条件选秀权和七年 Stepien 边界；
+4. 四轮以上及合同条件的交易谈判；
+5. 战术与经理学习的因果实验；
+6. 人工批准工作流和玩法/UI 层。
 
 继续开发时保持本地优先、确定性随机地址、严格治理 JSON、全量门禁和 Draft PR
 工作流。不要直接 force push 或把生成物加入版本控制。
