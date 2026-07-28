@@ -162,6 +162,8 @@ def generate_three_team_market_shadow(
     trade_rules: TradeRules = DEFAULT_TRADE_RULES,
     manager_rules: ManagerTradeRules = DEFAULT_MANAGER_TRADE_RULES,
     market_rules: ThreeTeamMarketRules = DEFAULT_THREE_TEAM_MARKET_RULES,
+    cap_ledger: CapLedger | None = None,
+    cap_rules: CapMechanicsRules | None = None,
 ) -> ThreeTeamMarketShadowResult:
     team_ids = tuple(roster.team_id for roster in management.rosters)
     if set(profiles) != set(team_ids):
@@ -214,6 +216,8 @@ def generate_three_team_market_shadow(
                     contract_rules=contract_rules,
                     trade_rules=trade_rules,
                     manager_rules=manager_rules,
+                    cap_ledger=cap_ledger,
+                    cap_rules=cap_rules,
                 )
                 salary_imbalance = _salary_imbalance(routes, salaries)
                 evaluations.append(
@@ -256,6 +260,8 @@ def generate_three_team_market_shadow(
                         contract_rules=contract_rules,
                         trade_rules=trade_rules,
                         manager_rules=manager_rules,
+                        cap_ledger=cap_ledger,
+                        cap_rules=cap_rules,
                     )
                     evaluations.append(
                         ThreeTeamMarketEvaluation(

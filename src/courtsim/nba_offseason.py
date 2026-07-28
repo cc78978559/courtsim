@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 
+from courtsim.cap_mechanics import CapLedger, CapMechanicsRules
 from courtsim.career import (
     CareerPlayer,
     CareerRules,
@@ -73,6 +74,8 @@ def execute_nba_offseason(
     scouting_rules: ScoutingRules | None = None,
     exposures: Mapping[tuple[str, int], int] | None = None,
     future_pick_horizon: int = 3,
+    cap_ledger: CapLedger | None = None,
+    cap_rules: CapMechanicsRules | None = None,
 ) -> NBAOffseasonExecution:
     active_career_rules = career_rules or CareerRules()
     team_ids = tuple(roster.team_id for roster in management.rosters)
@@ -110,7 +113,12 @@ def execute_nba_offseason(
         tuple(player_id for player_id in management.free_agent_ids if player_id not in retired),
         tuple(contract for contract in management.contracts if contract.player_id not in retired),
     )
-    contract_year = advance_contract_year(after_retirement, contract_rules)
+    maximum_payroll = cap_rules.second_apron if cap_rules is not None else None
+    contract_year = advance_contract_year(
+        after_retirement,
+        contract_rules,
+        maximum_payroll=maximum_payroll,
+    )
     preview_players = _sync_statuses(transition.final_players, contract_year.final_state)
     prospects = tuple(
         player for player in preview_players if player.status is CareerStatus.PROSPECT
@@ -141,6 +149,7 @@ def execute_nba_offseason(
         season_year=draft_year,
         contract_rules=contract_rules,
         draft_rules=draft_rules,
+        maximum_payroll=maximum_payroll,
     )
     market_shadow = generate_market_shadow(
         management=draft_preview.final_management,
@@ -160,6 +169,8 @@ def execute_nba_offseason(
         career_rules=active_career_rules,
         contract_rules=contract_rules,
         draft_rules=draft_rules,
+        cap_ledger=cap_ledger,
+        cap_rules=cap_rules,
     )
     final_assets = seed_future_draft_picks(
         asset_settlement.assets.final_ledger,

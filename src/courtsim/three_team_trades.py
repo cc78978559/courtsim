@@ -416,6 +416,8 @@ def evaluate_three_team_trade_shadow(
     contract_rules: ContractRules,
     trade_rules: TradeRules = DEFAULT_TRADE_RULES,
     manager_rules: ManagerTradeRules = DEFAULT_MANAGER_TRADE_RULES,
+    cap_ledger: CapLedger | None = None,
+    cap_rules: CapMechanicsRules | None = None,
 ) -> ThreeTeamTradeShadowResult:
     if set(profiles) != set(offer.team_ids):
         raise ValueError("three-team profiles must cover every participant exactly")
@@ -430,6 +432,8 @@ def evaluate_three_team_trade_shadow(
         offer,
         contract_rules,
         trade_rules,
+        cap_ledger=cap_ledger,
+        cap_rules=cap_rules,
     )
     approvals: list[TradeManagerApproval] = []
     ledger = ManagerDecisionLedger()

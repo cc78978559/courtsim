@@ -1,6 +1,6 @@
 # CourtSim project status
 
-Status date: 2026-07-26
+Status date: 2026-07-28
 
 CourtSim is a local-first, no-UI basketball game simulator. It uses a layered
 conditional-probability model, deterministic state machines, and an event-sourced
@@ -8,7 +8,7 @@ statistics ledger rather than continuous court physics.
 
 ## Current versions
 
-- Engine release candidate: `0.52.0`.
+- Engine release candidate: `0.53.0`.
 - Latest mechanics: schema `demo-v1.12`, parameters `demo-1.4.0`.
 - Frozen realism baseline: `demo-1.4.0`.
 - Game rules: `nba-v1`.
@@ -41,9 +41,9 @@ statistics ledger rather than continuous court physics.
 - NBA lottery-aware persistent pick settlement: `nba-draft-asset-settlement-v1`.
 - Thirty-team white-box manager draft execution: `nba-draft-offseason-v1`.
 - Complete thirty-team career and management offseason: `nba-offseason-v1`.
-- Complete-season learning-aware thirty-team franchise loop: `nba-franchise-v3`.
-- Atomic hash-verified franchise checkpoints: `nba-franchise-artifact-v1`.
-- Resumable automatic multi-season orchestration: `nba-franchise-runner-v1`.
+- Trade- and cap-aware thirty-team franchise loop: `nba-franchise-v4`.
+- Cap-complete atomic franchise checkpoints: `nba-franchise-artifact-v2`.
+- Cap-continuous resumable multi-season orchestration: `nba-franchise-runner-v2`.
 - Native routed three-team transactions: `three-team-trade-v1`.
 - Automatic cyclic/hub three-team discovery and unified clearing: `three-team-market-v1`.
 - Team-specific hidden-potential scouting: `scouting-v1`.
@@ -188,12 +188,15 @@ promotion.
 
 - Ruff formatting and lint: passed.
 - mypy strict: passed.
-- pytest: 481 passed; one Windows symlink test skipped when link privileges are absent.
+- pytest: 482 passed; one Windows symlink test skipped when link privileges are absent.
 - Coverage: 85%, meeting the required minimum of 85%.
 - Runtime dependencies: Python standard library only.
 - Frozen `demo-1.4.0` audit: 10 core realism targets, 3 free-throw targets, and
   37 regression gates passed.
 - Linux and Windows run the same quality gate in GitHub Actions.
+- Every composed NBA season evaluates bilateral and three-team markets, clears the
+  higher-gain conflict-free plan, rebuilds traded rotations before tipoff, and carries
+  the independent cap ledger and traded draft assets through checkpoints.
 
 Run the complete local gate with:
 
@@ -203,10 +206,6 @@ Run the complete local gate with:
 
 ## Known gaps
 
-- The 30-team `nba-franchise-v3` loop does not yet automatically schedule bilateral or
-  three-team trade markets, and its checkpoint state does not carry the separate cap ledger.
-  Those systems remain governed, callable manager-league entry points rather than stages of
-  the composed NBA franchise year.
 - Broader offensive vocabulary and stronger player-level usage calibration.
 - Multi-team and player-level real-data calibration beyond the current selected targets.
 - Advanced conditional-pick rules, seven-year Stepien edge cases, four-plus-round and

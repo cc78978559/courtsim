@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from typing import cast
 
 from courtsim.analysis.nba_quick_sim_executor import (
@@ -11,9 +11,14 @@ from courtsim.analysis.nba_quick_sim_executor import (
     NBAQuickSimMatchupTeam,
     build_nba_player_season_summaries,
 )
+from courtsim.cap_mechanics import CapLedger, cap_rules_for_salary_cap, expire_cap_ledger
 from courtsim.career import CareerPlayer, CareerStatus, DraftRules
 from courtsim.domain.game import GameClockConfig
-from courtsim.draft_assets import DraftAssetLedger, seed_future_draft_picks
+from courtsim.draft_assets import (
+    DraftAssetLedger,
+    FutureDraftPickAsset,
+    seed_future_draft_picks,
+)
 from courtsim.management import ContractRules, LeagueManagementState
 from courtsim.manager_ai import ManagerProfile
 from courtsim.manager_learning import (
@@ -28,6 +33,7 @@ from courtsim.manager_rotation import (
     ManagerRotationRules,
     generate_manager_rotation,
 )
+from courtsim.manager_trade import ManagerTradeRules
 from courtsim.model.action_setup import TeamDefenseStrategy, TeamOffenseStrategy
 from courtsim.model.game_runtime import GameTeam, TeamTempoStrategy
 from courtsim.model.interaction_compiler import ProfileLineup
@@ -45,8 +51,26 @@ from courtsim.prospects import (
 )
 from courtsim.randomness import derive_seed
 from courtsim.season import SeasonConfig
+from courtsim.three_team_market import (
+    ThreeTeamMarketExecution,
+    ThreeTeamMarketPlan,
+    ThreeTeamMarketRules,
+    ThreeTeamMarketShadowResult,
+    apply_three_team_market_plan,
+    generate_three_team_market_shadow,
+    three_team_shadow_gain,
+)
+from courtsim.trade_market import (
+    TradeMarketExecution,
+    TradeMarketPlan,
+    TradeMarketRules,
+    TradeMarketShadowResult,
+    apply_trade_market_plan,
+    generate_trade_market_shadow,
+)
+from courtsim.trades import TradeRules
 
-NBA_FRANCHISE_VERSION = "nba-franchise-v3"
+NBA_FRANCHISE_VERSION = "nba-franchise-v4"
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +81,7 @@ class NBAFranchiseState:
     draft_assets: DraftAssetLedger
     teams: tuple[GameTeam, ...]
     alignment: NBAConferenceAlignment
+    cap_ledger: CapLedger = field(default_factory=CapLedger)
     completed_seasons: int = 0
     manager_learning: tuple[ManagerLearningState, ...] = ()
     version: str = NBA_FRANCHISE_VERSION
@@ -69,6 +94,10 @@ class NBAFranchiseState:
             raise ValueError("NBA franchise game teams differ from management teams")
         if set((*self.alignment.east_team_ids, *self.alignment.west_team_ids)) != set(team_ids):
             raise ValueError("NBA franchise alignment differs from management teams")
+        if any(item.team_id not in team_ids for item in self.cap_ledger.bird_rights) or any(
+            item.team_id not in team_ids for item in self.cap_ledger.trade_exceptions
+        ):
+            raise ValueError("NBA franchise cap ledger references unknown teams")
         if self.completed_seasons < 0 or self.version != NBA_FRANCHISE_VERSION:
             raise ValueError("NBA franchise state version or season count is invalid")
         learning_team_ids = tuple(item.team_id for item in self.manager_learning)
@@ -90,6 +119,11 @@ class NBAFranchiseSeasonExecution:
     season_id: str
     seed: int
     initial_state: NBAFranchiseState
+    trade_clearing_choice: str
+    bilateral_trade_market: TradeMarketShadowResult
+    bilateral_trade_execution: TradeMarketExecution
+    three_team_trade_market: ThreeTeamMarketShadowResult
+    three_team_trade_execution: ThreeTeamMarketExecution
     simulation: NBAQuickSimExecution
     asset_settlement: NBADraftAssetSettlement
     offseason: NBAOffseasonExecution
@@ -109,6 +143,10 @@ def execute_nba_franchise_season(
     season_config: SeasonConfig | None = None,
     rotation_rules: ManagerRotationRules | None = None,
     prospect_rules: ProspectGenerationRules | None = None,
+    trade_rules: TradeRules | None = None,
+    manager_trade_rules: ManagerTradeRules | None = None,
+    trade_market_rules: TradeMarketRules | None = None,
+    three_team_market_rules: ThreeTeamMarketRules | None = None,
 ) -> NBAFranchiseSeasonExecution:
     team_ids = tuple(roster.team_id for roster in state.management.rosters)
     if set(profiles) != set(team_ids):
@@ -116,6 +154,72 @@ def execute_nba_franchise_season(
     active_prospect_rules = prospect_rules or ProspectGenerationRules(class_size=30)
     if active_prospect_rules.class_size != 30:
         raise ValueError("NBA franchise requires a thirty-player prospect class")
+    active_trade_rules = trade_rules or TradeRules()
+    active_manager_trade_rules = manager_trade_rules or ManagerTradeRules()
+    cap_rules = cap_rules_for_salary_cap(contract_rules.salary_cap)
+    initial_cap_ledger = expire_cap_ledger(
+        state.cap_ledger,
+        season_year=state.management.season_year,
+    )
+    bilateral_shadow = generate_trade_market_shadow(
+        management=state.management,
+        players=state.players,
+        picks=state.draft_assets.picks,
+        profiles=profiles,
+        contract_rules=contract_rules,
+        trade_rules=active_trade_rules,
+        manager_rules=active_manager_trade_rules,
+        market_rules=trade_market_rules or TradeMarketRules(),
+        cap_ledger=initial_cap_ledger,
+        cap_rules=cap_rules,
+    )
+    three_team_shadow = generate_three_team_market_shadow(
+        management=state.management,
+        players=state.players,
+        picks=state.draft_assets.picks,
+        profiles=profiles,
+        contract_rules=contract_rules,
+        trade_rules=active_trade_rules,
+        manager_rules=active_manager_trade_rules,
+        market_rules=three_team_market_rules or ThreeTeamMarketRules(),
+        cap_ledger=initial_cap_ledger,
+        cap_rules=cap_rules,
+    )
+    bilateral_gain = _selected_bilateral_gain(bilateral_shadow)
+    three_team_gain = _selected_three_team_gain(three_team_shadow)
+    choose_three_team = bool(three_team_shadow.plan.offers) and three_team_gain > bilateral_gain
+    bilateral_plan = TradeMarketPlan(()) if choose_three_team else bilateral_shadow.plan
+    three_team_plan = three_team_shadow.plan if choose_three_team else ThreeTeamMarketPlan(())
+    bilateral_execution = apply_trade_market_plan(
+        state.management,
+        state.draft_assets.picks,
+        bilateral_plan,
+        contract_rules,
+        active_trade_rules,
+        cap_ledger=initial_cap_ledger,
+        cap_rules=cap_rules,
+    )
+    three_team_execution = apply_three_team_market_plan(
+        bilateral_execution.final_management,
+        bilateral_execution.final_picks,
+        three_team_plan,
+        contract_rules,
+        active_trade_rules,
+        cap_ledger=bilateral_execution.final_cap_ledger,
+        cap_rules=cap_rules,
+    )
+    traded_management = three_team_execution.final_management
+    traded_assets = replace(
+        state.draft_assets,
+        picks=cast(
+            tuple[FutureDraftPickAsset, ...],
+            three_team_execution.final_picks,
+        ),
+    )
+    traded_cap_ledger = three_team_execution.final_cap_ledger or initial_cap_ledger
+    trade_clearing_choice = (
+        "three-team" if choose_three_team else "bilateral" if bilateral_plan.offers else "none"
+    )
     players = state.players
     prospects = tuple(player for player in players if player.status is CareerStatus.PROSPECT)
     if prospects and len(prospects) != 30:
@@ -134,10 +238,18 @@ def execute_nba_franchise_season(
             sorted((*players, *prospect_class.players), key=lambda item: item.player_id)
         )
     season_id = f"{state.league_id}:season-{state.management.season_year}"
-    matchup_teams = _build_matchup_teams(
-        state.management,
+    preseason_teams = _rebuild_teams(
+        traded_management,
         players,
         state.teams,
+        profiles,
+        game_config,
+        rotation_rules or ManagerRotationRules(),
+    )
+    matchup_teams = _build_matchup_teams(
+        traded_management,
+        players,
+        preseason_teams,
         profiles,
         state.manager_learning,
         game_config,
@@ -146,7 +258,7 @@ def execute_nba_franchise_season(
     simulation = NBAQuickSimExecutor(
         parameters,
         game_config,
-        state.teams,
+        preseason_teams,
         state.alignment,
         matchup_teams=matchup_teams,
         season_config=season_config or SeasonConfig(),
@@ -167,14 +279,14 @@ def execute_nba_franchise_season(
         postseason=simulation.postseason,
     )
     ledger = seed_future_draft_picks(
-        state.draft_assets,
+        traded_assets,
         team_ids=team_ids,
         draft_years=(lottery.draft_year,),
         rounds=draft_rules.rounds,
     )
     asset_settlement = settle_nba_draft_assets(ledger, lottery)
     offseason = execute_nba_offseason(
-        management=state.management,
+        management=traded_management,
         players=players,
         summaries=summaries,
         asset_settlement=asset_settlement,
@@ -182,6 +294,8 @@ def execute_nba_franchise_season(
         contract_rules=contract_rules,
         draft_rules=draft_rules,
         master_seed=derive_seed(seed, NBA_FRANCHISE_VERSION, "offseason"),
+        cap_ledger=traded_cap_ledger,
+        cap_rules=cap_rules,
     )
     next_teams = _rebuild_teams(
         offseason.offseason.final_management,
@@ -198,6 +312,10 @@ def execute_nba_franchise_season(
         draft_assets=offseason.final_draft_assets,
         teams=next_teams,
         alignment=state.alignment,
+        cap_ledger=expire_cap_ledger(
+            traded_cap_ledger,
+            season_year=offseason.offseason.final_management.season_year,
+        ),
         completed_seasons=state.completed_seasons + 1,
         manager_learning=next_learning,
     )
@@ -205,10 +323,33 @@ def execute_nba_franchise_season(
         season_id,
         seed,
         state,
+        trade_clearing_choice,
+        bilateral_shadow,
+        bilateral_execution,
+        three_team_shadow,
+        three_team_execution,
         simulation,
         asset_settlement,
         offseason,
         final_state,
+    )
+
+
+def _selected_bilateral_gain(shadow: TradeMarketShadowResult) -> float:
+    selected = {offer.trade_id for offer in shadow.plan.offers}
+    return sum(
+        sum(approval.rational_gain or 0.0 for approval in evaluation.shadow.approvals)
+        for evaluation in shadow.evaluations
+        if evaluation.shadow.offer.trade_id in selected
+    )
+
+
+def _selected_three_team_gain(shadow: ThreeTeamMarketShadowResult) -> float:
+    selected = {offer.trade_id for offer in shadow.plan.offers}
+    return sum(
+        three_team_shadow_gain(evaluation.shadow)
+        for evaluation in shadow.evaluations
+        if evaluation.shadow.offer.trade_id in selected
     )
 
 

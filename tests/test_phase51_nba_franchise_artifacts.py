@@ -1,9 +1,11 @@
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 from test_phase48_nba_franchise import _state
 
+from courtsim.cap_mechanics import BirdRights, CapLedger, TradeException
 from courtsim.nba_franchise_artifacts import (
     NBAFranchiseArtifactError,
     load_nba_franchise_checkpoint,
@@ -15,6 +17,14 @@ from courtsim.nba_franchise_artifacts import (
 
 def test_franchise_state_json_is_canonical_and_strict() -> None:
     state, _, contract_rules = _state()
+    state = replace(
+        state,
+        cap_ledger=CapLedger(
+            bird_rights=(BirdRights("T01", 1, 3, 1_000_000),),
+            trade_exceptions=(TradeException(1, "T02", 250_000, 2030),),
+            next_exception_id=2,
+        ),
+    )
     payload = nba_franchise_state_to_json(state, contract_rules)
 
     restored, restored_rules = nba_franchise_state_from_json(payload)

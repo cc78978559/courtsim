@@ -5,7 +5,7 @@
 
 ## 当前冻结版本
 
-- 引擎候选版本：`0.52.0`
+- 引擎候选版本：`0.53.0`
 - 模型结构：`data/model_schema_demo_v1_12.json`
 - 模型参数：`data/model_parameters_demo_1.4.0.json`
 - 球员夹具：`examples/calibration_lineup_v1.json`
@@ -16,9 +16,9 @@
 - NBA 核心目标：`experiments/nba-2024-25-regular-season-core-v1.json`
 - NBA 罚球目标：`experiments/nba-2024-25-regular-season-free-throws-v1.json`
 - 30 队快速模拟：`nba-quick-sim-executor-v5`
-- 完整赛季学习循环：`nba-franchise-v3`
-- 原子存档：`nba-franchise-artifact-v1`
-- 多赛季恢复运行器：`nba-franchise-runner-v1`
+- 交易和工资帽完整赛季循环：`nba-franchise-v4`
+- 工资帽完整原子存档：`nba-franchise-artifact-v2`
+- 工资帽连续多赛季恢复运行器：`nba-franchise-runner-v2`
 
 独立种子 `20260728` 的 100 场审计通过 10 项核心目标、3 项罚球目标和
 37 项回归门禁。冻结审计 SHA-256：

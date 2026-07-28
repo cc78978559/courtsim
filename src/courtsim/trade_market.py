@@ -190,6 +190,8 @@ def generate_trade_market_shadow(
     trade_rules: TradeRules = DEFAULT_TRADE_RULES,
     manager_rules: ManagerTradeRules = DEFAULT_MANAGER_TRADE_RULES,
     market_rules: TradeMarketRules = DEFAULT_TRADE_MARKET_RULES,
+    cap_ledger: CapLedger | None = None,
+    cap_rules: CapMechanicsRules | None = None,
 ) -> TradeMarketShadowResult:
     """Generate and independently approve a bounded, deterministic offer market."""
     team_ids = tuple(roster.team_id for roster in management.rosters)
@@ -226,6 +228,8 @@ def generate_trade_market_shadow(
             contract_rules=contract_rules,
             trade_rules=trade_rules,
             manager_rules=manager_rules,
+            cap_ledger=cap_ledger,
+            cap_rules=cap_rules,
         )
         negotiation_id = offer.trade_id if parent_trade_id is None else parent_trade_id
         evaluations.append(
@@ -259,6 +263,8 @@ def generate_trade_market_shadow(
             contract_rules=contract_rules,
             trade_rules=trade_rules,
             manager_rules=manager_rules,
+            cap_ledger=cap_ledger,
+            cap_rules=cap_rules,
         )
         evaluations.append(
             TradeMarketEvaluation(

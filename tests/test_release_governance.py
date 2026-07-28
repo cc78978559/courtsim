@@ -135,7 +135,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 52
+    assert release["format_version"] == 53
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -1192,8 +1192,16 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "prospect_generation_version": PROSPECT_GENERATION_VERSION,
         "manager_rotation_version": MANAGER_ROTATION_VERSION,
         "manager_learning_version": MANAGER_LEARNING_VERSION,
+        "trade_market_version": TRADE_MARKET_VERSION,
+        "three_team_market_version": THREE_TEAM_MARKET_VERSION,
+        "cap_mechanics_version": CAP_MECHANICS_VERSION,
         "team_count": 30,
         "stage_order": [
+            "cap-ledger-expiry",
+            "bilateral-trade-market-evaluation",
+            "three-team-trade-market-evaluation",
+            "trade-market-clearing",
+            "rotation-rebuild",
             "matchup-team-build",
             "regular-season",
             "play-in",
@@ -1223,7 +1231,15 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "composable_next_season_state": True,
         "persistent_manager_learning_integration": True,
         "opponent_specific_rotation_rebuild": True,
-        "disk_resume": False,
+        "bilateral_market_evaluated_each_season": True,
+        "three_team_market_evaluated_each_season": True,
+        "exclusive_gain_based_trade_clearing": True,
+        "cap_aware_trade_evaluation": True,
+        "post_trade_roster_rebuild_before_games": True,
+        "draft_assets_updated_by_trades": True,
+        "cap_ledger_persisted_across_seasons": True,
+        "trade_exceptions_expire_by_season": True,
+        "disk_resume": True,
     }
     nba_franchise_artifact_registry = release["nba_franchise_artifact"]
     assert set(nba_franchise_artifact_registry) == {
@@ -1259,6 +1275,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "management_persisted": True,
         "career_players_persisted": True,
         "draft_assets_persisted": True,
+        "cap_ledger_persisted": True,
         "manager_learning_persisted": True,
         "conference_alignment_persisted": True,
         "game_team_profiles_persisted": True,
@@ -1301,6 +1318,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "all_prefix_state_hashes_verified": True,
         "contract_rules_verified": True,
         "league_identity_verified": True,
+        "cap_ledger_continuity_required": True,
         "execution_state_continuity_required": True,
         "completed_seasons_reexecuted": False,
         "bounded_new_seasons_per_call": True,

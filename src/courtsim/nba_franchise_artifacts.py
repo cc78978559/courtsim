@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Any, cast
 
 from courtsim.artifacts import sha256_file, write_json
-from courtsim.cap_mechanics import CapLedger
 from courtsim.domain.enums import Coverage, PlayFamily
 from courtsim.domain.plans import Lineup
 from courtsim.domain.player import PlayerProfile
@@ -30,7 +29,7 @@ from courtsim.model.interaction_compiler import ProfileLineup
 from courtsim.nba_franchise import NBAFranchiseState
 from courtsim.rotations import RotationPlan, RotationStint
 
-NBA_FRANCHISE_ARTIFACT_VERSION = "nba-franchise-artifact-v1"
+NBA_FRANCHISE_ARTIFACT_VERSION = "nba-franchise-artifact-v2"
 
 
 class NBAFranchiseArtifactError(ValueError):
@@ -87,6 +86,7 @@ def nba_franchise_state_from_json(
             draft_assets=league_state.draft_assets,
             teams=teams,
             alignment=league_state.nba_alignment,
+            cap_ledger=league_state.cap_ledger,
             completed_seasons=_integer(raw, "completed_seasons"),
             manager_learning=league_state.manager_learning,
             version=_string(raw, "version"),
@@ -183,7 +183,7 @@ def _state_to_dict(
         state.management,
         state.players,
         state.draft_assets,
-        CapLedger(),
+        state.cap_ledger,
         state.manager_learning,
         state.alignment,
     )

@@ -360,6 +360,8 @@ class CourtSimManagerLeagueAdapter:
                 trade_rules=self.trade_rules,
                 manager_rules=self.manager_trade_rules,
                 market_rules=self.trade_market_rules,
+                cap_ledger=state.cap_ledger,
+                cap_rules=cap_rules,
             )
             three_team_shadow = generate_three_team_market_shadow(
                 management=state.management,
@@ -370,6 +372,8 @@ class CourtSimManagerLeagueAdapter:
                 trade_rules=self.trade_rules,
                 manager_rules=self.manager_trade_rules,
                 market_rules=self.three_team_market_rules,
+                cap_ledger=state.cap_ledger,
+                cap_rules=cap_rules,
             )
             bilateral_gain = _selected_bilateral_gain(trade_shadow)
             three_team_gain = _selected_three_team_gain(three_team_shadow)

@@ -23,7 +23,7 @@ from courtsim.nba_franchise_artifacts import (
 )
 from courtsim.randomness import derive_seed
 
-NBA_FRANCHISE_RUNNER_VERSION = "nba-franchise-runner-v1"
+NBA_FRANCHISE_RUNNER_VERSION = "nba-franchise-runner-v2"
 NBAFranchiseSeasonExecutor = Callable[
     [NBAFranchiseState, int],
     NBAFranchiseSeasonExecution,
