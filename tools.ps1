@@ -30,7 +30,20 @@ function Invoke-QuietPython {
     $Output = @(& $script:Python @PythonArguments 2>&1)
     $ExitCode = $LASTEXITCODE
     if ($ExitCode -ne 0) {
-        $Output | Write-Output
+        $LogDirectory = Join-Path $PSScriptRoot "work\logs\tooling"
+        New-Item -ItemType Directory -Force -Path $LogDirectory | Out-Null
+        $SafeLabel = $Label -replace "[^A-Za-z0-9_.-]", "-"
+        $LogPath = Join-Path $LogDirectory "${SafeLabel}-latest.log"
+        $Output | Set-Content -LiteralPath $LogPath -Encoding UTF8
+        Write-Output "${Label}: failed (full log: $LogPath)"
+        if ($Output.Count -le 100) {
+            $Output | Write-Output
+        }
+        else {
+            $Output | Select-Object -First 20 | Write-Output
+            Write-Output "... output truncated; showing final 80 lines ..."
+            $Output | Select-Object -Last 80 | Write-Output
+        }
         exit $ExitCode
     }
     Write-Output "${Label}: passed"
@@ -131,11 +144,25 @@ switch ($Command) {
         }
         Write-Output "coverage: $($Coverage[-1])%"
     }
+    "check-static" {
+        Invoke-QuietPython "format" @("-m", "ruff", "format", "--check", ".")
+        Invoke-QuietPython "lint" @("-m", "ruff", "check", ".")
+        Invoke-QuietPython "typecheck" @("-m", "mypy")
+    }
+    "check-unit" {
+        Invoke-QuietPython "unit-tests" @("-m", "pytest", "-q", "-m", "not slow")
+    }
     "check-fast" {
         Invoke-QuietPython "format" @("-m", "ruff", "format", "--check", ".")
         Invoke-QuietPython "lint" @("-m", "ruff", "check", ".")
         Invoke-QuietPython "typecheck" @("-m", "mypy")
-        Invoke-QuietPython "tests" @("-m", "pytest", "-q")
+        Invoke-QuietPython "unit-tests" @("-m", "pytest", "-q", "-m", "not slow")
+    }
+    "check-slow" {
+        Invoke-QuietPython "slow-tests" @("-m", "pytest", "-q", "-m", "slow")
+    }
+    "check-franchise" {
+        Invoke-QuietPython "franchise-tests" @("-m", "pytest", "-q", "-m", "franchise")
     }
     default {
         $CourtSimArguments = @("-m", "courtsim", $Command) + $RemainingArguments

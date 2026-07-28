@@ -1,6 +1,7 @@
 from dataclasses import replace
 from typing import cast
 
+import pytest
 from test_game_runtime import PARAMETERS, player
 from test_phase12_manager_league_adapter import career_player
 
@@ -14,6 +15,8 @@ from courtsim.model.game_runtime import GameTeam
 from courtsim.model.interaction_compiler import ProfileLineup
 from courtsim.nba_league import NBAConferenceAlignment
 from courtsim.season import SeasonConfig
+
+pytestmark = [pytest.mark.slow, pytest.mark.nba]
 
 
 def _teams() -> tuple[GameTeam, ...]:

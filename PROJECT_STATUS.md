@@ -190,12 +190,15 @@ promotion.
   counterfactuals, multi-seed robustness checks, and realism/regression gates.
 - Read-only artifact inventory, hash-verified archive planning, independent archive
   verification and restore, and draft retention-policy regression checks.
+- Layered static/unit/slow/franchise quality gates, bounded failure output with full logs,
+  execution-policy-safe Windows dispatch, compact governance/Git status JSON, and read-only
+  NBA quick-simulation/franchise artifact inspection commands.
 
 ## Validation
 
 - Ruff formatting and lint: passed.
 - mypy strict: passed.
-- pytest: 487 passed; one Windows symlink test skipped when link privileges are absent.
+- pytest: 490 passed; one Windows symlink test skipped when link privileges are absent.
 - Coverage: 85%, meeting the required minimum of 85%.
 - Runtime dependencies: Python standard library only.
 - Frozen `demo-1.4.0` audit: 10 core realism targets, 3 free-throw targets, and
@@ -208,7 +211,7 @@ promotion.
 Run the complete local gate with:
 
 ```powershell
-.\tools.ps1 check
+.\tools.cmd check
 ```
 
 ## Known gaps

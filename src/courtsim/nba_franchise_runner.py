@@ -85,6 +85,21 @@ class NBAFranchiseRunResult:
     version: str = NBA_FRANCHISE_RUNNER_VERSION
 
 
+@dataclass(frozen=True, slots=True)
+class NBAFranchiseRunInspection:
+    run_id: str
+    league_id: str
+    completed_seasons: int
+    target_seasons: int
+    complete: bool
+    retained_checkpoints: int
+    compressed_checkpoints: int
+    pruned_checkpoints: int
+    latest_checkpoint: str
+    manifest_sha256: str
+    version: str = NBA_FRANCHISE_RUNNER_VERSION
+
+
 def run_nba_franchise_checkpoint(
     spec: NBAFranchiseRunSpec,
     initial_state: NBAFranchiseState,
@@ -202,6 +217,145 @@ def run_nba_franchise_checkpoint(
         str(manifest_path.resolve()),
         sha256_file(manifest_path),
     )
+
+
+def inspect_nba_franchise_manifest(
+    manifest_path: str | Path,
+) -> NBAFranchiseRunInspection:
+    path = Path(manifest_path)
+    if not path.is_file():
+        raise NBAFranchiseRunnerError("NBA franchise run manifest must be a file")
+    try:
+        manifest = _migrate_manifest(
+            _object(
+                json.loads(path.read_text(encoding="utf-8")),
+                "NBA franchise run manifest",
+            )
+        )
+        _exact(
+            manifest,
+            {
+                "schema_version",
+                "version",
+                "spec",
+                "league_id",
+                "initial_completed_seasons",
+                "initial_state_sha256",
+                "retention",
+                "checkpoints",
+            },
+            "NBA franchise run manifest",
+        )
+        if (
+            _integer(manifest, "schema_version") != NBA_FRANCHISE_RUNNER_SCHEMA_VERSION
+            or _string(manifest, "version") != NBA_FRANCHISE_RUNNER_VERSION
+        ):
+            raise NBAFranchiseRunnerError("unsupported NBA franchise run manifest")
+        spec = _spec_from_dict(manifest["spec"])
+        league_id = _string(manifest, "league_id")
+        initial_completed = _integer(manifest, "initial_completed_seasons")
+        _string(manifest, "initial_state_sha256")
+        _retention_from_value(manifest["retention"])
+        checkpoints = _list(manifest["checkpoints"], "franchise checkpoints")
+        if not checkpoints or len(checkpoints) > spec.seasons + 1:
+            raise NBAFranchiseRunnerError("franchise checkpoint count is invalid")
+        retained = 0
+        compressed = 0
+        pruned = 0
+        latest_path = ""
+        for index, value in enumerate(checkpoints):
+            checkpoint = _object(value, "franchise checkpoint entry")
+            _exact(
+                checkpoint,
+                {
+                    "completed_seasons",
+                    "seed",
+                    "path",
+                    "state_sha256",
+                    "file_sha256",
+                    "storage",
+                    "seed_version",
+                },
+                "franchise checkpoint entry",
+            )
+            completed = initial_completed + index
+            storage = _string(checkpoint, "storage")
+            checkpoint_name = _string(checkpoint, "path")
+            if (
+                _integer(checkpoint, "completed_seasons") != completed
+                or storage not in {"json", "gzip", "pruned"}
+                or checkpoint_name
+                not in {
+                    _checkpoint_name(completed),
+                    _checkpoint_name(completed, compressed=True),
+                }
+                or (index == 0 and checkpoint["seed"] is not None)
+                or (
+                    index > 0
+                    and _optional_integer(checkpoint, "seed")
+                    != derive_seed(
+                        spec.master_seed,
+                        _string(checkpoint, "seed_version"),
+                        spec.run_id,
+                        completed,
+                    )
+                )
+            ):
+                raise NBAFranchiseRunnerError("franchise run checkpoints are not contiguous")
+            _string(checkpoint, "state_sha256")
+            _string(checkpoint, "file_sha256")
+            if storage == "pruned":
+                pruned += 1
+                continue
+            restored, _, receipt = load_nba_franchise_checkpoint(
+                path.parent / checkpoint_name,
+                expected_file_sha256=_string(checkpoint, "file_sha256"),
+            )
+            if (
+                restored.league_id != league_id
+                or restored.completed_seasons != completed
+                or receipt.state_sha256 != _string(checkpoint, "state_sha256")
+                or (
+                    index == 0 and receipt.state_sha256 != _string(manifest, "initial_state_sha256")
+                )
+                or receipt.compression != ("gzip" if storage == "gzip" else "none")
+            ):
+                raise NBAFranchiseRunnerError("franchise checkpoint differs from its manifest")
+            retained += 1
+            compressed += storage == "gzip"
+            latest_path = checkpoint_name
+        completed_seasons = len(checkpoints) - 1
+        if (
+            not latest_path
+            or _string(
+                _object(checkpoints[-1], "franchise checkpoint entry"),
+                "storage",
+            )
+            == "pruned"
+        ):
+            raise NBAFranchiseRunnerError("latest franchise checkpoint must be retained")
+        return NBAFranchiseRunInspection(
+            spec.run_id,
+            league_id,
+            completed_seasons,
+            spec.seasons,
+            completed_seasons == spec.seasons,
+            retained,
+            compressed,
+            pruned,
+            latest_path,
+            sha256_file(path),
+        )
+    except (
+        NBAFranchiseArtifactError,
+        json.JSONDecodeError,
+        KeyError,
+        TypeError,
+        ValueError,
+    ) as error:
+        if isinstance(error, NBAFranchiseRunnerError):
+            raise
+        raise NBAFranchiseRunnerError(f"invalid NBA franchise run manifest: {error}") from error
 
 
 def _load_verified_prefix(

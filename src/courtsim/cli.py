@@ -5,8 +5,9 @@ import json
 import platform
 import sys
 from collections.abc import Callable
+from dataclasses import asdict
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from courtsim import __version__
 from courtsim.analysis.artifact_archive import (
@@ -64,6 +65,16 @@ from courtsim.analysis.nba_reference import (
     build_nba_team_target_payload,
 )
 from courtsim.analysis.performance import run_model_benchmark
+from courtsim.analysis.quick_sim_batch import (
+    QuickSimBatchError,
+    quick_sim_batch_from_json,
+)
+from courtsim.analysis.quick_sim_comparison import (
+    QuickSimComparisonError,
+    compare_quick_sim_summaries,
+    load_quick_sim_reference,
+    quick_sim_report_to_json,
+)
 from courtsim.analysis.realism_targets import (
     RealismTargetError,
     load_realism_target_set,
@@ -77,6 +88,14 @@ from courtsim.config import ConfigError, load_scenario
 from courtsim.demo import FoundationDemoSimulator
 from courtsim.domain.game import GameClockConfig
 from courtsim.model.trace_mode import TraceMode
+from courtsim.nba_franchise_artifacts import (
+    NBAFranchiseArtifactError,
+    load_nba_franchise_checkpoint,
+)
+from courtsim.nba_franchise_runner import (
+    NBAFranchiseRunnerError,
+    inspect_nba_franchise_manifest,
+)
 from courtsim.parameter_overlay import (
     ParameterOverlayError,
     add_assist_occurrence_effects,
@@ -97,6 +116,7 @@ from courtsim.player_profile_overlay import (
 )
 from courtsim.replay import ReplayError, replay_lines
 from courtsim.runner import run_batch_to_directory, run_to_directory
+from courtsim.tool_status import ProjectStatusError, build_project_status
 from courtsim.verification import VerificationError, verify_manifest
 
 ParameterMigration = Callable[[str | Path, str | Path], dict[str, Any]]
@@ -151,6 +171,40 @@ def _parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser("doctor", help="check the local runtime")
+
+    project_status = subparsers.add_parser(
+        "project-status",
+        help="emit compact release, Git, and tooling readiness JSON",
+    )
+    project_status.add_argument("--root", type=Path, default=Path("."))
+    project_status.add_argument("--pretty", action="store_true")
+
+    quick_sim_status = subparsers.add_parser(
+        "nba-quick-sim-status",
+        help="verify and summarize a quick-simulation checkpoint",
+    )
+    quick_sim_status.add_argument("checkpoint", type=Path)
+
+    quick_sim_compare = subparsers.add_parser(
+        "nba-quick-sim-compare",
+        help="compare a verified quick-simulation checkpoint with a reference",
+    )
+    quick_sim_compare.add_argument("checkpoint", type=Path)
+    quick_sim_compare.add_argument("reference", type=Path)
+    quick_sim_compare.add_argument("--output", type=Path)
+
+    franchise_checkpoint = subparsers.add_parser(
+        "nba-franchise-checkpoint-verify",
+        help="verify and summarize a franchise checkpoint",
+    )
+    franchise_checkpoint.add_argument("checkpoint", type=Path)
+    franchise_checkpoint.add_argument("--expected-file-sha256")
+
+    franchise_status = subparsers.add_parser(
+        "nba-franchise-status",
+        help="verify and summarize a resumable franchise manifest",
+    )
+    franchise_status.add_argument("manifest", type=Path)
 
     validate = subparsers.add_parser("validate", help="validate a scenario JSON file")
     validate.add_argument("scenario", type=Path)
@@ -468,6 +522,82 @@ def main(argv: list[str] | None = None) -> int:
                     },
                     ensure_ascii=False,
                     indent=2,
+                )
+            )
+            return 0
+
+        if arguments.command == "project-status":
+            status_report = build_project_status(arguments.root)
+            print(
+                json.dumps(
+                    status_report,
+                    ensure_ascii=False,
+                    indent=2 if arguments.pretty else None,
+                    sort_keys=True,
+                    separators=None if arguments.pretty else (",", ":"),
+                )
+            )
+            release_status = cast(dict[str, object], status_report["release"])
+            return 0 if release_status["hashes_ok"] is True else 4
+
+        if arguments.command == "nba-quick-sim-status":
+            result = quick_sim_batch_from_json(arguments.checkpoint.read_text(encoding="utf-8"))
+            print(
+                json.dumps(
+                    {
+                        "batch_id": result.spec.batch_id,
+                        "completed_seasons": len(result.cells),
+                        "target_seasons": result.spec.seasons,
+                        "team_count": result.spec.team_count,
+                        "complete": result.complete,
+                        "batch_sha256": result.batch_sha256,
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0
+
+        if arguments.command == "nba-quick-sim-compare":
+            result = quick_sim_batch_from_json(arguments.checkpoint.read_text(encoding="utf-8"))
+            if not result.complete:
+                raise QuickSimBatchError("quick-simulation comparison requires a complete batch")
+            reference = load_quick_sim_reference(arguments.reference.read_text(encoding="utf-8"))
+            comparison_report = compare_quick_sim_summaries(
+                tuple(cell.summary for cell in result.cells),
+                reference,
+            )
+            payload = quick_sim_report_to_json(comparison_report)
+            if arguments.output is None:
+                print(payload)
+            else:
+                write_json(arguments.output, json.loads(payload))
+                print(f"completed: {arguments.output}")
+            return 0 if comparison_report.passed else 14
+
+        if arguments.command == "nba-franchise-checkpoint-verify":
+            state, _, receipt = load_nba_franchise_checkpoint(
+                arguments.checkpoint,
+                expected_file_sha256=arguments.expected_file_sha256,
+            )
+            print(
+                json.dumps(
+                    {
+                        **asdict(receipt),
+                        "management_year": state.management.season_year,
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0
+
+        if arguments.command == "nba-franchise-status":
+            print(
+                json.dumps(
+                    asdict(inspect_nba_franchise_manifest(arguments.manifest)),
+                    separators=(",", ":"),
+                    sort_keys=True,
                 )
             )
             return 0
@@ -883,8 +1013,13 @@ def main(argv: list[str] | None = None) -> int:
         MatrixStyleCoverageError,
         MatrixRobustnessError,
         NbaReferenceError,
+        NBAFranchiseArtifactError,
+        NBAFranchiseRunnerError,
         ParameterOverlayError,
         PlayerProfileOverlayError,
+        ProjectStatusError,
+        QuickSimBatchError,
+        QuickSimComparisonError,
         ReplayError,
         RealismTargetError,
         ShardMergeError,

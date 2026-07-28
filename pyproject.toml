@@ -44,6 +44,11 @@ exclude = ["work", "outputs"]
 [tool.pytest.ini_options]
 addopts = "-ra --strict-config --strict-markers"
 testpaths = ["tests"]
+markers = [
+  "slow: computationally expensive simulation coverage excluded from fast feedback",
+  "nba: complete thirty-team NBA schedule or postseason integration",
+  "franchise: multi-season NBA franchise integration",
+]
 
 [tool.coverage.run]
 branch = true

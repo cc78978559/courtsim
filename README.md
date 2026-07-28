@@ -1,6 +1,8 @@
 # CourtSim
 
-一个本地优先的离散空间篮球模拟器底层工程。当前阶段只提供可复现模拟所需的基础工具，不绑定具体球员、联盟或玩法循环。
+一个本地优先、可复现、可审计的离散篮球模拟器。底层比赛模型之外，当前版本已包含
+30 队 NBA 赛程、play-in、季后赛、休赛期、经理 AI、交易、工资帽和多赛季
+franchise 状态循环；仍不包含最终玩法 UI。
 
 ## 设计约束
 
@@ -16,9 +18,9 @@
 首次准备开发环境：
 
 ```powershell
-.\tools.ps1 bootstrap
-.\tools.ps1 doctor
-.\tools.ps1 check
+.\tools.cmd bootstrap
+.\tools.cmd doctor
+.\tools.cmd check-fast
 ```
 
 `bootstrap`优先使用 `tools/wheelhouse` 的本地安装包，可以在断网环境重建；在 Windows
@@ -28,15 +30,29 @@
 常用模拟命令：
 
 ```powershell
-.\tools.ps1 validate examples/minimal_scenario.json
-.\tools.ps1 demo --seed 20260722 --output work/runs/demo
-.\tools.ps1 batch --master-seed 20260722 --runs 100 --workers 4
-.\tools.ps1 model-benchmark --games 100 --workers 4 --repeats 3
-.\tools.ps1 replay work/runs/demo/events.jsonl --possession 3
-.\tools.ps1 verify work/runs/demo/manifest.json
+.\tools.cmd validate examples/minimal_scenario.json
+.\tools.cmd demo --seed 20260722 --output work/runs/demo
+.\tools.cmd batch --master-seed 20260722 --runs 100 --workers 4
+.\tools.cmd model-benchmark --games 100 --workers 4 --repeats 3
+.\tools.cmd replay work/runs/demo/events.jsonl --possession 3
+.\tools.cmd verify work/runs/demo/manifest.json
 ```
 
-如果本机 PowerShell 禁止执行脚本，可直接使用 `python -m courtsim`，并把 `src` 加入 `PYTHONPATH`；无需修改全局执行策略。
+`tools.cmd` 会为仓库内的 `tools.ps1` 使用进程级执行策略绕过，不修改用户或系统策略。
+非 Windows 环境可直接使用 `python -m courtsim`，并把 `src` 加入 `PYTHONPATH`。
+
+低上下文状态与 NBA 产物检查：
+
+```powershell
+.\tools.cmd project-status
+.\tools.cmd nba-quick-sim-status work/quick-sim/checkpoint.json
+.\tools.cmd nba-quick-sim-compare work/quick-sim/checkpoint.json reference.json
+.\tools.cmd nba-franchise-checkpoint-verify work/franchise/season-00002.json.gz
+.\tools.cmd nba-franchise-status work/franchise/manifest.json
+```
+
+日常修改使用 `check-fast`；阶段冻结和交付前必须运行包含慢速 NBA 集成及覆盖率的
+`.\tools.cmd check`。
 
 如需安装本地命令（不会下载运行时依赖）：
 

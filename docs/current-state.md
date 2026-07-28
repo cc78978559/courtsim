@@ -2,6 +2,7 @@
 
 这是给开发者和外部模型使用的低上下文入口。除非任务涉及历史原因或某个节点的
 详细公式，否则先读本文件，再按下方路由读取少量相关源码或阶段文档。
+跨机器接续使用 `docs/handoff-v0.54.md`，不要继续使用历史 `handoff-v0.52.md`。
 
 ## 当前冻结版本
 
@@ -116,7 +117,11 @@ OFF_BALL_ACTION
 ## 日常验证
 
 ```powershell
-.\tools.ps1 check
+.\tools.cmd project-status
+.\tools.cmd check-static
+.\tools.cmd check-fast
+.\tools.cmd check
+.\tools.cmd check-franchise
 .\tools.ps1 verify work/runs/<run>/manifest.json
 .\tools.ps1 audit-check <audit.json> <regression-gates.json>
 .\tools.ps1 audit-score <audit.json> <realism-targets.json>
@@ -131,7 +136,10 @@ OFF_BALL_ACTION
 .\tools.ps1 model-audit --profile <tested.json> --opponent-profile <baseline.json> ...
 ```
 
-`check` 包含格式、静态检查、严格类型检查、测试和 85% 覆盖率门槛。
+`project-status` 是面向代理和跨机器接续的单行 JSON 入口；它验证冻结治理哈希并
+报告版本、Git 状态和可用能力。`check-fast` 排除显式标记的慢速完整 NBA/franchise
+路径；`check` 包含全部测试和 85% 覆盖率门槛。Windows 优先使用 `tools.cmd`，
+它不会修改系统 PowerShell 执行策略；下方历史命令仍可经 `tools.ps1` 调用。
 大型校准运行不进入默认门禁，参数或概率结构改变后必须手动生成独立种子审计。
 版本轴、人工晋级和回退规则见 `docs/versioning-and-promotion-v1.md`。
 

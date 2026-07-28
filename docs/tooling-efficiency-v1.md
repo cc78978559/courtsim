@@ -3,7 +3,7 @@
 ## 日常反馈路径
 
 ```powershell
-.\tools.ps1 check-fast
+.\tools.cmd check-fast
 ```
 
 `check-fast` 依次执行：
@@ -11,15 +11,31 @@
 1. Ruff 格式检查；
 2. Ruff lint；
 3. mypy strict；
-4. pytest，不采集覆盖率。
+4. 排除 `slow` 标记的 pytest，不采集覆盖率。
 
 成功时每个阶段只输出一行；任一阶段失败时回放该工具的完整诊断并保留退出码。
-当前全套耗时约 12 秒，适合日常修改后运行。
+完整诊断同时写入 `work/logs/tooling/<stage>-latest.log`，控制台最多保留前 20 行和
+末 80 行，避免代理上下文被重复 traceback 占满。2026-07-28 本机实测约 52 秒，
+适合普通修改后的反馈。
+
+更细的入口：
+
+```powershell
+.\tools.cmd check-static
+.\tools.cmd check-unit
+.\tools.cmd check-slow
+.\tools.cmd check-franchise
+```
+
+`check-static` 只运行格式、lint 和严格类型检查；`check-unit` 只运行非慢速测试；
+`check-slow` 运行完整 NBA 集成测试；`check-franchise` 只运行多赛季 franchise
+测试。新增计算密集测试必须显式标记 `slow`，完整 30 队路径还应标记 `nba`，
+多赛季闭环同时标记 `franchise`。
 
 ## 正式门禁
 
 ```powershell
-.\tools.ps1 check
+.\tools.cmd check
 ```
 
 正式门禁继续执行覆盖率采集并保持 `fail_under = 85`。成功输出压缩为：
@@ -32,7 +48,7 @@ tests: passed
 coverage: 86%
 ```
 
-失败时仍输出完整诊断。该命令用于阶段冻结、批量实验前和正式交付前。
+失败时控制台输出摘要并给出完整日志路径。该命令用于阶段冻结、批量实验前和正式交付前。
 
 `coverage` 子命令仍保留完整逐文件报告，供主动调查覆盖缺口时使用。
 
@@ -44,13 +60,28 @@ bootstrap、测试和质量门禁等本地命令，其余命令统一转发给 `
 
 十个参数迁移命令由 `PARAMETER_MIGRATIONS` 注册表统一生成 parser 和执行入口，
 不再各自复制四个位置参数与写入、加载、哈希输出逻辑。CLI 从约 757 行缩减到
-约 681 行，所有既有迁移命令保持兼容。
+统一注册入口，所有既有迁移命令保持兼容。
+
+## 低上下文状态与 NBA 入口
+
+```powershell
+.\tools.cmd project-status
+.\tools.cmd nba-quick-sim-status work/quick-sim/checkpoint.json
+.\tools.cmd nba-quick-sim-compare work/quick-sim/checkpoint.json reference.json
+.\tools.cmd nba-franchise-checkpoint-verify work/franchise/season-00002.json.gz
+.\tools.cmd nba-franchise-status work/franchise/manifest.json
+```
+
+`project-status` 默认输出单行 JSON，验证冻结治理文件哈希并报告版本、Git
+分支/脏状态、上下游距离、能力列表和推荐门禁。加 `--pretty` 才输出多行。
+NBA 状态命令只读取、校验和汇总已有产物，不重新模拟；比较命令拒绝未完成 batch，
+franchise 状态命令验证保留 checkpoint 的文件哈希、状态哈希和连续种子。
 
 ## 只读产物审计
 
 ```powershell
-.\tools.ps1 artifacts-audit work
-.\tools.ps1 artifacts-audit work --largest 20 `
+.\tools.cmd artifacts-audit work
+.\tools.cmd artifacts-audit work --largest 20 `
   --output work/audits/artifact-inventory.json
 ```
 
@@ -72,18 +103,18 @@ bootstrap、测试和质量门禁等本地命令，其余命令统一转发给 `
 归档采用两步式流程：
 
 ```powershell
-.\tools.ps1 artifacts-plan work work/audits/jsonl-plan.json `
+.\tools.cmd artifacts-plan work work/audits/jsonl-plan.json `
   --include **/*.jsonl `
   --exclude runs/current/**
 
-.\tools.ps1 artifacts-archive `
+.\tools.cmd artifacts-archive `
   work/audits/jsonl-plan.json `
   D:\CourtSim-Archives\jsonl-history.zip
 
-.\tools.ps1 artifacts-verify-archive `
+.\tools.cmd artifacts-verify-archive `
   D:\CourtSim-Archives\jsonl-history.zip
 
-.\tools.ps1 artifacts-restore `
+.\tools.cmd artifacts-restore `
   D:\CourtSim-Archives\jsonl-history.zip `
   D:\CourtSim-Restored\jsonl-history
 ```
@@ -119,10 +150,12 @@ CRC、声明大小和逐文件 SHA-256。恢复前先执行同样的完整验证
 
 ## 当前验收
 
-- `check-fast`：约 12.1 秒；
-- `check`：约 26.2 秒；
-- 完整门禁成功输出：5 行；
-- pytest：255 项测试通过；
-- 覆盖率：86%；
+- `check-static`：秒级反馈；
+- `check-fast`：2026-07-28 本机约 52 秒；
+- `check`：包含计算密集的完整 NBA 和 franchise 回归，本机约 8–18 分钟；
+- 快速测试：487 passed、1 skipped、3 slow deselected；
+- 完整门禁：490 passed、1 skipped，共收集 491 项；
+- 覆盖率门槛：85%；
 - mypy strict 和 Ruff：通过；
-- 产物审计：确定性、只读，并有 CLI 测试覆盖。
+- 成功门禁输出保持 3–5 行，失败全文落盘；
+- 产物审计和 NBA 状态入口均为确定性、只读操作。

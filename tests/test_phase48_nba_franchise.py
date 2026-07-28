@@ -1,3 +1,4 @@
+import json
 from dataclasses import replace
 from pathlib import Path
 from typing import cast
@@ -8,6 +9,7 @@ from test_phase12_manager_league_adapter import career_player
 
 from courtsim.cap_mechanics import CapLedger, TradeException
 from courtsim.career import CareerStatus, DraftRules
+from courtsim.cli import main
 from courtsim.domain.game import GameClockConfig
 from courtsim.domain.plans import Lineup
 from courtsim.draft_assets import DraftAssetLedger
@@ -27,6 +29,7 @@ from courtsim.nba_franchise_artifacts import (
 from courtsim.nba_franchise_runner import (
     NBAFranchiseRetentionPolicy,
     NBAFranchiseRunSpec,
+    inspect_nba_franchise_manifest,
     run_nba_franchise_checkpoint,
 )
 from courtsim.nba_league import NBAConferenceAlignment
@@ -35,6 +38,8 @@ from courtsim.rosters import RosterSnapshot
 from courtsim.season import SeasonConfig
 from courtsim.three_team_market import ThreeTeamMarketRules
 from courtsim.trade_market import TradeMarketRules
+
+pytestmark = [pytest.mark.slow, pytest.mark.nba, pytest.mark.franchise]
 
 
 def _state() -> tuple[NBAFranchiseState, dict[str, ManagerProfile], ContractRules]:
@@ -87,6 +92,7 @@ def _state() -> tuple[NBAFranchiseState, dict[str, ManagerProfile], ContractRule
 
 def test_franchise_season_composes_into_a_second_complete_season(
     tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     state, profiles, contract_rules = _state()
     state = replace(
@@ -268,6 +274,16 @@ def test_franchise_season_composes_into_a_second_complete_season(
     assert completed_run.completed_after == 2
     assert completed_run.complete
     assert completed_run.executions == ()
+    inspection = inspect_nba_franchise_manifest(tmp_path / "run" / "manifest.json")
+    assert inspection.run_id == spec.run_id
+    assert inspection.completed_seasons == 2
+    assert inspection.target_seasons == 2
+    assert inspection.complete
+    assert inspection.retained_checkpoints == 2
+    assert inspection.compressed_checkpoints == 1
+    assert inspection.pruned_checkpoints == 1
+    assert main(["nba-franchise-status", str(tmp_path / "run" / "manifest.json")]) == 0
+    assert json.loads(capsys.readouterr().out)["complete"] is True
 
 
 def test_nba_franchise_rejects_nonstandard_prospect_class_size() -> None:

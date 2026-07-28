@@ -6,6 +6,7 @@ import pytest
 from test_phase48_nba_franchise import _state
 
 from courtsim.cap_mechanics import BirdRights, CapLedger, TradeException
+from courtsim.cli import main
 from courtsim.nba_franchise_artifacts import (
     NBAFranchiseArtifactError,
     load_nba_franchise_checkpoint,
@@ -83,3 +84,32 @@ def test_compressed_checkpoint_is_deterministic_and_migrates_v2_state(
     legacy["version"] = "nba-franchise-v4"
     migrated, _ = nba_franchise_state_from_json(json.dumps(legacy))
     assert migrated == state
+
+
+def test_franchise_checkpoint_verification_cli(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    state, _, contract_rules = _state()
+    checkpoint = tmp_path / "franchise.json.gz"
+    receipt = write_nba_franchise_checkpoint(
+        state,
+        contract_rules,
+        checkpoint,
+        compress=True,
+    )
+
+    assert (
+        main(
+            [
+                "nba-franchise-checkpoint-verify",
+                str(checkpoint),
+                "--expected-file-sha256",
+                receipt.file_sha256,
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["compression"] == "gzip"
+    assert payload["completed_seasons"] == state.completed_seasons
