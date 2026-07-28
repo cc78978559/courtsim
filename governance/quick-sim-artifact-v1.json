@@ -1,0 +1,15 @@
+{
+  "format_version": 1,
+  "quick_sim_artifact_version": "quick-sim-artifact-v1",
+  "quick_sim_batch_version": "quick-sim-batch-v1",
+  "quick_sim_comparison_version": "quick-sim-comparison-v1",
+  "checkpoint_write": "atomic-after-every-season",
+  "resume_mode": "verified-contiguous-prefix",
+  "completed_cells_reexecuted": false,
+  "single_writer_required": true,
+  "canonical_checkpoint_json": true,
+  "canonical_reference_json": true,
+  "checkpoint_file_sha256_receipt": true,
+  "reference_file_sha256_receipt": true,
+  "complete_batch_required_for_reference": true
+}

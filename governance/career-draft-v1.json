@@ -1,0 +1,15 @@
+{
+  "format_version": 1,
+  "career_version": "career-v1",
+  "draft_version": "draft-v1",
+  "retirement_version": "retirement-v1",
+  "offseason_schema_version": 1,
+  "minimum_player_age": 18,
+  "minimum_retirement_age": 32,
+  "maximum_player_age": 45,
+  "heavy_injury_days": 30,
+  "low_minutes_per_game": 12,
+  "draft_rounds": 2,
+  "rookie_salary": 1000000,
+  "rookie_contract_years": 2
+}

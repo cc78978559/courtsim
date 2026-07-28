@@ -1,0 +1,21 @@
+{
+  "format_version": 1,
+  "trade_version": "trade-v1",
+  "minimum_roster_players": 5,
+  "salary_matching_threshold": 100000000,
+  "maximum_incoming_salary_bps": 12500,
+  "salary_matching_buffer": 250000,
+  "enforce_stepien_rule": true,
+  "stepien_round_number": 1,
+  "supported_assets": [
+    "player",
+    "draft-pick",
+    "future-draft-pick"
+  ],
+  "contract_follows_player": true,
+  "atomic_state_transition": true,
+  "cap_ledger_aware_entrypoint": true,
+  "trade_exception_creation_and_consumption": true,
+  "tiered_salary_matching": true,
+  "replay_audit_required": true
+}

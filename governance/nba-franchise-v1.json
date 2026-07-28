@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "nba_franchise_version": "nba-franchise-v1",
+  "nba_quick_sim_executor_version": "nba-quick-sim-executor-v3",
+  "nba_draft_lottery_version": "nba-draft-lottery-v1",
+  "nba_draft_asset_settlement_version": "nba-draft-asset-settlement-v1",
+  "nba_offseason_version": "nba-offseason-v1",
+  "prospect_generation_version": "prospect-generation-v1",
+  "manager_rotation_version": "manager-rotation-v1",
+  "team_count": 30,
+  "stage_order": [
+    "regular-season",
+    "play-in",
+    "playoffs",
+    "career-summary",
+    "lottery",
+    "draft-asset-settlement",
+    "offseason",
+    "rotation-rebuild"
+  ],
+  "annual_prospect_class_size": 30,
+  "management_year_increment": 1,
+  "completed_seasons_increment": 1,
+  "roster_identity_rebuilt_from_management": true,
+  "deterministic_addressed_randomness": true,
+  "composable_next_season_state": true,
+  "persistent_manager_learning_integration": false,
+  "opponent_specific_rotation_rebuild": false,
+  "disk_resume": false
+}

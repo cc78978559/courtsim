@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "cap_mechanics_version": "cap-mechanics-v1",
+  "salary_cap": 140000000,
+  "first_apron": 178000000,
+  "second_apron": 189000000,
+  "bird_rights_levels": ["non-bird", "early-bird", "full-bird"],
+  "small_outgoing_threshold": 7500000,
+  "medium_outgoing_threshold": 29000000,
+  "matching_buffer": 250000,
+  "medium_matching_allowance": 7500000,
+  "exception_buffer": 100000,
+  "exception_lifetime_years": 1,
+  "exception_aggregation": false,
+  "atomic_exception_ledger": true,
+  "canonical_transaction_activation": true,
+  "scaled_aprons_for_custom_leagues": true,
+  "league_state_persistence": true,
+  "season_expiry_transition": true
+}

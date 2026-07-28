@@ -1,0 +1,14 @@
+{
+  "format_version": 1,
+  "manager_rotation_version": "manager-rotation-v1",
+  "maximum_rotation_players": 10,
+  "segments_per_period": 4,
+  "reasonable_band": 0.08,
+  "style_contribution_limit": 0.04,
+  "clock_addressed": true,
+  "emergency_substitutes_retained": true,
+  "development_feedback": true,
+  "opponent_model_engine": "manager-learning-v1",
+  "opponent_specific_adjustments": true,
+  "per_game_matchup_resolution": true
+}

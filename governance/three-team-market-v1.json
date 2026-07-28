@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "three_team_market_version": "three-team-market-v1",
+  "three_team_trade_version": "three-team-trade-v1",
+  "maximum_candidates_per_trio": 64,
+  "maximum_cyclic_candidates_per_trio": 32,
+  "maximum_hub_candidates_per_trio": 32,
+  "minimum_combined_rational_gain": 0.001,
+  "search_pick_compensation": true,
+  "maximum_compensation_picks": 2,
+  "maximum_negotiation_rounds": 2,
+  "cyclic_orientations": 2,
+  "hub_team_round_robin": true,
+  "salary_aware_hub_ordering": true,
+  "salary_imbalance_metric": "sum-absolute-net-player-salary",
+  "salary_imbalance_tiebreak": true,
+  "candidate_kinds": [
+    "cyclic",
+    "hub",
+    "pick-compensation",
+    "multi-pick-compensation"
+  ],
+  "stable_candidate_order": true,
+  "team_locking": true,
+  "sequential_cap_ledger_clearing": true,
+  "unified_bilateral_comparison": true,
+  "default_mode": "shadow",
+  "automatic_activation": false
+}

@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "draft_asset_version": "draft-asset-v1",
+  "schema_version": 1,
+  "league_state_schema_version": 4,
+  "future_year_horizon": 3,
+  "supported_protection": "top-n",
+  "protection_rollover": true,
+  "supported_swap": "one-way-better-slot",
+  "stable_asset_identity": true,
+  "original_team_identity_immutable": true,
+  "owner_team_transferable": true
+}

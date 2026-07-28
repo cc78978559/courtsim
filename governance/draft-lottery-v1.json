@@ -1,0 +1,15 @@
+{
+  "format_version": 1,
+  "draft_lottery_version": "draft-lottery-v1",
+  "drawn_slots": 2,
+  "weight_bps": [
+    4000,
+    3000,
+    2000,
+    1000
+  ],
+  "draw_without_replacement": true,
+  "addressed_randomness": true,
+  "first_round_only": true,
+  "complete_draw_ledger": true
+}

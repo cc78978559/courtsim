@@ -1,0 +1,17 @@
+{
+  "format_version": 1,
+  "manager_trade_version": "manager-trade-v1",
+  "trade_version": "trade-v1",
+  "default_mode": "shadow",
+  "reasonable_band": 0.08,
+  "style_contribution_limit": 0.04,
+  "minimum_rational_gain": 0.0,
+  "independent_bilateral_approval": true,
+  "supported_participant_counts": [
+    2,
+    3
+  ],
+  "unanimous_multi_team_approval": true,
+  "automatic_execution": false,
+  "automatic_activation": false
+}

@@ -8,6 +8,7 @@ from dataclasses import dataclass, replace
 from enum import IntEnum
 from typing import Any, NoReturn, cast
 
+from courtsim.cap_mechanics import CapLedger, CapMechanicsRules, evaluate_signing_salary
 from courtsim.domain.serialization import SerializationError
 from courtsim.rosters import RosterSnapshot
 
@@ -183,6 +184,8 @@ def _payrolls(state: LeagueManagementState) -> dict[str, int]:
 def validate_management_state(
     state: LeagueManagementState,
     rules: ContractRules,
+    *,
+    maximum_payroll: int | None = None,
 ) -> None:
     if state.rosters != tuple(sorted(state.rosters, key=lambda item: item.team_id)):
         raise ValueError("rosters must be ordered by team_id")
@@ -214,15 +217,20 @@ def validate_management_state(
             raise ValueError("contract salary is outside configured bounds")
         if contract.years_remaining > rules.maximum_years:
             raise ValueError("contract term exceeds configured maximum")
-    if any(payroll > rules.salary_cap for payroll in _payrolls(state).values()):
+    payroll_ceiling = rules.salary_cap if maximum_payroll is None else maximum_payroll
+    if payroll_ceiling < rules.salary_cap:
+        raise ValueError("maximum payroll cannot be below the contract salary cap")
+    if any(payroll > payroll_ceiling for payroll in _payrolls(state).values()):
         raise ValueError("team payroll exceeds salary cap")
 
 
 def advance_contract_year(
     state: LeagueManagementState,
     rules: ContractRules,
+    *,
+    maximum_payroll: int | None = None,
 ) -> ContractYearResult:
-    validate_management_state(state, rules)
+    validate_management_state(state, rules, maximum_payroll=maximum_payroll)
     expired = tuple(
         contract.player_id for contract in state.contracts if contract.years_remaining == 1
     )
@@ -243,7 +251,7 @@ def advance_contract_year(
             if contract.player_id not in expired_set
         ),
     )
-    validate_management_state(final, rules)
+    validate_management_state(final, rules, maximum_payroll=maximum_payroll)
     return ContractYearResult(state.season_year, final, expired)
 
 
@@ -264,6 +272,9 @@ def _apply_action(
     state: LeagueManagementState,
     action: MarketAction,
     rules: ContractRules,
+    cap_ledger: CapLedger | None = None,
+    cap_rules: CapMechanicsRules | None = None,
+    maximum_payroll: int | None = None,
 ) -> LeagueManagementState:
     owners = _owner_map(state)
     if action.kind is MarketActionKind.WAIVE:
@@ -292,6 +303,18 @@ def _apply_action(
         roster = next(item for item in state.rosters if item.team_id == action.team_id)
         if len(roster.player_ids) >= rules.maximum_roster_players:
             raise ValueError("signing would exceed maximum roster size")
+        if cap_ledger is not None:
+            active_cap_rules = cap_rules or CapMechanicsRules()
+            decision = evaluate_signing_salary(
+                team_id=action.team_id,
+                player_id=action.player_id,
+                team_payroll=_payrolls(state)[action.team_id],
+                annual_salary=action.annual_salary,
+                ledger=cap_ledger,
+                rules=active_cap_rules,
+            )
+            if not decision.allowed:
+                raise ValueError("illegal signing: " + ", ".join(decision.rejections))
         contract = PlayerContract(
             action.player_id,
             action.team_id,
@@ -308,7 +331,13 @@ def _apply_action(
             tuple(player_id for player_id in state.free_agent_ids if player_id != action.player_id),
             tuple(sorted((*state.contracts, contract), key=lambda item: item.player_id)),
         )
-    validate_management_state(updated, rules)
+    validate_management_state(
+        updated,
+        rules,
+        maximum_payroll=(
+            cap_rules.second_apron if cap_ledger is not None and cap_rules else maximum_payroll
+        ),
+    )
     return updated
 
 
@@ -316,21 +345,52 @@ def apply_market_plan(
     state: LeagueManagementState,
     plan: MarketPlan,
     rules: ContractRules,
+    *,
+    cap_ledger: CapLedger | None = None,
+    cap_rules: CapMechanicsRules | None = None,
+    maximum_payroll: int | None = None,
 ) -> MarketResult:
-    validate_management_state(state, rules)
+    if cap_ledger is not None and cap_rules is None:
+        cap_rules = CapMechanicsRules()
+    payroll_ceiling = cap_rules.second_apron if cap_rules is not None else maximum_payroll
+    validate_management_state(
+        state,
+        rules,
+        maximum_payroll=payroll_ceiling,
+    )
     final = state
     for action in plan.actions:
-        final = _apply_action(final, action, rules)
+        final = _apply_action(
+            final,
+            action,
+            rules,
+            cap_ledger,
+            cap_rules,
+            maximum_payroll,
+        )
     return MarketResult(rules, state, plan.actions, final)
 
 
-def audit_market(result: MarketResult) -> ManagementAudit:
-    validate_management_state(result.initial_state, result.rules)
-    validate_management_state(result.final_state, result.rules)
+def audit_market(
+    result: MarketResult,
+    *,
+    maximum_payroll: int | None = None,
+) -> ManagementAudit:
+    validate_management_state(
+        result.initial_state,
+        result.rules,
+        maximum_payroll=maximum_payroll,
+    )
+    validate_management_state(
+        result.final_state,
+        result.rules,
+        maximum_payroll=maximum_payroll,
+    )
     replayed = apply_market_plan(
         result.initial_state,
         MarketPlan(result.actions),
         result.rules,
+        maximum_payroll=maximum_payroll,
     )
     if replayed.final_state != result.final_state:
         raise ValueError("final management state does not derive from action ledger")
@@ -508,7 +568,11 @@ def _state_from_dict(value: object) -> LeagueManagementState:
     )
 
 
-def market_result_from_dict(value: object) -> MarketResult:
+def market_result_from_dict(
+    value: object,
+    *,
+    maximum_payroll: int | None = None,
+) -> MarketResult:
     raw = _object(value, "market result")
     _exact(
         raw,
@@ -574,7 +638,7 @@ def market_result_from_dict(value: object) -> MarketResult:
     if result.version != FREE_AGENCY_VERSION:
         _fail("unsupported market result version")
     try:
-        audit_market(result)
+        audit_market(result, maximum_payroll=maximum_payroll)
     except ValueError as error:
         raise SerializationError(str(error)) from error
     return result

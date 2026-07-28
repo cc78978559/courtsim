@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "three_team_trade_version": "three-team-trade-v1",
+  "trade_version": "trade-v1",
+  "manager_trade_version": "manager-trade-v1",
+  "participant_count": 3,
+  "explicit_asset_routes": true,
+  "supported_assets": [
+    "player",
+    "draft-pick",
+    "future-draft-pick"
+  ],
+  "every_team_sends_and_receives": true,
+  "unanimous_manager_approval": true,
+  "atomic_state_transition": true,
+  "cap_ledger_aware_entrypoint": true,
+  "tiered_salary_matching": true,
+  "replay_audit_required": true,
+  "automatic_market_generation": false
+}

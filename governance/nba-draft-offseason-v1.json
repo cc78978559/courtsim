@@ -1,0 +1,22 @@
+{
+  "format_version": 1,
+  "nba_draft_offseason_version": "nba-draft-offseason-v1",
+  "nba_draft_asset_settlement_version": "nba-draft-asset-settlement-v1",
+  "manager_ai_version": "manager-ai-v1",
+  "scouting_version": "scouting-v1",
+  "draft_version": "draft-v1",
+  "team_count": 30,
+  "required_first_round_picks": 30,
+  "one_manager_profile_per_team": true,
+  "one_scouting_report_per_team_prospect": true,
+  "true_potential_hidden_from_manager": true,
+  "white_box_candidate_contributions": true,
+  "pick_owner_controls_selection": true,
+  "unique_prospect_selection": true,
+  "roster_limit_enforced": true,
+  "payroll_limit_enforced": true,
+  "rookie_contract_created": true,
+  "career_draft_metadata_written": true,
+  "execution_authority": "explicit-active-entrypoint",
+  "atomic_draft_execution": true
+}

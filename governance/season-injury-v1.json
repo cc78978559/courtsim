@@ -8,5 +8,8 @@
     "maximum_days_out": 7,
     "daily_fatigue_recovery": 2500,
     "forfeit_score": 1
-  }
+  },
+  "game_specific_team_resolver": true,
+  "postseason_injury_engine": true,
+  "absolute_calendar_return_dates": true
 }

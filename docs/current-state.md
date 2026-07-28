@@ -5,6 +5,7 @@
 
 ## 当前冻结版本
 
+- 引擎候选版本：`0.52.0`
 - 模型结构：`data/model_schema_demo_v1_12.json`
 - 模型参数：`data/model_parameters_demo_1.4.0.json`
 - 球员夹具：`examples/calibration_lineup_v1.json`
@@ -14,6 +15,10 @@
 - 正式发布清单：`governance/current-release.json`
 - NBA 核心目标：`experiments/nba-2024-25-regular-season-core-v1.json`
 - NBA 罚球目标：`experiments/nba-2024-25-regular-season-free-throws-v1.json`
+- 30 队快速模拟：`nba-quick-sim-executor-v5`
+- 完整赛季学习循环：`nba-franchise-v3`
+- 原子存档：`nba-franchise-artifact-v1`
+- 多赛季恢复运行器：`nba-franchise-runner-v1`
 
 独立种子 `20260728` 的 100 场审计通过 10 项核心目标、3 项罚球目标和
 37 项回归门禁。冻结审计 SHA-256：
@@ -66,6 +71,14 @@ OFF_BALL_ACTION
 | 多种子稳健性审计 | `src/courtsim/analysis/matrix_robustness.py` |
 | 配对种子反事实门禁 | `src/courtsim/analysis/matrix_contrast.py` |
 | 多种子反事实聚合 | `src/courtsim/analysis/matrix_contrast_robustness.py` |
+| 生涯、选秀和休赛期 | `src/courtsim/career.py` |
+| 合同和自由市场 | `src/courtsim/management.py` |
+| 白盒经理 Shadow 决策 | `src/courtsim/manager_ai.py` |
+| 经理反事实证据与发布回滚 | `src/courtsim/manager_evaluation.py` |
+| 可续跑经理实验编排 | `src/courtsim/manager_experiment.py` |
+| 真实联盟经理实验适配 | `src/courtsim/manager_league_adapter.py` |
+| 年度新秀班生成 | `src/courtsim/prospects.py` |
+| 白盒经理轮换和上场时间 | `src/courtsim/manager_rotation.py` |
 | 命令入口 | `src/courtsim/cli.py`、`tools.ps1` |
 
 详细阶段契约按需读取：
@@ -81,7 +94,14 @@ OFF_BALL_ACTION
 - `fixed-opponent-style-validation-v1.md`：主客队独立阵容、球队分侧指标和隔离门禁；
 - `assist-occurrence-v2.md`：潜在传球者如何进入助攻发生概率及 v0.9 冻结；
 - `assist-execution-calibration-v1.md`、`foul-free-throw-calibration-v1.md`：
-  最近两次结构校准。
+  最近两次结构校准；
+- `career-draft-v1.md`：成长、衰退、退休、选秀与休赛期；
+- `manager-ai-v1.md`：经理档案、白盒评分、Shadow 选秀和自由市场建议。
+- `manager-evidence-v1.md`：多赛季配对证据、晋级门禁和策略回滚。
+- `manager-experiment-v1.md`：双臂多赛季编排、续跑和完整性清单。
+- `manager-league-adapter-v1.md`：真实赛季、季后赛和休赛期实验适配。
+- `prospect-generation-v1.md`：稳定身份、逐项能力/潜力和年度选秀输入。
+- `manager-rotation-v1.md`：首发、轮换组、分钟和培养反馈。
 
 ## 必须保持的不变量
 
@@ -147,12 +167,15 @@ OFF_BALL_ACTION
 
 ## 当前边界
 
-尚未实现：
+当前仍未实现的主要边界包括更高级的条件选秀权和七年 Stepien 边界、
+四轮以上及合同条件交易谈判、checkpoint 保留/迁移策略、因果战术实验、
+Shadow 之外的人工批准流程，以及完整玩法 UI。
 
-- 换人、轮换、体力、伤病；
-- 最后两分钟 penalty、进攻犯规、技术犯规；
-- 加时和末节特殊策略；
-- 赛程、交易、成长和经理玩法。
+已经实现的联盟层包括 30 队 1,230 场赛程、play-in、完整季后赛、疲劳和伤病连续、
+乐透与选秀权结算、球探不确定性、球员成长/衰退/退休、完整休赛期、鸟权/工资匹配/
+交易特例、白盒经理交易与轮换、对手级战术、跨赛季经理学习、2K 快速模拟比较入口、
+原子 franchise 存档，以及不重放已完成赛季的多赛季恢复运行器。最新进度和测试数
+以 `PROJECT_STATUS.md` 与 `governance/current-release.json` 为准。
 
 固定对手和球队分侧审计已落地；球队级 `tempo` 已通过 12/15/18 秒有界分布改变
 回合数。v1.9 进一步在末节最后 120 秒按 6 分分差调整节奏：三个种子上落后球权

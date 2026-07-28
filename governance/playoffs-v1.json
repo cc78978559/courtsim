@@ -5,5 +5,12 @@
   "supported_best_of": [1, 3, 5, 7],
   "default_best_of": 7,
   "default_higher_seed_home": [true, true, false, false, true, false, true],
-  "playoff_schema_version": 1
+  "playoff_schema_version": 1,
+  "regular_season_state_continuity": true,
+  "cross_game_fatigue_continuity": true,
+  "cross_game_injury_continuity": true,
+  "postseason_career_feedback": true,
+  "default_postseason_rest_days": 2,
+  "default_game_rest_days": 1,
+  "default_round_rest_days": 2
 }

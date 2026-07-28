@@ -66,7 +66,9 @@ outputs/            需要交付给用户的成品
 `20260728` 的 100 场完整事件审计通过 10 项 NBA 核心目标、3 项罚球目标和
 37 项回归门禁。当前模型已具备离散行动计划、球员感知概率、攻防交互、助攻、
 篮板、失误、投篮与非投篮犯规、球队 bonus、逐次罚球、末节节奏与故意犯规续接。
-它仍是无 UI、无连续坐标的概率比赛模型，尚不包含换人、体力、伤病、加时和赛季管理。
+它仍是无 UI、无连续坐标的概率比赛模型。版本化扩展层已经提供换人、体力、
+伤病、加时、赛季、合同、选秀和季后赛；这些联盟机制不代表球员级真实性已经完成，
+也不应与冻结的比赛概率基线混为一谈。
 
 当前工程进度、验证结果和已知缺口见
 [PROJECT_STATUS.md](PROJECT_STATUS.md)。
@@ -131,3 +133,31 @@ pools, atomic sign/waive plans, and strict management ledgers.
 The [`playoff-v1` layer](docs/playoffs-v1.md) resolves a canonical four-team bracket with
 configurable best-of series and home-court patterns, strict game ordering, deterministic
 advancement, championship facts, JSON round trips, and replay audits.
+
+The [`career-v1 / draft-v1 / retirement-v1` layer](docs/career-draft-v1.md) adds immutable
+career state, field-level growth and decline, deterministic retirement, explicit draft-pick
+ownership, rookie contracts, canonical offseason ordering, strict JSON, and replay audits.
+
+The [`manager-ai-v1` layer](docs/manager-ai-v1.md) adds explainable manager profiles, hard
+legality gates, rational candidate scoring, bounded personality effects, incumbent comparison,
+and non-executing Shadow recommendations for the draft and free-agent market.
+
+The [`manager-evidence-v1` layer](docs/manager-evidence-v1.md) evaluates exact paired,
+multi-season incumbent/Shadow outcomes, blocks sample-count-only promotion, and records
+evidence-gated policy activation, rejection, retirement, and rollback.
+
+The [`manager-experiment-v1` runner](docs/manager-experiment-v1.md) executes or resumes paired
+manager-policy arms across independent seeds and multi-season state chains, then hash-verifies
+every cell and derives the governed evidence report.
+
+The [`manager-league-adapter-v1` layer](docs/manager-league-adapter-v1.md) connects that runner
+to real CourtSim seasons, sampled playoffs, career transitions, contracts, draft, free agency,
+white-box manager decisions, and complete next-season league state.
+
+The [`prospect-generation-v1` layer](docs/prospect-generation-v1.md) creates identical,
+address-stable annual draft classes for both manager-policy arms, with field-level abilities,
+potential and development traits.
+
+The [`manager-rotation-v1` layer](docs/manager-rotation-v1.md) turns manager preferences into
+auditable starters, rotation groups, substitution order and clock-addressed playing time, so
+young-player minutes feed back into career development.

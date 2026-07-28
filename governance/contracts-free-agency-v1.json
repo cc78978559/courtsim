@@ -7,5 +7,8 @@
   "maximum_salary": 60000000,
   "maximum_years": 5,
   "maximum_roster_players": 15,
-  "management_schema_version": 1
+  "management_schema_version": 1,
+  "cap_ledger_aware_entrypoint": true,
+  "bird_rights_over_cap_signing": true,
+  "second_apron_hard_ceiling": true
 }

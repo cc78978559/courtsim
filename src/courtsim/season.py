@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from typing import Any, NoReturn, cast
 
@@ -451,7 +451,7 @@ def _filled_lineup(target: Lineup, available_order: tuple[int, ...]) -> Lineup:
     return cast(Lineup, tuple(selected[:5]))
 
 
-def _available_team(team: GameTeam, unavailable: frozenset[int]) -> GameTeam | None:
+def available_game_team(team: GameTeam, unavailable: frozenset[int]) -> GameTeam | None:
     available_order = tuple(
         player_id for player_id in team.roster_order if player_id not in unavailable
     )
@@ -521,6 +521,13 @@ def sample_season(
     transaction_plan: TransferPlan | None = None,
     roster_rules: RosterRules | None = None,
     trace_mode: TraceMode = TraceMode.FULL,
+    team_resolver: (
+        Callable[
+            [ScheduledGame, Mapping[str, GameTeam]],
+            tuple[GameTeam, GameTeam],
+        ]
+        | None
+    ) = None,
 ) -> SeasonResult:
     season_config = season_config or SeasonConfig()
     roster_rules = roster_rules or RosterRules()
@@ -561,8 +568,20 @@ def sample_season(
             )
             applied_transfers.append(transfer)
             transfer_index += 1
-        original_home = team_map[scheduled.home_team_id]
-        original_away = team_map[scheduled.away_team_id]
+        if team_resolver is None:
+            original_home = team_map[scheduled.home_team_id]
+            original_away = team_map[scheduled.away_team_id]
+        else:
+            original_home, original_away = team_resolver(scheduled, team_map)
+            if (
+                original_home.team_id != scheduled.home_team_id
+                or original_away.team_id != scheduled.away_team_id
+                or set(original_home.roster_order)
+                != set(team_map[scheduled.home_team_id].roster_order)
+                or set(original_away.roster_order)
+                != set(team_map[scheduled.away_team_id].roster_order)
+            ):
+                raise ValueError("resolved game teams must preserve scheduled identity and roster")
         for team in (original_home, original_away):
             for player_id in team.roster_order:
                 rest_days = max(
@@ -594,8 +613,8 @@ def sample_season(
             for player_id in original_away.roster_order
             if scheduled.day < states[(original_away.team_id, player_id)].unavailable_until_day
         )
-        home = _available_team(original_home, frozenset(home_unavailable))
-        away = _available_team(original_away, frozenset(away_unavailable))
+        home = available_game_team(original_home, frozenset(home_unavailable))
+        away = available_game_team(original_away, frozenset(away_unavailable))
         game_participants: tuple[int, ...] = ()
         if home is None or away is None:
             if home is None and away is not None:

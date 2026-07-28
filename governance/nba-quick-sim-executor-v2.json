@@ -1,0 +1,33 @@
+{
+  "format_version": 1,
+  "nba_quick_sim_executor_version": "nba-quick-sim-executor-v2",
+  "quick_sim_comparison_version": "quick-sim-comparison-v1",
+  "nba_league_version": "nba-league-v1",
+  "team_count": 30,
+  "regular_season_games": 1230,
+  "games_per_team": 82,
+  "play_in_games_per_conference": 3,
+  "playoff_teams": 16,
+  "playoff_series": 15,
+  "series_best_of": 7,
+  "regular_season_engine": "canonical-season-state-machine",
+  "game_engine": "canonical-possession-runtime",
+  "default_trace_mode": "aggregate-only",
+  "conference_seed_order": [
+    "wins-plus-half-ties",
+    "point-differential",
+    "team-id"
+  ],
+  "postseason_decisive_retry_limit": 100,
+  "deterministic_addressed_randomness": true,
+  "league_unique_player_ids": true,
+  "postseason_fatigue_continuity": true,
+  "postseason_injury_continuity": true,
+  "postseason_new_injuries": true,
+  "default_postseason_rest_days": 2,
+  "default_game_rest_days": 1,
+  "default_round_rest_days": 2,
+  "postseason_game_availability_ledger": true,
+  "postseason_initial_final_state_audit": true,
+  "deterministic_forfeit_resolution": true
+}

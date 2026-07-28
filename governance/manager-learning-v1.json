@@ -1,0 +1,39 @@
+{
+  "format_version": 1,
+  "manager_learning_version": "manager-learning-v1",
+  "cross_season_memory": true,
+  "observation_weight": "games-observed",
+  "observation_source": "canonical-game-event-ledger",
+  "strength_normalization": "points-per-100-possessions",
+  "pace_normalization": "clock-config-neutral-possessions",
+  "shot_profile_source": "shot-segment-zone",
+  "empty_shot_profile_fallback": 50,
+  "tracked_opponent_dimensions": [
+    "offense-strength",
+    "defense-strength",
+    "pace",
+    "three-point-rate",
+    "rim-rate"
+  ],
+  "maximum_adjustment_bps": 2500,
+  "rotation_integration": true,
+  "tactical_integration": [
+    "play-family-logit-bias",
+    "coverage-logit-bias",
+    "tempo"
+  ],
+  "tactical_confidence_full_games": 8,
+  "maximum_tactical_logit_bias": 0.75,
+  "maximum_tempo_delta": 15,
+  "tactical_outcome_signal": "matchup-net-rating",
+  "tactical_outcome_causal_claim": false,
+  "minimum_response_multiplier_bps": 7500,
+  "maximum_response_multiplier_bps": 12500,
+  "style_direction_separate_from_outcome_intensity": true,
+  "regular_season_tactics": true,
+  "postseason_tactics": true,
+  "white_box_contributions": true,
+  "league_state_persistence": true,
+  "automatic_season_observations": true,
+  "automatic_activation": false
+}

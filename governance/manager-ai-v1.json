@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "manager_ai_version": "manager-ai-v1",
+  "default_mode": "shadow",
+  "reasonable_band": 0.08,
+  "style_contribution_limit": 0.04,
+  "supported_stages": [
+    "draft",
+    "market"
+  ]
+}
