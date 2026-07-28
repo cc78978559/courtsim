@@ -8,7 +8,7 @@ statistics ledger rather than continuous court physics.
 
 ## Current versions
 
-- Engine release candidate: `0.53.0`.
+- Engine release candidate: `0.54.0`.
 - Latest mechanics: schema `demo-v1.12`, parameters `demo-1.4.0`.
 - Frozen realism baseline: `demo-1.4.0`.
 - Game rules: `nba-v1`.
@@ -33,17 +33,17 @@ statistics ledger rather than continuous court physics.
 - Real season/playoff/offseason experiment adapter: `manager-league-adapter-v1`.
 - Annual deterministic draft classes: `prospect-generation-v1`.
 - White-box manager lineups and playing time: `manager-rotation-v1`.
-- Atomic bilateral trades and white-box approval: `trade-v1 / manager-trade-v1`.
-- Deterministic offer generation and conflict-free clearing: `trade-market-v1`.
-- Persistent future picks, protections, and swap rights: `draft-asset-v1`.
+- Atomic bilateral trades and white-box approval: `trade-v2 / manager-trade-v1`.
+- Deterministic offer generation and conflict-free clearing: `trade-market-v2`.
+- Persistent future picks, ranged conditions, conversion, and swap rights: `draft-asset-v2`.
 - Weighted first-round lottery and Stepien safety: `draft-lottery-v1`.
 - Fourteen-team NBA lottery and complete draft order: `nba-draft-lottery-v1`.
 - NBA lottery-aware persistent pick settlement: `nba-draft-asset-settlement-v1`.
 - Thirty-team white-box manager draft execution: `nba-draft-offseason-v1`.
 - Complete thirty-team career and management offseason: `nba-offseason-v1`.
-- Trade- and cap-aware thirty-team franchise loop: `nba-franchise-v4`.
-- Cap-complete atomic franchise checkpoints: `nba-franchise-artifact-v2`.
-- Cap-continuous resumable multi-season orchestration: `nba-franchise-runner-v2`.
+- Trade- and cap-aware thirty-team franchise loop: `nba-franchise-v5`.
+- Compressed, migratable atomic franchise checkpoints: `nba-franchise-artifact-v3`.
+- Retention-aware resumable multi-season orchestration: `nba-franchise-runner-v3`.
 - Native routed three-team transactions: `three-team-trade-v1`.
 - Automatic cyclic/hub three-team discovery and unified clearing: `three-team-market-v1`.
 - Team-specific hidden-potential scouting: `scouting-v1`.
@@ -94,12 +94,17 @@ promotion.
   replay gates, plus independent bilateral manager approval in Shadow mode.
 - Deterministic direct/counteroffer generation, positive-surplus ranking, asset locking, and
   preseason Shadow-market execution inside real multi-season manager experiments.
-- Bounded three-round bilateral negotiation trees with parent offers, additional-pick final
-  counters, repeated white-box approval, and explicit accepted/round-limit/no-counter outcomes.
+- Bounded bilateral negotiation trees supporting four through eight rounds, parent offers,
+  pick counters, binding contract-condition counters, repeated white-box approval, and
+  explicit accepted/round-limit/no-counter outcomes.
 - Stable future-pick ownership across seasons, top-N protection and deferral, one-way
   better-slot swaps, and standings-addressed annual settlement into the draft.
+- Ordered, non-overlapping pick-position conditions that defer, convert to a later-round
+  obligation, or return the pick to its native team, with legacy draft-asset migration.
 - Addressed weighted lottery draws, round-specific order settlement, consecutive-future-first
   trade safety, and bounded two-for-one white-box trade packages.
+- Complete seven-year NBA franchise pick seeding and conservative Stepien validation, where
+  conditional incoming firsts cannot hide a guaranteed consecutive first-round gap.
 - NBA-accurate 14-team lottery odds with four drawn selections and a complete 30-team order
   derived from non-playoff records, postseason elimination rounds, Finals loser, and champion.
 - Atomic application of the final NBA order to traded future picks, top-N protection,
@@ -168,6 +173,8 @@ promotion.
 - Stable-seed multi-season franchise runs with a fully verified contiguous checkpoint prefix,
   per-call work budgets, crash-safe state-before-manifest ordering, zero completed-season
   replay, and completed-run no-op behavior.
+- Deterministic gzip franchise checkpoints with initial/latest/periodic retention anchors,
+  pruned-file metadata continuity, and read-time migration from artifact and runner schema 1.
 - League-state schema 4 persistence for Bird rights, trade exceptions, manager opponent memory,
   and optional 30-team conference/division alignment, with deterministic schema 1/2/3 migration.
 - Roster-safe per-game team resolution and opponent-specific white-box rotations throughout
@@ -188,7 +195,7 @@ promotion.
 
 - Ruff formatting and lint: passed.
 - mypy strict: passed.
-- pytest: 482 passed; one Windows symlink test skipped when link privileges are absent.
+- pytest: 487 passed; one Windows symlink test skipped when link privileges are absent.
 - Coverage: 85%, meeting the required minimum of 85%.
 - Runtime dependencies: Python standard library only.
 - Frozen `demo-1.4.0` audit: 10 core realism targets, 3 free-throw targets, and
@@ -208,9 +215,9 @@ Run the complete local gate with:
 
 - Broader offensive vocabulary and stronger player-level usage calibration.
 - Multi-team and player-level real-data calibration beyond the current selected targets.
-- Advanced conditional-pick rules, seven-year Stepien edge cases, four-plus-round and
-  contract-dependent negotiation, checkpoint retention and schema migrations, causal tactical
-  experiments, human-approved promotion beyond Shadow mode, and fantasy-manager gameplay.
+- Pick freezes, more complex multi-obligation protections, conditional negotiation in the
+  three-team market, causal tactical experiments, human-approved promotion beyond Shadow
+  mode, and fantasy-manager gameplay.
 
 ## Repository boundary
 

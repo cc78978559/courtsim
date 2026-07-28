@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from test_phase15_trades import (
     contract_rules,
     league_players,
@@ -6,6 +8,7 @@ from test_phase15_trades import (
 
 from courtsim.draft_assets import (
     DraftAssetLedger,
+    DraftPickCondition,
     FutureDraftPickAsset,
     seed_future_draft_picks,
     settle_draft_assets,
@@ -69,6 +72,17 @@ def future_ledger() -> tuple[FutureDraftPickAsset, ...]:
         FutureDraftPickAsset(5, 2031, 1, "home", "home"),
         FutureDraftPickAsset(6, 2031, 1, "away", "away"),
         FutureDraftPickAsset(7, 2029, 2, "away", "away"),
+        *tuple(
+            FutureDraftPickAsset(
+                8 + offset * 2 + team_offset,
+                year,
+                1,
+                team,
+                team,
+            )
+            for offset, year in enumerate(range(2032, 2036))
+            for team_offset, team in enumerate(("home", "away"))
+        ),
     )
 
 
@@ -117,6 +131,35 @@ def test_stepien_rule_allows_trade_when_team_retains_another_first() -> None:
     assert not any(reason.startswith("stepien-") for reason in rejected)
 
 
+def test_stepien_requires_complete_seven_year_horizon_when_governed() -> None:
+    rejected = trade_rejections(
+        management(),
+        future_ledger()[:7],
+        TradeOffer(32, "home", "away", picks_from_a=(1,), picks_from_b=(7,)),
+        contract_rules(),
+        TradeRules(require_complete_stepien_horizon=True),
+    )
+    assert rejected == ("stepien-incomplete-seven-year-horizon",)
+
+
+def test_conditional_incoming_first_does_not_mask_consecutive_gap() -> None:
+    values = list(future_ledger())
+    values[3] = replace(
+        values[3],
+        owner_team_id="home",
+        deferrals_remaining=1,
+        conditions=(DraftPickCondition(1, 4, "defer"),),
+    )
+    rejected = trade_rejections(
+        management(),
+        tuple(values),
+        TradeOffer(33, "home", "away", picks_from_a=(1,), picks_from_b=(7,)),
+        contract_rules(),
+        TradeRules(require_complete_stepien_horizon=True),
+    )
+    assert "stepien-consecutive-firsts:home" in rejected
+
+
 def test_market_generates_bounded_two_for_one_packages() -> None:
     result = generate_trade_market_shadow(
         management=management(salary_a=5_000_000, salary_b=5_000_000),
@@ -132,7 +175,7 @@ def test_market_generates_bounded_two_for_one_packages() -> None:
         evaluation for evaluation in result.evaluations if evaluation.kind == "multi-player"
     ]
     assert packages
-    assert len(result.evaluations) <= 96
+    assert len(result.evaluations) <= 128
     assert all(
         len(evaluation.shadow.offer.players_from_a) + len(evaluation.shadow.offer.players_from_b)
         == 3

@@ -25,6 +25,7 @@ from courtsim.manager_trade import (
 from courtsim.trades import (
     DEFAULT_TRADE_RULES,
     TRADE_VERSION,
+    ContractTradeCondition,
     TradeAudit,
     TradeOffer,
     TradeRules,
@@ -32,20 +33,23 @@ from courtsim.trades import (
     audit_trade,
 )
 
-TRADE_MARKET_VERSION = "trade-market-v1"
+TRADE_MARKET_VERSION = "trade-market-v2"
+MAXIMUM_SUPPORTED_NEGOTIATION_ROUNDS = 8
 
 
 @dataclass(frozen=True, slots=True)
 class TradeMarketRules:
-    maximum_candidates_per_pair: int = 96
+    maximum_candidates_per_pair: int = 128
     maximum_trades_per_team: int = 1
     minimum_combined_rational_gain: float = 0.001
     generate_pick_counteroffers: bool = True
     generate_player_for_pick_offers: bool = True
     generate_two_for_one_offers: bool = True
-    maximum_negotiation_rounds: int = 3
+    maximum_negotiation_rounds: int = 5
     maximum_round_three_candidates: int = 32
     generate_round_three_counteroffers: bool = True
+    maximum_contract_condition_candidates: int = 32
+    generate_contract_condition_counteroffers: bool = True
     version: str = TRADE_MARKET_VERSION
 
     def __post_init__(self) -> None:
@@ -54,15 +58,16 @@ class TradeMarketRules:
             self.maximum_trades_per_team,
             self.maximum_negotiation_rounds,
             self.maximum_round_three_candidates,
+            self.maximum_contract_condition_candidates,
         )
         if any(
             not isinstance(value, int) or isinstance(value, bool) or value < 1 for value in values
         ):
             raise ValueError("trade market limits must be positive integers")
         if self.maximum_trades_per_team != 1:
-            raise ValueError("trade-market-v1 permits one cleared trade per team")
-        if self.maximum_negotiation_rounds != 3:
-            raise ValueError("trade-market-v1 supports exactly three negotiation rounds")
+            raise ValueError("trade-market-v2 permits one cleared trade per team")
+        if not 4 <= self.maximum_negotiation_rounds <= MAXIMUM_SUPPORTED_NEGOTIATION_ROUNDS:
+            raise ValueError("trade-market-v2 supports four to eight negotiation rounds")
         if self.minimum_combined_rational_gain <= 0:
             raise ValueError("minimum combined rational gain must be positive")
         if self.version != TRADE_MARKET_VERSION:
@@ -87,13 +92,17 @@ class TradeMarketEvaluation:
             "player-for-pick",
             "multi-player",
             "round-three-counter",
+            "contract-condition-counter",
         }:
             raise ValueError("unsupported trade market candidate kind")
         if self.kind == "direct" and self.parent_trade_id is not None:
             raise ValueError("a direct offer cannot reference a parent")
         if self.kind != "direct" and self.parent_trade_id is None:
             raise ValueError("a counteroffer must reference its parent")
-        if self.negotiation_id < 1 or not 1 <= self.round_number <= 3:
+        if (
+            self.negotiation_id < 1
+            or not 1 <= self.round_number <= MAXIMUM_SUPPORTED_NEGOTIATION_ROUNDS
+        ):
             raise ValueError("trade negotiation identity or round is invalid")
         if self.kind == "direct" and (
             self.negotiation_id != self.shadow.offer.trade_id or self.round_number != 1
@@ -118,7 +127,7 @@ class TradeNegotiation:
             raise ValueError("trade negotiation identity is invalid")
         if not self.offer_ids or self.offer_ids != tuple(sorted(set(self.offer_ids))):
             raise ValueError("trade negotiation offers must be ordered and unique")
-        if not 1 <= self.rounds_completed <= 3:
+        if not 1 <= self.rounds_completed <= MAXIMUM_SUPPORTED_NEGOTIATION_ROUNDS:
             raise ValueError("trade negotiation rounds are invalid")
         if self.accepted_trade_id is not None and self.accepted_trade_id not in self.offer_ids:
             raise ValueError("accepted trade must belong to its negotiation")
@@ -199,7 +208,19 @@ def generate_trade_market_shadow(
         raise ValueError("trade market profiles must cover every team exactly")
     if any(team_id != profile.team_id for team_id, profile in profiles.items()):
         raise ValueError("trade market profile keys must match profile team ids")
-    raw_offers = _candidate_offers(management, picks, market_rules)
+    base_candidate_budget = max(
+        1,
+        market_rules.maximum_candidates_per_pair
+        - market_rules.maximum_contract_condition_candidates,
+    )
+    raw_offers = _candidate_offers(
+        management,
+        picks,
+        replace(
+            market_rules,
+            maximum_candidates_per_pair=base_candidate_budget,
+        ),
+    )
     evaluations: list[TradeMarketEvaluation] = []
     ledger_records: list[ManagerDecisionRecord] = []
     direct_ids: dict[int, int] = {}
@@ -272,6 +293,46 @@ def generate_trade_market_shadow(
                 parent.shadow.offer.trade_id,
                 parent.negotiation_id,
                 3,
+                shadow,
+            )
+        )
+        for record in shadow.ledger.records:
+            ledger_records.append(replace(record, sequence=len(ledger_records) + 1))
+
+    next_trade_id = (
+        max(
+            (item.shadow.offer.trade_id for item in evaluations),
+            default=0,
+        )
+        + 1
+    )
+    for parent, offer, round_number in _contract_condition_counteroffers(
+        tuple(evaluations),
+        management,
+        start_trade_id=next_trade_id,
+        rules=market_rules,
+    ):
+        shadow = evaluate_trade_shadow(
+            management=management,
+            players=players,
+            picks=picks,
+            offer=offer,
+            profiles={
+                offer.team_a_id: profiles[offer.team_a_id],
+                offer.team_b_id: profiles[offer.team_b_id],
+            },
+            contract_rules=contract_rules,
+            trade_rules=trade_rules,
+            manager_rules=manager_rules,
+            cap_ledger=cap_ledger,
+            cap_rules=cap_rules,
+        )
+        evaluations.append(
+            TradeMarketEvaluation(
+                "contract-condition-counter",
+                parent.shadow.offer.trade_id,
+                parent.negotiation_id,
+                round_number,
                 shadow,
             )
         )
@@ -625,6 +686,97 @@ def _negotiation_summaries(
     return tuple(result)
 
 
+def _contract_condition_counteroffers(
+    evaluations: tuple[TradeMarketEvaluation, ...],
+    management: LeagueManagementState,
+    *,
+    start_trade_id: int,
+    rules: TradeMarketRules,
+) -> tuple[tuple[TradeMarketEvaluation, TradeOffer, int], ...]:
+    if not rules.generate_contract_condition_counteroffers:
+        return ()
+    contracts = {item.player_id: item for item in management.contracts}
+    result: list[tuple[TradeMarketEvaluation, TradeOffer, int]] = []
+    working = list(evaluations)
+    next_trade_id = start_trade_id
+    for round_number in range(4, rules.maximum_negotiation_rounds + 1):
+        accepted = {item.negotiation_id for item in working if item.shadow.approved}
+        latest: dict[int, TradeMarketEvaluation] = {}
+        for item in working:
+            if item.round_number < round_number:
+                current = latest.get(item.negotiation_id)
+                if current is None or (
+                    item.round_number,
+                    item.shadow.offer.trade_id,
+                ) > (
+                    current.round_number,
+                    current.shadow.offer.trade_id,
+                ):
+                    latest[item.negotiation_id] = item
+        progressed = False
+        for negotiation_id, parent in sorted(latest.items()):
+            if negotiation_id in accepted or not parent.shadow.legal:
+                continue
+            offer = parent.shadow.offer
+            pair = frozenset((offer.team_a_id, offer.team_b_id))
+            pair_candidates = sum(
+                frozenset(
+                    (
+                        item.shadow.offer.team_a_id,
+                        item.shadow.offer.team_b_id,
+                    )
+                )
+                == pair
+                for item in working
+            )
+            if pair_candidates >= rules.maximum_candidates_per_pair:
+                continue
+            conditioned = {item.player_id for item in offer.contract_conditions}
+            available = tuple(
+                player_id
+                for player_id in sorted((*offer.players_from_a, *offer.players_from_b))
+                if player_id not in conditioned and player_id in contracts
+            )
+            if not available:
+                continue
+            player_id = available[0]
+            contract = contracts[player_id]
+            counter = replace(
+                offer,
+                trade_id=next_trade_id,
+                contract_conditions=tuple(
+                    sorted(
+                        (
+                            *offer.contract_conditions,
+                            ContractTradeCondition(
+                                player_id,
+                                contract.annual_salary,
+                                contract.years_remaining,
+                            ),
+                        ),
+                        key=lambda item: item.player_id,
+                    )
+                ),
+            )
+            result.append((parent, counter, round_number))
+            working.append(
+                TradeMarketEvaluation(
+                    "contract-condition-counter",
+                    parent_trade_id=offer.trade_id,
+                    negotiation_id=parent.negotiation_id,
+                    round_number=round_number,
+                    shadow=replace(parent.shadow, offer=counter),
+                )
+            )
+            next_trade_id += 1
+            progressed = True
+            if len(result) >= rules.maximum_contract_condition_candidates:
+                return tuple(result)
+        if not progressed:
+            break
+    return tuple(result)
+
+
 def _combined_gain(shadow: TradeShadowResult) -> float:
     return sum(approval.rational_gain or 0.0 for approval in shadow.approvals)
 
@@ -637,5 +789,6 @@ def _offer_signature(offer: TradeOffer) -> tuple[object, ...]:
         offer.players_from_b,
         offer.picks_from_a,
         offer.picks_from_b,
+        offer.contract_conditions,
         offer.trade_id,
     )

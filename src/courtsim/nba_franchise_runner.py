@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, cast
 
@@ -23,7 +23,9 @@ from courtsim.nba_franchise_artifacts import (
 )
 from courtsim.randomness import derive_seed
 
-NBA_FRANCHISE_RUNNER_VERSION = "nba-franchise-runner-v2"
+NBA_FRANCHISE_RUNNER_VERSION = "nba-franchise-runner-v3"
+NBA_FRANCHISE_RUNNER_SCHEMA_VERSION = 2
+_LEGACY_RUNNER_VERSION = "nba-franchise-runner-v2"
 NBAFranchiseSeasonExecutor = Callable[
     [NBAFranchiseState, int],
     NBAFranchiseSeasonExecution,
@@ -32,6 +34,22 @@ NBAFranchiseSeasonExecutor = Callable[
 
 class NBAFranchiseRunnerError(ValueError):
     """Raised when a franchise run prefix is invalid or incompatible."""
+
+
+@dataclass(frozen=True, slots=True)
+class NBAFranchiseRetentionPolicy:
+    keep_last: int = 2
+    keep_every: int = 5
+    compress_after: int = 1
+
+    def __post_init__(self) -> None:
+        values = (self.keep_last, self.keep_every, self.compress_after)
+        if any(
+            not isinstance(value, int) or isinstance(value, bool) or value < 0 for value in values
+        ):
+            raise ValueError("franchise retention values must be non-negative integers")
+        if self.keep_last < 1 or self.keep_every < 1:
+            raise ValueError("franchise retention must keep recent and periodic checkpoints")
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,6 +93,7 @@ def run_nba_franchise_checkpoint(
     run_directory: str | Path,
     *,
     maximum_new_seasons: int | None = None,
+    retention_policy: NBAFranchiseRetentionPolicy | None = None,
 ) -> NBAFranchiseRunResult:
     if maximum_new_seasons is not None and (
         not isinstance(maximum_new_seasons, int)
@@ -93,6 +112,10 @@ def run_nba_franchise_checkpoint(
             initial_state,
             contract_rules,
         )
+        stored_retention = _retention_from_value(manifest["retention"])
+        if retention_policy is not None and retention_policy != stored_retention:
+            raise NBAFranchiseRunnerError("franchise run retention policy differs")
+        retention_policy = stored_retention
     else:
         initial_receipt = write_nba_franchise_checkpoint(
             initial_state,
@@ -100,18 +123,20 @@ def run_nba_franchise_checkpoint(
             directory / _checkpoint_name(initial_state.completed_seasons),
         )
         manifest = {
-            "schema_version": 1,
+            "schema_version": NBA_FRANCHISE_RUNNER_SCHEMA_VERSION,
             "version": NBA_FRANCHISE_RUNNER_VERSION,
             "spec": _spec_to_dict(spec),
             "league_id": initial_state.league_id,
             "initial_completed_seasons": initial_state.completed_seasons,
             "initial_state_sha256": initial_sha256,
+            "retention": (asdict(retention_policy) if retention_policy is not None else None),
             "checkpoints": [
                 _checkpoint_to_dict(
                     initial_state.completed_seasons,
                     None,
                     initial_receipt.state_sha256,
                     initial_receipt.file_sha256,
+                    seed_version=NBA_FRANCHISE_RUNNER_VERSION,
                 )
             ],
         }
@@ -152,8 +177,17 @@ def run_nba_franchise_checkpoint(
                 seed,
                 receipt.state_sha256,
                 receipt.file_sha256,
+                seed_version=NBA_FRANCHISE_RUNNER_VERSION,
             )
         )
+        if retention_policy is not None:
+            _apply_retention(
+                directory,
+                checkpoints,
+                initial_completed_seasons=initial_state.completed_seasons,
+                latest_completed_seasons=next_completed,
+                policy=retention_policy,
+            )
         write_json(manifest_path, manifest)
         executions.append(execution)
         state = execution.final_state
@@ -181,6 +215,7 @@ def _load_verified_prefix(
             json.loads(manifest_path.read_text(encoding="utf-8")),
             "NBA franchise run manifest",
         )
+        manifest = _migrate_manifest(manifest)
         _exact(
             manifest,
             {
@@ -190,18 +225,19 @@ def _load_verified_prefix(
                 "league_id",
                 "initial_completed_seasons",
                 "initial_state_sha256",
+                "retention",
                 "checkpoints",
             },
             "NBA franchise run manifest",
         )
         if (
-            _integer(manifest, "schema_version") != 1
+            _integer(manifest, "schema_version") != NBA_FRANCHISE_RUNNER_SCHEMA_VERSION
             or _string(manifest, "version") != NBA_FRANCHISE_RUNNER_VERSION
             or _spec_from_dict(manifest["spec"]) != spec
             or _string(manifest, "league_id") != initial_state.league_id
             or _integer(manifest, "initial_completed_seasons") != initial_state.completed_seasons
             or _string(manifest, "initial_state_sha256")
-            != _state_sha256(initial_state, contract_rules)
+            not in _compatible_state_hashes(initial_state, contract_rules)
         ):
             raise NBAFranchiseRunnerError("franchise run manifest differs")
         checkpoints = _list(manifest["checkpoints"], "franchise checkpoints")
@@ -218,26 +254,34 @@ def _load_verified_prefix(
                     "path",
                     "state_sha256",
                     "file_sha256",
+                    "storage",
+                    "seed_version",
                 },
                 "franchise checkpoint entry",
             )
             completed = initial_state.completed_seasons + index
             if (
                 _integer(checkpoint, "completed_seasons") != completed
-                or _string(checkpoint, "path") != _checkpoint_name(completed)
+                or _string(checkpoint, "path")
+                not in {_checkpoint_name(completed), _checkpoint_name(completed, compressed=True)}
                 or (index == 0 and checkpoint["seed"] is not None)
                 or (
                     index > 0
                     and _optional_integer(checkpoint, "seed")
                     != derive_seed(
                         spec.master_seed,
-                        NBA_FRANCHISE_RUNNER_VERSION,
+                        _string(checkpoint, "seed_version"),
                         spec.run_id,
                         completed,
                     )
                 )
             ):
                 raise NBAFranchiseRunnerError("franchise run checkpoints are not contiguous")
+            storage = _string(checkpoint, "storage")
+            if storage not in {"json", "gzip", "pruned"}:
+                raise NBAFranchiseRunnerError("franchise checkpoint storage is invalid")
+            if storage == "pruned":
+                continue
             restored, restored_rules, receipt = load_nba_franchise_checkpoint(
                 manifest_path.parent / _string(checkpoint, "path"),
                 expected_file_sha256=_string(checkpoint, "file_sha256"),
@@ -248,7 +292,7 @@ def _load_verified_prefix(
                 or restored.league_id != initial_state.league_id
                 or receipt.state_sha256 != _string(checkpoint, "state_sha256")
                 or (
-                    index == 0
+                    completed == initial_state.completed_seasons
                     and (
                         restored != initial_state
                         or receipt.state_sha256 != _string(manifest, "initial_state_sha256")
@@ -274,6 +318,8 @@ def _checkpoint_to_dict(
     seed: int | None,
     state_sha256: str,
     file_sha256: str,
+    *,
+    seed_version: str,
 ) -> dict[str, object]:
     return {
         "completed_seasons": completed_seasons,
@@ -281,11 +327,14 @@ def _checkpoint_to_dict(
         "path": _checkpoint_name(completed_seasons),
         "state_sha256": state_sha256,
         "file_sha256": file_sha256,
+        "storage": "json",
+        "seed_version": seed_version,
     }
 
 
-def _checkpoint_name(completed_seasons: int) -> str:
-    return f"season-{completed_seasons:05d}.json"
+def _checkpoint_name(completed_seasons: int, *, compressed: bool = False) -> str:
+    suffix = ".json.gz" if compressed else ".json"
+    return f"season-{completed_seasons:05d}{suffix}"
 
 
 def _state_sha256(
@@ -294,6 +343,108 @@ def _state_sha256(
 ) -> str:
     payload = nba_franchise_state_to_json(state, contract_rules)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _compatible_state_hashes(
+    state: NBAFranchiseState,
+    contract_rules: ContractRules,
+) -> set[str]:
+    payload = json.loads(nba_franchise_state_to_json(state, contract_rules))
+    result = {_state_sha256(state, contract_rules)}
+    for legacy in ("nba-franchise-v3", "nba-franchise-v4"):
+        migrated = {**payload, "version": legacy, "schema_version": 1}
+        canonical = json.dumps(
+            migrated,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        result.add(hashlib.sha256(canonical.encode("utf-8")).hexdigest())
+    return result
+
+
+def _migrate_manifest(manifest: dict[str, Any]) -> dict[str, object]:
+    schema = _integer(manifest, "schema_version")
+    if schema == NBA_FRANCHISE_RUNNER_SCHEMA_VERSION:
+        return manifest
+    if schema != 1 or _string(manifest, "version") != _LEGACY_RUNNER_VERSION:
+        raise NBAFranchiseRunnerError("unsupported NBA franchise run manifest")
+    migrated = dict(manifest)
+    migrated["schema_version"] = NBA_FRANCHISE_RUNNER_SCHEMA_VERSION
+    migrated["version"] = NBA_FRANCHISE_RUNNER_VERSION
+    migrated["retention"] = None
+    spec = _object(migrated["spec"], "NBA franchise run spec")
+    migrated["spec"] = {**spec, "version": NBA_FRANCHISE_RUNNER_VERSION}
+    migrated["checkpoints"] = [
+        {
+            **_object(item, "franchise checkpoint entry"),
+            "storage": "json",
+            "seed_version": _LEGACY_RUNNER_VERSION,
+        }
+        for item in _list(migrated["checkpoints"], "franchise checkpoints")
+    ]
+    return migrated
+
+
+def _retention_from_value(value: object) -> NBAFranchiseRetentionPolicy | None:
+    if value is None:
+        return None
+    raw = _object(value, "franchise retention policy")
+    _exact(
+        raw,
+        {"keep_last", "keep_every", "compress_after"},
+        "franchise retention policy",
+    )
+    try:
+        return NBAFranchiseRetentionPolicy(
+            _integer(raw, "keep_last"),
+            _integer(raw, "keep_every"),
+            _integer(raw, "compress_after"),
+        )
+    except ValueError as error:
+        raise NBAFranchiseRunnerError(str(error)) from error
+
+
+def _apply_retention(
+    directory: Path,
+    checkpoints: list[object],
+    *,
+    initial_completed_seasons: int,
+    latest_completed_seasons: int,
+    policy: NBAFranchiseRetentionPolicy,
+) -> None:
+    for value in checkpoints:
+        checkpoint = _object(value, "franchise checkpoint entry")
+        completed = _integer(checkpoint, "completed_seasons")
+        age = latest_completed_seasons - completed
+        retain = (
+            completed == initial_completed_seasons
+            or age < policy.keep_last
+            or (completed - initial_completed_seasons) % policy.keep_every == 0
+        )
+        path = directory / _string(checkpoint, "path")
+        storage = _string(checkpoint, "storage")
+        if not retain:
+            path.unlink(missing_ok=True)
+            checkpoint["storage"] = "pruned"
+            continue
+        if age < policy.compress_after or storage != "json":
+            continue
+        state, rules, _ = load_nba_franchise_checkpoint(
+            path,
+            expected_file_sha256=_string(checkpoint, "file_sha256"),
+        )
+        compressed_name = _checkpoint_name(completed, compressed=True)
+        receipt = write_nba_franchise_checkpoint(
+            state,
+            rules,
+            directory / compressed_name,
+            compress=True,
+        )
+        path.unlink(missing_ok=True)
+        checkpoint["path"] = compressed_name
+        checkpoint["file_sha256"] = receipt.file_sha256
+        checkpoint["storage"] = "gzip"
 
 
 def _spec_to_dict(spec: NBAFranchiseRunSpec) -> dict[str, object]:

@@ -1,6 +1,7 @@
 {
   "format_version": 1,
   "cap_mechanics_version": "cap-mechanics-v1",
+  "draft_asset_version": "draft-asset-v2",
   "salary_cap": 140000000,
   "first_apron": 178000000,
   "second_apron": 189000000,

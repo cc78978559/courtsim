@@ -135,7 +135,7 @@ def test_market_records_bounded_three_round_negotiations() -> None:
         contract_rules=contract_rules(),
     )
     assert result.negotiations
-    assert all(item.rounds_completed <= 3 for item in result.negotiations)
+    assert all(item.rounds_completed <= 5 for item in result.negotiations)
     round_three = [item for item in result.evaluations if item.round_number == 3]
     assert round_three
     offer_ids = {item.shadow.offer.trade_id for item in result.evaluations}
@@ -144,6 +144,9 @@ def test_market_records_bounded_three_round_negotiations() -> None:
         len(item.shadow.offer.picks_from_a) + len(item.shadow.offer.picks_from_b) >= 2
         for item in round_three
     )
+    late_rounds = [item for item in result.evaluations if item.round_number >= 4]
+    assert late_rounds
+    assert all(item.shadow.offer.contract_conditions for item in late_rounds)
 
 
 def test_market_plan_rejects_team_reuse_before_execution() -> None:

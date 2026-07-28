@@ -19,7 +19,7 @@ from courtsim.management import (
 )
 from courtsim.rosters import RosterSnapshot
 
-TRADE_VERSION = "trade-v1"
+TRADE_VERSION = "trade-v2"
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +30,8 @@ class TradeRules:
     salary_matching_buffer: int = 250_000
     enforce_stepien_rule: bool = True
     stepien_round_number: int = 1
+    stepien_horizon_years: int = 7
+    require_complete_stepien_horizon: bool = False
     version: str = TRADE_VERSION
 
     def __post_init__(self) -> None:
@@ -39,6 +41,7 @@ class TradeRules:
             self.maximum_incoming_salary_bps,
             self.salary_matching_buffer,
             self.stepien_round_number,
+            self.stepien_horizon_years,
         )
         if any(not isinstance(value, int) or isinstance(value, bool) for value in values):
             raise ValueError("trade rule values must be integers")
@@ -50,11 +53,29 @@ class TradeRules:
             raise ValueError("maximum incoming salary cannot be below outgoing salary")
         if not isinstance(self.enforce_stepien_rule, bool):
             raise ValueError("enforce_stepien_rule must be boolean")
+        if self.stepien_horizon_years != 7:
+            raise ValueError("trade-v2 requires the complete seven-year Stepien horizon")
+        if not isinstance(self.require_complete_stepien_horizon, bool):
+            raise ValueError("Stepien horizon completeness must be boolean")
         if self.version != TRADE_VERSION:
             raise ValueError(f"unsupported trade version: {self.version}")
 
 
 DEFAULT_TRADE_RULES = TradeRules()
+
+
+@dataclass(frozen=True, slots=True)
+class ContractTradeCondition:
+    player_id: int
+    maximum_annual_salary: int
+    maximum_years_remaining: int
+
+    def __post_init__(self) -> None:
+        values = (self.player_id, self.maximum_annual_salary, self.maximum_years_remaining)
+        if any(
+            not isinstance(value, int) or isinstance(value, bool) or value < 1 for value in values
+        ):
+            raise ValueError("contract trade conditions must use positive integers")
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +87,7 @@ class TradeOffer:
     players_from_b: tuple[int, ...] = ()
     picks_from_a: tuple[int, ...] = ()
     picks_from_b: tuple[int, ...] = ()
+    contract_conditions: tuple[ContractTradeCondition, ...] = ()
     version: str = TRADE_VERSION
 
     def __post_init__(self) -> None:
@@ -99,6 +121,15 @@ class TradeOffer:
             raise ValueError("a player cannot be sent by both teams")
         if set(self.picks_from_a) & set(self.picks_from_b):
             raise ValueError("a pick cannot be sent by both teams")
+        if self.contract_conditions != tuple(
+            sorted(self.contract_conditions, key=lambda item: item.player_id)
+        ):
+            raise ValueError("contract trade conditions must use canonical order")
+        condition_ids = tuple(item.player_id for item in self.contract_conditions)
+        if len(condition_ids) != len(set(condition_ids)) or not set(condition_ids) <= set(
+            (*self.players_from_a, *self.players_from_b)
+        ):
+            raise ValueError("contract trade conditions must uniquely reference traded players")
         if not (self.players_from_a or self.picks_from_a):
             raise ValueError("team A must send at least one asset")
         if not (self.players_from_b or self.picks_from_b):
@@ -205,6 +236,14 @@ def trade_rejections(
             rejected.append(f"roster-maximum:{team_id}")
 
     salaries = {contract.player_id: contract.annual_salary for contract in management.contracts}
+    contracts = {contract.player_id: contract for contract in management.contracts}
+    for condition in offer.contract_conditions:
+        contract = contracts.get(condition.player_id)
+        if contract is None or (
+            contract.annual_salary > condition.maximum_annual_salary
+            or contract.years_remaining > condition.maximum_years_remaining
+        ):
+            rejected.append(f"contract-condition:{condition.player_id}")
     payrolls = {team_id: 0 for team_id in teams}
     for contract in management.contracts:
         payrolls[contract.team_id] += contract.annual_salary
@@ -243,7 +282,14 @@ def trade_rejections(
             if incoming > maximum:
                 rejected.append(f"salary-match:{team_id}")
     if trade_rules.enforce_stepien_rule:
-        rejected.extend(_stepien_rejections(picks, offer, trade_rules))
+        rejected.extend(
+            _stepien_rejections(
+                picks,
+                offer,
+                trade_rules,
+                current_year=management.season_year,
+            )
+        )
     return tuple(rejected)
 
 
@@ -251,6 +297,8 @@ def _stepien_rejections(
     picks: tuple[TradableDraftPick, ...],
     offer: TradeOffer,
     rules: TradeRules,
+    *,
+    current_year: int,
 ) -> tuple[str, ...]:
     a_out = set(offer.picks_from_a)
     b_out = set(offer.picks_from_b)
@@ -269,6 +317,7 @@ def _stepien_rejections(
         final_pick_owners=final_owners,
         team_ids=(offer.team_a_id, offer.team_b_id),
         rules=rules,
+        current_year=current_year,
     )
 
 
@@ -278,6 +327,7 @@ def stepien_rejections(
     final_pick_owners: Mapping[int, str],
     team_ids: tuple[str, ...],
     rules: TradeRules,
+    current_year: int | None = None,
 ) -> tuple[str, ...]:
     future = tuple(
         pick
@@ -285,15 +335,28 @@ def stepien_rejections(
         if isinstance(pick, FutureDraftPickAsset)
         and pick.round_number == rules.stepien_round_number
     )
-    years = tuple(sorted({pick.draft_year for pick in future}))
-    if len(years) < 2:
+    if not future:
         return ()
+    first_year = min(pick.draft_year for pick in future)
+    available_years = {pick.draft_year for pick in future}
+    if rules.require_complete_stepien_horizon:
+        years = tuple(range(first_year, first_year + rules.stepien_horizon_years))
+        if not set(years) <= available_years:
+            return ("stepien-incomplete-seven-year-horizon",)
+    else:
+        years = tuple(sorted(available_years))
+        if len(years) < 2:
+            return ()
     rejected: list[str] = []
     for team_id in team_ids:
         owns = {
             year: any(
                 pick.draft_year == year
                 and final_pick_owners.get(pick.asset_id, pick.owner_team_id) == team_id
+                and (
+                    pick.original_team_id == team_id
+                    or (not pick.protected_top_n and not pick.conditions)
+                )
                 for pick in future
             )
             for year in years

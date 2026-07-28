@@ -1,7 +1,7 @@
 {
-  "format_version": 53,
+  "format_version": 54,
   "status": "frozen",
-  "engine_version": "0.53.0",
+  "engine_version": "0.54.0",
   "rules": {
     "version": "nba-v1",
     "path": "governance/game-rules-nba-v1.json",
@@ -77,7 +77,7 @@
   "manager_league_adapter": {
     "manager_league_adapter_version": "manager-league-adapter-v1",
     "path": "governance/manager-league-adapter-v1.json",
-    "file_sha256": "c163858dabfc72fb54b1c34e34cd7899b79b5fcb9720da1ac699df7aaff6b029"
+    "file_sha256": "283b3483a2d9e750207091898ee71f341177dba408934034da9c48c7ff3b188d"
   },
   "prospect_generation": {
     "prospect_generation_version": "prospect-generation-v1",
@@ -90,24 +90,24 @@
     "file_sha256": "1f6d3ca9540b0aeee3f2d57c6d5a4c5a3423afec08fc02aa27a2a31331fcd51e"
   },
   "trades": {
-    "trade_version": "trade-v1",
-    "path": "governance/trades-v1.json",
-    "file_sha256": "f45a909d516bcc774cc459ee593c6096dbcaa714df056bc6b21a8ff80abace77"
+    "trade_version": "trade-v2",
+    "path": "governance/trades-v2.json",
+    "file_sha256": "42d51485d0e5140bef469c567015c934f728e9b2abf62616e3d7e3f5c0e0423a"
   },
   "manager_trade": {
     "manager_trade_version": "manager-trade-v1",
     "path": "governance/manager-trade-v1.json",
-    "file_sha256": "43632114bcec739df5b652608c5d3a1134eed0ec39ae0e58d3ec68d8180f61fe"
+    "file_sha256": "5814472359e0e79ec67e9d464333f70a7c0430a5533637db5169c5b306220b33"
   },
   "trade_market": {
-    "trade_market_version": "trade-market-v1",
-    "path": "governance/trade-market-v1.json",
-    "file_sha256": "7544723f4f9e48845808fe4e9a55e9e59649c5586e419d49bd14c1a97110bbca"
+    "trade_market_version": "trade-market-v2",
+    "path": "governance/trade-market-v2.json",
+    "file_sha256": "81a734fbc3829fcf7034dbcbcc01161092e5dc47db26e571b526f17f8042f003"
   },
   "draft_assets": {
-    "draft_asset_version": "draft-asset-v1",
-    "path": "governance/draft-assets-v1.json",
-    "file_sha256": "2411e51f29f6dc41ac770a7c115e47614ab172bcbb7ec4e1176cb424f0cb63f2"
+    "draft_asset_version": "draft-asset-v2",
+    "path": "governance/draft-assets-v2.json",
+    "file_sha256": "a7bd83955a5384eeb03e7dfa6c85d733897e0fed544eec1f8f95e121b6eae1e9"
   },
   "draft_lottery": {
     "draft_lottery_version": "draft-lottery-v1",
@@ -122,7 +122,7 @@
   "nba_draft_asset_settlement": {
     "nba_draft_asset_settlement_version": "nba-draft-asset-settlement-v1",
     "path": "governance/nba-draft-asset-settlement-v1.json",
-    "file_sha256": "2b146ba54a2ec17d890eada7f0289e19d18953b7c31dc62507364f598fe01d44"
+    "file_sha256": "7463a6fcad6705285db72c9f35c29031f13e0accaad372c0c9b00eef13bcefe0"
   },
   "nba_draft_offseason": {
     "nba_draft_offseason_version": "nba-draft-offseason-v1",
@@ -132,27 +132,27 @@
   "nba_offseason": {
     "nba_offseason_version": "nba-offseason-v1",
     "path": "governance/nba-offseason-v1.json",
-    "file_sha256": "00aa3bbc33cf96489cc89d05a3bd83ec58d3286278b5561cfecb800614688568"
+    "file_sha256": "73b1031078f36eab31fe6f1b7507314e2f69f553079ab0cdf89909f8562c719d"
   },
   "nba_franchise": {
-    "nba_franchise_version": "nba-franchise-v4",
-    "path": "governance/nba-franchise-v4.json",
-    "file_sha256": "2c421682ef3b358e092bbb4fcea8d08e8566d628cabeb1fd47c0323258fc6c30"
+    "nba_franchise_version": "nba-franchise-v5",
+    "path": "governance/nba-franchise-v5.json",
+    "file_sha256": "eb363fb8197a26ca7805f5d1168bc6ced39ddb0829cfd3cd8751d1ba3215eaaf"
   },
   "nba_franchise_artifact": {
-    "nba_franchise_artifact_version": "nba-franchise-artifact-v2",
-    "path": "governance/nba-franchise-artifact-v2.json",
-    "file_sha256": "3c8dbdb53fdaa4cb09289468be8d60cf5c85d991cc12261b3a02421fc63e7829"
+    "nba_franchise_artifact_version": "nba-franchise-artifact-v3",
+    "path": "governance/nba-franchise-artifact-v3.json",
+    "file_sha256": "11f0f95970161a4d4260c9bb2c97e72b946b358e7f84cf98d25aa5158249be70"
   },
   "nba_franchise_runner": {
-    "nba_franchise_runner_version": "nba-franchise-runner-v2",
-    "path": "governance/nba-franchise-runner-v2.json",
-    "file_sha256": "a7dc3f6d4358e1dc45cb88e79359a53224bd3c58ae15f53266d0c59f1741940c"
+    "nba_franchise_runner_version": "nba-franchise-runner-v3",
+    "path": "governance/nba-franchise-runner-v3.json",
+    "file_sha256": "5e6565af251302dd95e10cbe991e5d47b728a53bb66cdd9cdd97574a14531ddc"
   },
   "three_team_trades": {
     "three_team_trade_version": "three-team-trade-v1",
     "path": "governance/three-team-trades-v1.json",
-    "file_sha256": "905a3332ebdabdcbb667e1d95eaefae2bf34e18fd27304fa7b62fa7c356ae22c"
+    "file_sha256": "f23fb38007d997061cc79a1f43ff7abfb50c5cfb8923f8b9dd023c1dade32e43"
   },
   "three_team_market": {
     "three_team_market_version": "three-team-market-v1",
@@ -167,7 +167,7 @@
   "cap_mechanics": {
     "cap_mechanics_version": "cap-mechanics-v1",
     "path": "governance/cap-mechanics-v1.json",
-    "file_sha256": "196d2161aee4b1038403818e942212b144c2d3ce9d66f059776f6967aded14d2"
+    "file_sha256": "19ce1b099bdea1e7694b5c19fc39ecb9ed4c3cb0074c53ec9f9afcdf4a8f42a4"
   },
   "nba_league": {
     "nba_league_version": "nba-league-v1",

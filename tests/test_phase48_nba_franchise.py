@@ -25,6 +25,7 @@ from courtsim.nba_franchise_artifacts import (
     write_nba_franchise_checkpoint,
 )
 from courtsim.nba_franchise_runner import (
+    NBAFranchiseRetentionPolicy,
     NBAFranchiseRunSpec,
     run_nba_franchise_checkpoint,
 )
@@ -133,6 +134,7 @@ def test_franchise_season_composes_into_a_second_complete_season(
         )
 
     spec = NBAFranchiseRunSpec("league-run", 101, 2)
+    retention = NBAFranchiseRetentionPolicy(keep_last=1, keep_every=5, compress_after=1)
     first_run = run_nba_franchise_checkpoint(
         spec,
         state,
@@ -140,11 +142,13 @@ def test_franchise_season_composes_into_a_second_complete_season(
         execute,
         tmp_path / "run",
         maximum_new_seasons=1,
+        retention_policy=retention,
     )
     assert first_run.completed_before == 0
     assert first_run.completed_after == 1
     assert not first_run.complete
     assert len(first_run.executions) == 1
+    assert (tmp_path / "run" / "season-00000.json.gz").is_file()
     first = first_run.executions[0]
     assert first.trade_clearing_choice in {"none", "bilateral", "three-team"}
     assert first.bilateral_trade_market.evaluations
@@ -209,6 +213,8 @@ def test_franchise_season_composes_into_a_second_complete_season(
     assert second_run.completed_after == 2
     assert second_run.complete
     assert len(second_run.executions) == 1
+    assert not (tmp_path / "run" / "season-00001.json").exists()
+    assert (tmp_path / "run" / "season-00002.json").is_file()
     second = second_run.executions[0]
     assert second.initial_state == first.final_state
     assert second.final_state.management.season_year == 2031

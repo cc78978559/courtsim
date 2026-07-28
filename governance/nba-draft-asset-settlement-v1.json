@@ -2,7 +2,7 @@
   "format_version": 1,
   "nba_draft_asset_settlement_version": "nba-draft-asset-settlement-v1",
   "nba_draft_lottery_version": "nba-draft-lottery-v1",
-  "draft_asset_version": "draft-asset-v1",
+  "draft_asset_version": "draft-asset-v2",
   "first_round_order": "nba-lottery-final-order",
   "later_round_order": "pre-lottery-worst-to-best",
   "top_n_protection_uses_final_lottery_slot": true,

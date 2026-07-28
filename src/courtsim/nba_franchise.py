@@ -70,7 +70,7 @@ from courtsim.trade_market import (
 )
 from courtsim.trades import TradeRules
 
-NBA_FRANCHISE_VERSION = "nba-franchise-v4"
+NBA_FRANCHISE_VERSION = "nba-franchise-v5"
 
 
 @dataclass(frozen=True, slots=True)
@@ -154,17 +154,31 @@ def execute_nba_franchise_season(
     active_prospect_rules = prospect_rules or ProspectGenerationRules(class_size=30)
     if active_prospect_rules.class_size != 30:
         raise ValueError("NBA franchise requires a thirty-player prospect class")
-    active_trade_rules = trade_rules or TradeRules()
+    active_trade_rules = replace(
+        trade_rules or TradeRules(),
+        require_complete_stepien_horizon=True,
+    )
     active_manager_trade_rules = manager_trade_rules or ManagerTradeRules()
     cap_rules = cap_rules_for_salary_cap(contract_rules.salary_cap)
     initial_cap_ledger = expire_cap_ledger(
         state.cap_ledger,
         season_year=state.management.season_year,
     )
+    seeded_trade_assets = seed_future_draft_picks(
+        state.draft_assets,
+        team_ids=team_ids,
+        draft_years=tuple(
+            range(
+                state.management.season_year + 1,
+                state.management.season_year + 8,
+            )
+        ),
+        rounds=draft_rules.rounds,
+    )
     bilateral_shadow = generate_trade_market_shadow(
         management=state.management,
         players=state.players,
-        picks=state.draft_assets.picks,
+        picks=seeded_trade_assets.picks,
         profiles=profiles,
         contract_rules=contract_rules,
         trade_rules=active_trade_rules,
@@ -176,7 +190,7 @@ def execute_nba_franchise_season(
     three_team_shadow = generate_three_team_market_shadow(
         management=state.management,
         players=state.players,
-        picks=state.draft_assets.picks,
+        picks=seeded_trade_assets.picks,
         profiles=profiles,
         contract_rules=contract_rules,
         trade_rules=active_trade_rules,
@@ -192,7 +206,7 @@ def execute_nba_franchise_season(
     three_team_plan = three_team_shadow.plan if choose_three_team else ThreeTeamMarketPlan(())
     bilateral_execution = apply_trade_market_plan(
         state.management,
-        state.draft_assets.picks,
+        seeded_trade_assets.picks,
         bilateral_plan,
         contract_rules,
         active_trade_rules,
@@ -210,7 +224,7 @@ def execute_nba_franchise_season(
     )
     traded_management = three_team_execution.final_management
     traded_assets = replace(
-        state.draft_assets,
+        seeded_trade_assets,
         picks=cast(
             tuple[FutureDraftPickAsset, ...],
             three_team_execution.final_picks,

@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import gzip
 import hashlib
 import json
+import os
+import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,10 +29,20 @@ from courtsim.manager_league_adapter import (
 from courtsim.model.action_setup import TeamDefenseStrategy, TeamOffenseStrategy
 from courtsim.model.game_runtime import GameTeam, TeamTempoStrategy
 from courtsim.model.interaction_compiler import ProfileLineup
-from courtsim.nba_franchise import NBAFranchiseState
+from courtsim.nba_franchise import NBA_FRANCHISE_VERSION, NBAFranchiseState
 from courtsim.rotations import RotationPlan, RotationStint
 
-NBA_FRANCHISE_ARTIFACT_VERSION = "nba-franchise-artifact-v2"
+NBA_FRANCHISE_ARTIFACT_VERSION = "nba-franchise-artifact-v3"
+NBA_FRANCHISE_STATE_SCHEMA_VERSION = 2
+NBA_FRANCHISE_CHECKPOINT_SCHEMA_VERSION = 2
+_LEGACY_ARTIFACT_VERSIONS = {
+    "nba-franchise-artifact-v1",
+    "nba-franchise-artifact-v2",
+}
+_LEGACY_FRANCHISE_VERSIONS = {
+    "nba-franchise-v3",
+    "nba-franchise-v4",
+}
 
 
 class NBAFranchiseArtifactError(ValueError):
@@ -43,6 +56,7 @@ class NBAFranchiseCheckpointReceipt:
     completed_seasons: int
     state_sha256: str
     file_sha256: str
+    compression: str = "none"
     version: str = NBA_FRANCHISE_ARTIFACT_VERSION
 
 
@@ -71,7 +85,7 @@ def nba_franchise_state_from_json(
             },
             "NBA franchise state",
         )
-        if _integer(raw, "schema_version") != 1:
+        if _integer(raw, "schema_version") not in {1, NBA_FRANCHISE_STATE_SCHEMA_VERSION}:
             raise NBAFranchiseArtifactError("unsupported NBA franchise state schema")
         league_state = league_state_from_json(_canonical_json(raw["league_state"]))
         if league_state.nba_alignment is None:
@@ -89,7 +103,11 @@ def nba_franchise_state_from_json(
             cap_ledger=league_state.cap_ledger,
             completed_seasons=_integer(raw, "completed_seasons"),
             manager_learning=league_state.manager_learning,
-            version=_string(raw, "version"),
+            version=(
+                NBA_FRANCHISE_VERSION
+                if _string(raw, "version") in _LEGACY_FRANCHISE_VERSIONS
+                else _string(raw, "version")
+            ),
         )
         return state, league_state.contract_rules
     except (
@@ -107,23 +125,35 @@ def write_nba_franchise_checkpoint(
     state: NBAFranchiseState,
     contract_rules: ContractRules,
     checkpoint_path: str | Path,
+    *,
+    compress: bool | None = None,
 ) -> NBAFranchiseCheckpointReceipt:
     path = Path(checkpoint_path)
+    active_compression = path.suffix == ".gz" if compress is None else compress
+    if active_compression and path.suffix != ".gz":
+        raise NBAFranchiseArtifactError("compressed checkpoint path must end in .gz")
+    if not active_compression and path.suffix == ".gz":
+        raise NBAFranchiseArtifactError("gzip checkpoint path requires compression")
     state_payload = _state_to_dict(state, contract_rules)
     state_sha256 = _sha256_value(state_payload)
     envelope = {
-        "schema_version": 1,
+        "schema_version": NBA_FRANCHISE_CHECKPOINT_SCHEMA_VERSION,
         "version": NBA_FRANCHISE_ARTIFACT_VERSION,
+        "compression": "gzip" if active_compression else "none",
         "state_sha256": state_sha256,
         "state": state_payload,
     }
-    write_json(path, envelope)
+    if active_compression:
+        _write_gzip_json(path, envelope)
+    else:
+        write_json(path, envelope)
     return NBAFranchiseCheckpointReceipt(
         str(path.resolve()),
         state.league_id,
         state.completed_seasons,
         state_sha256,
         sha256_file(path),
+        "gzip" if active_compression else "none",
     )
 
 
@@ -139,19 +169,37 @@ def load_nba_franchise_checkpoint(
     if expected_file_sha256 is not None and file_sha256 != expected_file_sha256:
         raise NBAFranchiseArtifactError("NBA franchise checkpoint file hash differs")
     try:
-        envelope = _object(
-            json.loads(path.read_text(encoding="utf-8")),
-            "NBA franchise checkpoint",
+        compressed = path.suffix == ".gz"
+        payload = (
+            gzip.decompress(path.read_bytes()).decode("utf-8")
+            if compressed
+            else path.read_text(encoding="utf-8")
         )
-        _exact(
-            envelope,
-            {"schema_version", "version", "state_sha256", "state"},
-            "NBA franchise checkpoint",
-        )
-        if (
-            _integer(envelope, "schema_version") != 1
-            or _string(envelope, "version") != NBA_FRANCHISE_ARTIFACT_VERSION
-        ):
+        envelope = _object(json.loads(payload), "NBA franchise checkpoint")
+        schema_version = _integer(envelope, "schema_version")
+        if schema_version == 1:
+            _exact(
+                envelope,
+                {"schema_version", "version", "state_sha256", "state"},
+                "NBA franchise checkpoint",
+            )
+            compression = "none"
+        elif schema_version == NBA_FRANCHISE_CHECKPOINT_SCHEMA_VERSION:
+            _exact(
+                envelope,
+                {"schema_version", "version", "compression", "state_sha256", "state"},
+                "NBA franchise checkpoint",
+            )
+            compression = _string(envelope, "compression")
+            if compression not in {"none", "gzip"} or (compression == "gzip") != compressed:
+                raise NBAFranchiseArtifactError("checkpoint compression metadata differs")
+        else:
+            raise NBAFranchiseArtifactError("unsupported NBA franchise checkpoint")
+        artifact_version = _string(envelope, "version")
+        if artifact_version not in {
+            NBA_FRANCHISE_ARTIFACT_VERSION,
+            *_LEGACY_ARTIFACT_VERSIONS,
+        }:
             raise NBAFranchiseArtifactError("unsupported NBA franchise checkpoint")
         expected_state_sha256 = _string(envelope, "state_sha256")
         if _sha256_value(envelope["state"]) != expected_state_sha256:
@@ -166,9 +214,17 @@ def load_nba_franchise_checkpoint(
                 state.completed_seasons,
                 expected_state_sha256,
                 file_sha256,
+                compression,
             ),
         )
-    except (json.JSONDecodeError, KeyError, TypeError, ValueError) as error:
+    except (
+        OSError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        KeyError,
+        TypeError,
+        ValueError,
+    ) as error:
         if isinstance(error, NBAFranchiseArtifactError):
             raise
         raise NBAFranchiseArtifactError(f"invalid NBA franchise checkpoint: {error}") from error
@@ -188,13 +244,34 @@ def _state_to_dict(
         state.alignment,
     )
     return {
-        "schema_version": 1,
+        "schema_version": NBA_FRANCHISE_STATE_SCHEMA_VERSION,
         "version": state.version,
         "league_id": state.league_id,
         "completed_seasons": state.completed_seasons,
         "league_state": json.loads(league_state_to_json(league_state)),
         "teams": [_team_to_dict(team) for team in state.teams],
     }
+
+
+def _write_gzip_json(path: Path, value: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    raw = (json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    handle, temporary_name = tempfile.mkstemp(
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        dir=path.parent,
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(handle, "wb") as stream:
+            with gzip.GzipFile(fileobj=stream, mode="wb", mtime=0) as compressed:
+                compressed.write(raw)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
 
 
 def _team_to_dict(team: GameTeam) -> dict[str, object]:

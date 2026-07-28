@@ -77,7 +77,11 @@ from courtsim.season import (
 )
 from courtsim.three_team_market import THREE_TEAM_MARKET_VERSION, ThreeTeamMarketRules
 from courtsim.three_team_trades import THREE_TEAM_TRADE_VERSION
-from courtsim.trade_market import TRADE_MARKET_VERSION, TradeMarketRules
+from courtsim.trade_market import (
+    MAXIMUM_SUPPORTED_NEGOTIATION_ROUNDS,
+    TRADE_MARKET_VERSION,
+    TradeMarketRules,
+)
 from courtsim.trades import TRADE_VERSION, TradeRules
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -135,7 +139,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 53
+    assert release["format_version"] == 54
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -607,7 +611,10 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "salary_matching_buffer": trade_rules.salary_matching_buffer,
         "enforce_stepien_rule": trade_rules.enforce_stepien_rule,
         "stepien_round_number": trade_rules.stepien_round_number,
+        "stepien_horizon_years": trade_rules.stepien_horizon_years,
+        "conditional_firsts_are_not_guaranteed": True,
         "supported_assets": ["player", "draft-pick", "future-draft-pick"],
+        "contract_conditions": True,
         "contract_follows_player": True,
         "atomic_state_transition": True,
         "cap_ledger_aware_entrypoint": True,
@@ -667,7 +674,15 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "generate_round_three_counteroffers": (
             trade_market_rules.generate_round_three_counteroffers
         ),
+        "maximum_supported_negotiation_rounds": MAXIMUM_SUPPORTED_NEGOTIATION_ROUNDS,
+        "maximum_contract_condition_candidates": (
+            trade_market_rules.maximum_contract_condition_candidates
+        ),
+        "generate_contract_condition_counteroffers": (
+            trade_market_rules.generate_contract_condition_counteroffers
+        ),
         "round_three_compensation": "additional-owned-pick",
+        "late_round_compensation": "binding-contract-condition",
         "negotiation_terminal_reasons": ["accepted", "round-limit", "no-counter"],
         "canonical_negotiation_summaries": True,
         "candidate_kind_mixing": True,
@@ -692,9 +707,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "draft_asset_version": DRAFT_ASSET_VERSION,
         "schema_version": DRAFT_ASSET_SCHEMA_VERSION,
         "league_state_schema_version": 4,
-        "future_year_horizon": 3,
-        "supported_protection": "top-n",
+        "legacy_schema_versions": [1],
+        "future_year_horizon": 7,
+        "supported_protection": "ordered-selection-ranges",
+        "condition_outcomes": ["defer", "convert", "retain"],
         "protection_rollover": True,
+        "round_conversion": True,
         "supported_swap": "one-way-better-slot",
         "stable_asset_identity": True,
         "original_team_identity_immutable": True,
@@ -941,6 +959,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
     assert cap_config == {
         "format_version": 1,
         "cap_mechanics_version": CAP_MECHANICS_VERSION,
+        "draft_asset_version": DRAFT_ASSET_VERSION,
         "salary_cap": cap_rules.salary_cap,
         "first_apron": cap_rules.first_apron,
         "second_apron": cap_rules.second_apron,
@@ -1195,9 +1214,11 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "trade_market_version": TRADE_MARKET_VERSION,
         "three_team_market_version": THREE_TEAM_MARKET_VERSION,
         "cap_mechanics_version": CAP_MECHANICS_VERSION,
+        "draft_asset_version": DRAFT_ASSET_VERSION,
         "team_count": 30,
         "stage_order": [
             "cap-ledger-expiry",
+            "seven-year-draft-asset-seeding",
             "bilateral-trade-market-evaluation",
             "three-team-trade-market-evaluation",
             "trade-market-clearing",
@@ -1235,6 +1256,8 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "three_team_market_evaluated_each_season": True,
         "exclusive_gain_based_trade_clearing": True,
         "cap_aware_trade_evaluation": True,
+        "complete_seven_year_stepien_enforcement": True,
+        "conditional_pick_settlement": True,
         "post_trade_roster_rebuild_before_games": True,
         "draft_assets_updated_by_trades": True,
         "cap_ledger_persisted_across_seasons": True,
@@ -1261,8 +1284,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "nba_franchise_artifact_version": NBA_FRANCHISE_ARTIFACT_VERSION,
         "nba_franchise_version": NBA_FRANCHISE_VERSION,
         "manager_league_state_schema": 4,
-        "franchise_state_schema": 1,
-        "checkpoint_envelope_schema": 1,
+        "franchise_state_schema": 2,
+        "legacy_franchise_state_schemas": [1],
+        "checkpoint_envelope_schema": 2,
+        "legacy_checkpoint_envelope_schemas": [1],
+        "compression": ["none", "gzip"],
+        "deterministic_gzip_mtime": 0,
         "canonical_state_json": True,
         "strict_state_keys": True,
         "atomic_checkpoint_write": True,
@@ -1270,6 +1297,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "checkpoint_file_sha256_receipt": True,
         "expected_file_sha256_verification": True,
         "corrupted_state_rejected": True,
+        "legacy_version_migration": True,
         "unsupported_version_rejected": True,
         "contract_rules_persisted": True,
         "management_persisted": True,
@@ -1302,8 +1330,10 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "nba_franchise_runner_version": NBA_FRANCHISE_RUNNER_VERSION,
         "nba_franchise_artifact_version": NBA_FRANCHISE_ARTIFACT_VERSION,
         "nba_franchise_version": NBA_FRANCHISE_VERSION,
-        "manifest_schema": 1,
+        "manifest_schema": 2,
+        "legacy_manifest_schemas": [1],
         "deterministic_season_seeds": True,
+        "per_checkpoint_seed_version": True,
         "seed_address_fields": [
             "master-seed",
             "runner-version",
@@ -1313,9 +1343,15 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "initial_state_checkpoint": True,
         "checkpoint_after_every_season": True,
         "atomic_state_before_manifest": True,
-        "verified_contiguous_prefix": True,
-        "all_prefix_file_hashes_verified": True,
-        "all_prefix_state_hashes_verified": True,
+        "verified_contiguous_metadata_prefix": True,
+        "retained_file_hashes_verified": True,
+        "retained_state_hashes_verified": True,
+        "retention_keep_last": True,
+        "retention_keep_every": True,
+        "retention_preserves_initial": True,
+        "retention_preserves_latest": True,
+        "older_checkpoint_gzip": True,
+        "pruned_checkpoint_metadata_retained": True,
         "contract_rules_verified": True,
         "league_identity_verified": True,
         "cap_ledger_continuity_required": True,

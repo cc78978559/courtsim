@@ -5,7 +5,7 @@
 
 ## 当前冻结版本
 
-- 引擎候选版本：`0.53.0`
+- 引擎候选版本：`0.54.0`
 - 模型结构：`data/model_schema_demo_v1_12.json`
 - 模型参数：`data/model_parameters_demo_1.4.0.json`
 - 球员夹具：`examples/calibration_lineup_v1.json`
@@ -16,9 +16,9 @@
 - NBA 核心目标：`experiments/nba-2024-25-regular-season-core-v1.json`
 - NBA 罚球目标：`experiments/nba-2024-25-regular-season-free-throws-v1.json`
 - 30 队快速模拟：`nba-quick-sim-executor-v5`
-- 交易和工资帽完整赛季循环：`nba-franchise-v4`
-- 工资帽完整原子存档：`nba-franchise-artifact-v2`
-- 工资帽连续多赛季恢复运行器：`nba-franchise-runner-v2`
+- 交易和工资帽完整赛季循环：`nba-franchise-v5`
+- 压缩且可迁移的原子存档：`nba-franchise-artifact-v3`
+- 带保留策略的多赛季恢复运行器：`nba-franchise-runner-v3`
 
 独立种子 `20260728` 的 100 场审计通过 10 项核心目标、3 项罚球目标和
 37 项回归门禁。冻结审计 SHA-256：
@@ -167,14 +167,15 @@ OFF_BALL_ACTION
 
 ## 当前边界
 
-当前仍未实现的主要边界包括更高级的条件选秀权和七年 Stepien 边界、
-四轮以上及合同条件交易谈判、checkpoint 保留/迁移策略、因果战术实验、
-Shadow 之外的人工批准流程，以及完整玩法 UI。
+当前仍未实现的主要边界包括选秀权冻结与更复杂的多重条件义务、
+三方市场的合同条件谈判、因果战术实验、Shadow 之外的人工批准流程，
+以及完整玩法 UI。
 
 已经实现的联盟层包括 30 队 1,230 场赛程、play-in、完整季后赛、疲劳和伤病连续、
 乐透与选秀权结算、球探不确定性、球员成长/衰退/退休、完整休赛期、鸟权/工资匹配/
-交易特例、白盒经理交易与轮换、对手级战术、跨赛季经理学习、2K 快速模拟比较入口、
-原子 franchise 存档，以及不重放已完成赛季的多赛季恢复运行器。最新进度和测试数
+交易特例、完整七年 Stepien、条件选秀权、四至八轮双边谈判、白盒经理交易与轮换、
+对手级战术、跨赛季经理学习、2K 快速模拟比较入口、压缩/保留/迁移的原子 franchise
+存档，以及不重放已完成赛季的多赛季恢复运行器。最新进度和测试数
 以 `PROJECT_STATUS.md` 与 `governance/current-release.json` 为准。
 
 固定对手和球队分侧审计已落地；球队级 `tempo` 已通过 12/15/18 秒有界分布改变

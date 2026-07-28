@@ -50,3 +50,36 @@ def test_franchise_checkpoint_rejects_corruption(tmp_path: Path) -> None:
         load_nba_franchise_checkpoint(path)
     with pytest.raises(NBAFranchiseArtifactError, match="file hash differs"):
         load_nba_franchise_checkpoint(path, expected_file_sha256=receipt.file_sha256)
+
+
+def test_compressed_checkpoint_is_deterministic_and_migrates_v2_state(
+    tmp_path: Path,
+) -> None:
+    state, _, contract_rules = _state()
+    first = tmp_path / "first.json.gz"
+    second = tmp_path / "second.json.gz"
+    first_receipt = write_nba_franchise_checkpoint(
+        state,
+        contract_rules,
+        first,
+        compress=True,
+    )
+    second_receipt = write_nba_franchise_checkpoint(
+        state,
+        contract_rules,
+        second,
+        compress=True,
+    )
+    assert first.read_bytes() == second.read_bytes()
+    assert first_receipt.compression == "gzip"
+    assert second_receipt.file_sha256 == first_receipt.file_sha256
+    restored, restored_rules, loaded = load_nba_franchise_checkpoint(first)
+    assert restored == state
+    assert restored_rules == contract_rules
+    assert loaded.compression == "gzip"
+
+    legacy = json.loads(nba_franchise_state_to_json(state, contract_rules))
+    legacy["schema_version"] = 1
+    legacy["version"] = "nba-franchise-v4"
+    migrated, _ = nba_franchise_state_from_json(json.dumps(legacy))
+    assert migrated == state
