@@ -29,7 +29,9 @@ _CONDITION_OPERATORS = {
     "in",
     "not_equals",
     "contains",
+    "contains_ci",
     "not_contains",
+    "not_contains_ci",
     "truthy",
 }
 
@@ -378,7 +380,11 @@ def _matches(row: Mapping[str, str | None], raw_where: object) -> bool:
             return False
         if operator == "contains" and cast(str, expected) not in value:
             return False
+        if operator == "contains_ci" and cast(str, expected).casefold() not in value.casefold():
+            return False
         if operator == "not_contains" and cast(str, expected) in value:
+            return False
+        if operator == "not_contains_ci" and cast(str, expected).casefold() in value.casefold():
             return False
         if operator == "truthy":
             truthy = value.lower() in {"1", "true", "yes", "y"}

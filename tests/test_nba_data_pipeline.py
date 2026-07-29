@@ -221,6 +221,16 @@ def test_all_row_condition_operators_are_local(tmp_path: Path) -> None:
             "where": {"event_type": {"not_contains": "turn"}},
         },
         {
+            "name": "contains_ci",
+            "operation": "count",
+            "where": {"event_type": {"contains_ci": "SHOT"}},
+        },
+        {
+            "name": "not_contains_ci",
+            "operation": "count",
+            "where": {"event_type": {"not_contains_ci": "TURN"}},
+        },
+        {
             "name": "false_flags",
             "operation": "count",
             "where": {"flag": {"truthy": False}},
@@ -232,8 +242,10 @@ def test_all_row_condition_operators_are_local(tmp_path: Path) -> None:
     summary = build_nba_data_summary(manifest, cache, tmp_path / "summary.json")
     assert summary["metrics"] == {
         "contains": 1,
+        "contains_ci": 1,
         "false_flags": 1,
         "not_contains": 1,
+        "not_contains_ci": 1,
         "not_shots": 1,
         "selected": 1,
     }

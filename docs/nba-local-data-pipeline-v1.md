@@ -14,6 +14,10 @@
 `shufinskiy/nba_data` 的赛季压缩包。不要把原始文件提交到 CourtSim 仓库，也不要
 依赖模拟运行时联网。
 
+仓库已包含一个经过本机连接、内容哈希和表头验证的可选清单：
+`experiments/nba-data/shufinskiy-nbastatsv3-2024.json`。它不需要账号或 API Key，
+原始数据仍只进入本地缓存。
+
 ## 工作流
 
 1. 将下载文件放在仓库外，或放入被忽略的 `.cache/nba-data`；本地 `path` 相对清单
@@ -28,6 +32,14 @@ Copy-Item experiments/nba-data/hoopr-pbp-manifest.example.json work/nba-data.jso
 .\tools.cmd nba-data build work/nba-data.json work/nba-2024-25-summary.json
 .\tools.cmd nba-data status work/nba-data.json `
   --output work/nba-2024-25-summary.json
+```
+
+直接使用已验证的无 Key 2024-25 端点：
+
+```powershell
+.\tools.cmd nba-data sync experiments/nba-data/shufinskiy-nbastatsv3-2024.json
+.\tools.cmd nba-data build experiments/nba-data/shufinskiy-nbastatsv3-2024.json `
+  work/nba-2024-25-events-summary.json
 ```
 
 默认缓存目录是 `.cache/nba-data/<dataset_id>/`。跨机器接续时传递原始数据文件，
@@ -53,7 +65,8 @@ Copy-Item experiments/nba-data/hoopr-pbp-manifest.example.json work/nba-data.jso
 - `sum`：对某列流式求和；
 - `ratio`：用两个已定义指标相除。
 
-条件支持 `equals`、`not_equals`、`in`、`contains`、`not_contains` 和 `truthy`。
+条件支持 `equals`、`not_equals`、`in`、`contains`、`not_contains`、
+`contains_ci`、`not_contains_ci` 和 `truthy`；`_ci` 变体不区分大小写。
 列名或事件文本必须与下载文件实际 schema 对齐；来源升级导致列变化时，构建会明确
 失败，不会静默产生错误指标。
 
