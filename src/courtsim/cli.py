@@ -58,6 +58,7 @@ from courtsim.analysis.matrix_style_coverage import (
     build_matrix_style_coverage,
 )
 from courtsim.analysis.model_audit_runner import run_model_audit_to_directory
+from courtsim.analysis.nba_data_audit import NbaDataAuditError, build_nba_data_audit
 from courtsim.analysis.nba_data_pipeline import (
     NbaDataPipelineError,
     build_nba_data_summary,
@@ -213,6 +214,16 @@ def _parser() -> argparse.ArgumentParser:
     nba_data_status.add_argument("manifest", type=Path)
     nba_data_status.add_argument("--cache", type=Path, default=Path(".cache/nba-data"))
     nba_data_status.add_argument("--output", type=Path)
+    nba_data_audit = nba_data_actions.add_parser(
+        "audit",
+        help="reconcile a local event summary with pinned NBA totals",
+    )
+    nba_data_audit.add_argument("summary", type=Path)
+    nba_data_audit.add_argument("core_snapshot", type=Path)
+    nba_data_audit.add_argument("free_throw_snapshot", type=Path)
+    nba_data_audit.add_argument("output", type=Path)
+    nba_data_audit.add_argument("--tolerance", type=float, default=0.001)
+    nba_data_audit.add_argument("--warning-multiplier", type=float, default=5.0)
 
     quick_sim_status = subparsers.add_parser(
         "nba-quick-sim-status",
@@ -590,12 +601,21 @@ def main(argv: list[str] | None = None) -> int:
                     arguments.output,
                     force=arguments.force,
                 )
-            else:
+            elif arguments.nba_data_action == "status":
                 nba_data_report = inspect_nba_data(
                     arguments.manifest,
                     arguments.cache,
                     arguments.output,
                 )
+            else:
+                nba_data_report = build_nba_data_audit(
+                    arguments.summary,
+                    arguments.core_snapshot,
+                    arguments.free_throw_snapshot,
+                    tolerance=arguments.tolerance,
+                    warning_multiplier=arguments.warning_multiplier,
+                )
+                write_json(arguments.output, nba_data_report)
             print(
                 json.dumps(
                     nba_data_report,
@@ -1079,6 +1099,7 @@ def main(argv: list[str] | None = None) -> int:
         MatrixStyleCoverageError,
         MatrixRobustnessError,
         NbaReferenceError,
+        NbaDataAuditError,
         NbaDataPipelineError,
         NBAFranchiseArtifactError,
         NBAFranchiseRunnerError,

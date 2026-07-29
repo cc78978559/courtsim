@@ -218,6 +218,71 @@ def calculate_nba_core_metrics(snapshot_path: str | Path) -> dict[str, float]:
     }
 
 
+def calculate_nba_reference_totals(
+    snapshot_path: str | Path,
+    free_throw_snapshot_path: str | Path,
+) -> dict[str, int]:
+    """Return strict overlapping totals for independent event-source reconciliation."""
+    _, traditional, _ = _validated_snapshot(snapshot_path)
+    free_throw_source = Path(free_throw_snapshot_path)
+    free_throw_raw = _load_object(free_throw_source)
+    expected_free_throw_fields = {
+        "format_version",
+        "provider",
+        "population",
+        "season",
+        "season_type",
+        "retrieved_on",
+        "extraction",
+        "origin",
+        "columns",
+        "rows",
+        "totals",
+    }
+    if (
+        set(free_throw_raw) != expected_free_throw_fields
+        or free_throw_raw["format_version"] != 1
+        or free_throw_raw["columns"] != ["Team", "FTM", "FTA"]
+    ):
+        raise NbaReferenceError("NBA free-throw snapshot does not match format version 1")
+    rows = free_throw_raw["rows"]
+    totals = free_throw_raw["totals"]
+    if not isinstance(rows, list) or len(rows) != 30 or not isinstance(totals, dict):
+        raise NbaReferenceError("NBA free-throw snapshot must contain 30 teams and totals")
+    calculated_ftm = 0
+    calculated_fta = 0
+    teams: set[str] = set()
+    for index, row in enumerate(rows):
+        if not isinstance(row, list) or len(row) != 3:
+            raise NbaReferenceError(f"NBA free-throw row {index} is invalid")
+        team = _text(row[0], f"free_throws.rows[{index}].Team")
+        if team in teams:
+            raise NbaReferenceError(f"NBA free-throw snapshot contains duplicate team: {team}")
+        teams.add(team)
+        calculated_ftm += int(_number(row[1], f"free_throws.{team}.FTM"))
+        calculated_fta += int(_number(row[2], f"free_throws.{team}.FTA"))
+    if teams != set(traditional):
+        raise NbaReferenceError("NBA free-throw and core snapshot team sets differ")
+    if set(totals) != {"FTM", "FTA"} or totals != {
+        "FTM": calculated_ftm,
+        "FTA": calculated_fta,
+    }:
+        raise NbaReferenceError("NBA free-throw totals do not match rows")
+    team_games = int(_sum(traditional, "GP"))
+    return {
+        "teams": len(traditional),
+        "games": team_games // 2,
+        "field_goals_made": int(_sum(traditional, "FGM")),
+        "field_goal_attempts": int(_sum(traditional, "FGA")),
+        "three_points_made": int(_sum(traditional, "3PM")),
+        "three_point_attempts": int(_sum(traditional, "3PA")),
+        "free_throws_made": calculated_ftm,
+        "free_throw_attempts": calculated_fta,
+        "turnovers": int(_sum(traditional, "TOV")),
+        "rebounds": int(_sum(traditional, "OREB") + _sum(traditional, "DREB")),
+    }
+
+
 def calculate_nba_team_metrics(
     snapshot_path: str | Path,
     team: str,

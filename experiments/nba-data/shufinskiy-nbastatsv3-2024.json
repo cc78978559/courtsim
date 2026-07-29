@@ -43,6 +43,9 @@
         "name": "three_point_attempts",
         "operation": "count",
         "where": {
+          "isFieldGoal": {
+            "truthy": true
+          },
           "shotValue": {
             "equals": "3"
           }
@@ -77,7 +80,7 @@
             "contains": "Free Throw"
           },
           "description": {
-            "not_contains_ci": "miss"
+            "not_contains": "MISS"
           }
         }
       },

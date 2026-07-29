@@ -40,7 +40,15 @@ Copy-Item experiments/nba-data/hoopr-pbp-manifest.example.json work/nba-data.jso
 .\tools.cmd nba-data sync experiments/nba-data/shufinskiy-nbastatsv3-2024.json
 .\tools.cmd nba-data build experiments/nba-data/shufinskiy-nbastatsv3-2024.json `
   work/nba-2024-25-events-summary.json
+.\tools.cmd nba-data audit work/nba-2024-25-events-summary.json `
+  experiments/sources/nba-2024-25-team-core.json `
+  experiments/sources/nba-2024-25-team-free-throws.json `
+  work/nba-2024-25-source-audit.json
 ```
+
+`audit` 使用固定 NBA 球队总量做独立来源核对，并把重合指标分为 `pass`、
+`warning` 和 `rejected`。只有通过指标进入 `promotion`；例如逐事件篮板包含球队及
+死球篮板，不能直接冒充传统球队篮板总量。
 
 默认缓存目录是 `.cache/nba-data/<dataset_id>/`。跨机器接续时传递原始数据文件，
 或在新机器上再次执行 `sync`；Git 只需要传递清单和处理代码。
