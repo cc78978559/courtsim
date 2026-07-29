@@ -69,6 +69,7 @@ def build_project_status(root: str | Path) -> dict[str, object]:
             "local-nba-data-pipeline",
             "nba-data-source-audit",
             "nba-possession-source-audit",
+            "nba-shot-zone-source-audit",
             "nba-reference-targets",
             "nba-quick-sim-inspection",
             "nba-quick-sim-comparison",

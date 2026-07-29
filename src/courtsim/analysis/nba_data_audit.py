@@ -47,6 +47,16 @@ _POSSESSION_METRICS = (
     "three_point_percentage",
     "turnover_per_possession",
 )
+_SHOT_METRICS = (
+    "teams",
+    "games",
+    "field_goals_made",
+    "field_goal_attempts",
+    "three_points_made",
+    "three_point_attempts",
+    "field_goal_percentage",
+    "three_point_percentage",
+)
 
 
 class NbaDataAuditError(ValueError):
@@ -174,6 +184,63 @@ def build_nba_possession_audit(
             "warning_metrics": warnings,
             "rejected_metrics": rejected,
             "source_only_metrics": sorted(set(metrics) - set(_POSSESSION_METRICS)),
+        },
+        "summary": _summary_counts(comparisons, warnings, rejected),
+    }
+
+
+def build_nba_shot_audit(
+    summary_path: str | Path,
+    core_snapshot_path: str | Path,
+    *,
+    tolerance: float = 0.001,
+    warning_multiplier: float = 5.0,
+) -> dict[str, object]:
+    """Reconcile shot-detail totals while retaining zones as source-only targets."""
+    _validate_thresholds(tolerance, warning_multiplier)
+    summary_file, summary, metrics, source = _load_summary(summary_path, "NBA shot summary")
+    core_file = Path(core_snapshot_path).resolve()
+    reference = calculate_nba_core_totals(core_file)
+    reference_values: dict[str, float | int] = {
+        "teams": reference["teams"],
+        "games": reference["games"],
+        "field_goals_made": reference["field_goals_made"],
+        "field_goal_attempts": reference["field_goal_attempts"],
+        "three_points_made": reference["three_points_made"],
+        "three_point_attempts": reference["three_point_attempts"],
+        "field_goal_percentage": (reference["field_goals_made"] / reference["field_goal_attempts"]),
+        "three_point_percentage": (
+            reference["three_points_made"] / reference["three_point_attempts"]
+        ),
+    }
+    comparisons, passed, warnings, rejected = _compare(
+        metrics,
+        reference_values,
+        _SHOT_METRICS,
+        "shot_value",
+        tolerance,
+        warning_multiplier,
+    )
+    return {
+        "schema_version": NBA_DATA_AUDIT_VERSION,
+        "audit_id": f"{_text(summary.get('dataset_id'), 'summary.dataset_id')}-audit-v1",
+        "season": _text(summary.get("season"), "summary.season"),
+        "status": _overall_status(passed, warnings, rejected),
+        "notes": (
+            "Shot totals are reconciled with pinned NBA team aggregates. Zone metrics have no "
+            "independent pinned counterpart and remain source-only calibration targets."
+        ),
+        "thresholds": _threshold_payload(tolerance, warning_multiplier),
+        "sources": {
+            "shot_summary": _summary_source(summary_file, source),
+            "core_snapshot": _file_source(core_file),
+        },
+        "comparisons": comparisons,
+        "promotion": {
+            "reconciled_metrics": passed,
+            "warning_metrics": warnings,
+            "rejected_metrics": rejected,
+            "source_only_metrics": sorted(set(metrics) - set(_SHOT_METRICS)),
         },
         "summary": _summary_counts(comparisons, warnings, rejected),
     }

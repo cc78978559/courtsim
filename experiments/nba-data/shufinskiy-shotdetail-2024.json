@@ -1,0 +1,257 @@
+{
+  "build": {
+    "encoding": "utf-8-sig",
+    "metrics": [
+      {
+        "column": "GAME_ID",
+        "name": "games",
+        "operation": "distinct_count"
+      },
+      {
+        "column": "TEAM_ID",
+        "name": "teams",
+        "operation": "distinct_count"
+      },
+      {
+        "name": "field_goal_attempts",
+        "operation": "count"
+      },
+      {
+        "name": "field_goals_made",
+        "operation": "count",
+        "where": {
+          "SHOT_MADE_FLAG": {
+            "truthy": true
+          }
+        }
+      },
+      {
+        "name": "three_point_attempts",
+        "operation": "count",
+        "where": {
+          "SHOT_TYPE": {
+            "equals": "3PT Field Goal"
+          }
+        }
+      },
+      {
+        "name": "three_points_made",
+        "operation": "count",
+        "where": {
+          "SHOT_MADE_FLAG": {
+            "truthy": true
+          },
+          "SHOT_TYPE": {
+            "equals": "3PT Field Goal"
+          }
+        }
+      },
+      {
+        "name": "restricted_area_attempts",
+        "operation": "count",
+        "where": {
+          "SHOT_ZONE_BASIC": {
+            "equals": "Restricted Area"
+          }
+        }
+      },
+      {
+        "name": "restricted_area_made",
+        "operation": "count",
+        "where": {
+          "SHOT_MADE_FLAG": {
+            "truthy": true
+          },
+          "SHOT_ZONE_BASIC": {
+            "equals": "Restricted Area"
+          }
+        }
+      },
+      {
+        "name": "paint_non_ra_attempts",
+        "operation": "count",
+        "where": {
+          "SHOT_ZONE_BASIC": {
+            "equals": "In The Paint (Non-RA)"
+          }
+        }
+      },
+      {
+        "name": "paint_non_ra_made",
+        "operation": "count",
+        "where": {
+          "SHOT_MADE_FLAG": {
+            "truthy": true
+          },
+          "SHOT_ZONE_BASIC": {
+            "equals": "In The Paint (Non-RA)"
+          }
+        }
+      },
+      {
+        "name": "mid_range_attempts",
+        "operation": "count",
+        "where": {
+          "SHOT_ZONE_BASIC": {
+            "equals": "Mid-Range"
+          }
+        }
+      },
+      {
+        "name": "mid_range_made",
+        "operation": "count",
+        "where": {
+          "SHOT_MADE_FLAG": {
+            "truthy": true
+          },
+          "SHOT_ZONE_BASIC": {
+            "equals": "Mid-Range"
+          }
+        }
+      },
+      {
+        "name": "corner_three_attempts",
+        "operation": "count",
+        "where": {
+          "SHOT_ZONE_BASIC": {
+            "in": [
+              "Left Corner 3",
+              "Right Corner 3"
+            ]
+          }
+        }
+      },
+      {
+        "name": "corner_three_made",
+        "operation": "count",
+        "where": {
+          "SHOT_MADE_FLAG": {
+            "truthy": true
+          },
+          "SHOT_ZONE_BASIC": {
+            "in": [
+              "Left Corner 3",
+              "Right Corner 3"
+            ]
+          }
+        }
+      },
+      {
+        "name": "above_break_three_attempts",
+        "operation": "count",
+        "where": {
+          "SHOT_ZONE_BASIC": {
+            "equals": "Above the Break 3"
+          }
+        }
+      },
+      {
+        "name": "above_break_three_made",
+        "operation": "count",
+        "where": {
+          "SHOT_MADE_FLAG": {
+            "truthy": true
+          },
+          "SHOT_ZONE_BASIC": {
+            "equals": "Above the Break 3"
+          }
+        }
+      },
+      {
+        "name": "backcourt_attempts",
+        "operation": "count",
+        "where": {
+          "SHOT_ZONE_BASIC": {
+            "equals": "Backcourt"
+          }
+        }
+      },
+      {
+        "denominator": "field_goal_attempts",
+        "name": "field_goal_percentage",
+        "numerator": "field_goals_made",
+        "operation": "ratio"
+      },
+      {
+        "denominator": "three_point_attempts",
+        "name": "three_point_percentage",
+        "numerator": "three_points_made",
+        "operation": "ratio"
+      },
+      {
+        "denominator": "restricted_area_attempts",
+        "name": "restricted_area_percentage",
+        "numerator": "restricted_area_made",
+        "operation": "ratio"
+      },
+      {
+        "denominator": "paint_non_ra_attempts",
+        "name": "paint_non_ra_percentage",
+        "numerator": "paint_non_ra_made",
+        "operation": "ratio"
+      },
+      {
+        "denominator": "mid_range_attempts",
+        "name": "mid_range_percentage",
+        "numerator": "mid_range_made",
+        "operation": "ratio"
+      },
+      {
+        "denominator": "corner_three_attempts",
+        "name": "corner_three_percentage",
+        "numerator": "corner_three_made",
+        "operation": "ratio"
+      },
+      {
+        "denominator": "above_break_three_attempts",
+        "name": "above_break_three_percentage",
+        "numerator": "above_break_three_made",
+        "operation": "ratio"
+      },
+      {
+        "denominator": "field_goal_attempts",
+        "name": "restricted_area_share",
+        "numerator": "restricted_area_attempts",
+        "operation": "ratio"
+      },
+      {
+        "denominator": "field_goal_attempts",
+        "name": "paint_non_ra_share",
+        "numerator": "paint_non_ra_attempts",
+        "operation": "ratio"
+      },
+      {
+        "denominator": "field_goal_attempts",
+        "name": "mid_range_share",
+        "numerator": "mid_range_attempts",
+        "operation": "ratio"
+      },
+      {
+        "denominator": "field_goal_attempts",
+        "name": "corner_three_share",
+        "numerator": "corner_three_attempts",
+        "operation": "ratio"
+      },
+      {
+        "denominator": "field_goal_attempts",
+        "name": "above_break_three_share",
+        "numerator": "above_break_three_attempts",
+        "operation": "ratio"
+      }
+    ],
+    "resource_id": "shotdetail"
+  },
+  "dataset_id": "shufinskiy-shotdetail-2024",
+  "provider": "shufinskiy/nba_data shotdetail projection",
+  "resources": [
+    {
+      "filename": "shotdetail_2024.tar.xz",
+      "resource_id": "shotdetail",
+      "sha256": "950100f9c84fe750ae2ac8eaeb82d24cdfb9f60a9ed04ceaa66f64789d7c216e",
+      "url": "https://github.com/shufinskiy/nba_data/raw/main/datasets/shotdetail_2024.tar.xz"
+    }
+  ],
+  "schema_version": 1,
+  "season": "2024-25",
+  "terms_note": "Free personal research only; preserve upstream attribution and do not redistribute raw NBA-derived data."
+}

@@ -62,6 +62,7 @@ from courtsim.analysis.nba_data_audit import (
     NbaDataAuditError,
     build_nba_data_audit,
     build_nba_possession_audit,
+    build_nba_shot_audit,
 )
 from courtsim.analysis.nba_data_pipeline import (
     NbaDataPipelineError,
@@ -237,6 +238,15 @@ def _parser() -> argparse.ArgumentParser:
     nba_possession_audit.add_argument("output", type=Path)
     nba_possession_audit.add_argument("--tolerance", type=float, default=0.001)
     nba_possession_audit.add_argument("--warning-multiplier", type=float, default=5.0)
+    nba_shot_audit = nba_data_actions.add_parser(
+        "audit-shots",
+        help="reconcile shot-detail totals and preserve zone calibration targets",
+    )
+    nba_shot_audit.add_argument("summary", type=Path)
+    nba_shot_audit.add_argument("core_snapshot", type=Path)
+    nba_shot_audit.add_argument("output", type=Path)
+    nba_shot_audit.add_argument("--tolerance", type=float, default=0.001)
+    nba_shot_audit.add_argument("--warning-multiplier", type=float, default=5.0)
 
     quick_sim_status = subparsers.add_parser(
         "nba-quick-sim-status",
@@ -629,8 +639,16 @@ def main(argv: list[str] | None = None) -> int:
                     warning_multiplier=arguments.warning_multiplier,
                 )
                 write_json(arguments.output, nba_data_report)
-            else:
+            elif arguments.nba_data_action == "audit-possessions":
                 nba_data_report = build_nba_possession_audit(
+                    arguments.summary,
+                    arguments.core_snapshot,
+                    tolerance=arguments.tolerance,
+                    warning_multiplier=arguments.warning_multiplier,
+                )
+                write_json(arguments.output, nba_data_report)
+            else:
+                nba_data_report = build_nba_shot_audit(
                     arguments.summary,
                     arguments.core_snapshot,
                     tolerance=arguments.tolerance,

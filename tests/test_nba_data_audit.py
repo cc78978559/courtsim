@@ -8,6 +8,7 @@ from courtsim.analysis.nba_data_audit import (
     NbaDataAuditError,
     build_nba_data_audit,
     build_nba_possession_audit,
+    build_nba_shot_audit,
 )
 from courtsim.analysis.nba_reference import (
     NbaReferenceError,
@@ -204,4 +205,52 @@ def test_possession_audit_separates_reconciled_and_source_only_metrics(
         )
         == 0
     )
+    assert json.loads(capsys.readouterr().out) == json.loads(output.read_text(encoding="utf-8"))
+
+
+def test_shot_audit_reconciles_totals_and_keeps_zones_source_only(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    totals = calculate_nba_reference_totals(CORE, FREE_THROWS)
+    summary = tmp_path / "shots.json"
+    write_json(
+        summary,
+        {
+            "schema_version": 1,
+            "dataset_id": "shotdetail-2024",
+            "season": "2024-25",
+            "source": {
+                "bytes": 2_832_144,
+                "sha256": hashlib.sha256(b"shotdetail").hexdigest(),
+            },
+            "metrics": {
+                "teams": totals["teams"],
+                "games": totals["games"],
+                "field_goals_made": totals["field_goals_made"],
+                "field_goal_attempts": totals["field_goal_attempts"],
+                "three_points_made": totals["three_points_made"],
+                "three_point_attempts": totals["three_point_attempts"] + 1,
+                "field_goal_percentage": (
+                    totals["field_goals_made"] / totals["field_goal_attempts"]
+                ),
+                "three_point_percentage": (
+                    totals["three_points_made"] / (totals["three_point_attempts"] + 1)
+                ),
+                "restricted_area_attempts": 61_190,
+                "restricted_area_percentage": 0.663556136624,
+            },
+        },
+    )
+    report = build_nba_shot_audit(summary, CORE)
+    assert report["status"] == "passed"
+    assert report["summary"] == {"compared": 8, "passed": 8, "warnings": 0, "rejected": 0}
+    promotion = report["promotion"]
+    assert isinstance(promotion, dict)
+    assert promotion["source_only_metrics"] == [
+        "restricted_area_attempts",
+        "restricted_area_percentage",
+    ]
+    output = tmp_path / "shot-audit.json"
+    assert main(["nba-data", "audit-shots", str(summary), str(CORE), str(output)]) == 0
     assert json.loads(capsys.readouterr().out) == json.loads(output.read_text(encoding="utf-8"))

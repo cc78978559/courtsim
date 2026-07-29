@@ -21,6 +21,9 @@
 回合级清单为 `experiments/nba-data/shufinskiy-pbpstats-2024.json`。该来源会为同一
 回合的每条描述重复聚合字段，因此清单使用复合键去重，不能直接对原始行求和。
 
+投篮位置清单为 `experiments/nba-data/shufinskiy-shotdetail-2024.json`，用于生成篮下、
+非限制区油漆区、中距离、底角三分和弧顶三分的出手占比及命中率。
+
 ## 工作流
 
 1. 将下载文件放在仓库外，或放入被忽略的 `.cache/nba-data`；本地 `path` 相对清单
@@ -67,6 +70,21 @@ Copy-Item experiments/nba-data/hoopr-pbp-manifest.example.json work/nba-data.jso
 `pbpstats` 的实际回合边界与 NBA 球队 `POSS` 汇总口径不同。审计不会把两者静默
 混合：回合时长和犯规率保留为来源独有指标，只有与固定球队总量对齐的指标才进入
 `reconciled_metrics`。
+
+投篮区域构建和审计：
+
+```powershell
+.\tools.cmd nba-data sync experiments/nba-data/shufinskiy-shotdetail-2024.json
+.\tools.cmd nba-data build experiments/nba-data/shufinskiy-shotdetail-2024.json `
+  work/nba-2024-25-shot-zone-summary.json
+.\tools.cmd nba-data audit-shots work/nba-2024-25-shot-zone-summary.json `
+  experiments/sources/nba-2024-25-team-core.json `
+  work/nba-2024-25-shot-zone-audit.json
+```
+
+`audit-shots` 用球队总量核对球队数、比赛数、投篮和三分的命中/出手及命中率。
+区域分布没有第二个固定来源可逐项核对，因此明确保留在 `source_only_metrics`，供模拟
+校准使用，不伪装成多来源共识。
 
 默认缓存目录是 `.cache/nba-data/<dataset_id>/`。跨机器接续时传递原始数据文件，
 或在新机器上再次执行 `sync`；Git 只需要传递清单和处理代码。
