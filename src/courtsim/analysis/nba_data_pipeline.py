@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import csv
 import gzip
+import hashlib
 import json
 import lzma
+import math
 import os
 import shutil
 import tarfile
@@ -23,7 +25,7 @@ from courtsim.artifacts import sha256_file, write_json
 
 NBA_DATA_MANIFEST_VERSION = 1
 NBA_DATA_SUMMARY_VERSION = 1
-_OPERATIONS = {"count", "distinct_count", "sum", "ratio"}
+_OPERATIONS = {"clock_delta_sum", "count", "distinct_count", "sum", "ratio"}
 _CONDITION_OPERATORS = {
     "equals",
     "in",
@@ -112,7 +114,10 @@ def build_nba_data_summary(
     delimiter = _delimiter(build.get("delimiter", ","))
     encoding = _text(build.get("encoding", "utf-8-sig"), "build.encoding")
     archive_member = _optional_text(build.get("archive_member"), "build.archive_member")
+    deduplicate_by = _deduplicate_by(build.get("deduplicate_by"))
     row_count = 0
+    source_row_count = 0
+    seen_keys: set[bytes] = set()
     values: dict[str, float | int | set[str]] = {}
     for spec in metric_specs:
         name = _text(spec.get("name"), "build.metrics[].name")
@@ -120,14 +125,20 @@ def build_nba_data_summary(
         if operation == "distinct_count":
             values[name] = set()
         elif operation != "ratio":
-            values[name] = 0.0 if operation == "sum" else 0
+            values[name] = 0.0 if operation in {"sum", "clock_delta_sum"} else 0
 
     with _open_csv_text(source, encoding=encoding, archive_member=archive_member) as stream:
         reader = csv.DictReader(stream, delimiter=delimiter)
         if reader.fieldnames is None:
             raise NbaDataPipelineError("CSV resource has no header")
-        _validate_columns(metric_specs, set(reader.fieldnames))
+        _validate_columns(metric_specs, set(reader.fieldnames), deduplicate_by)
         for row in reader:
+            source_row_count += 1
+            if deduplicate_by:
+                key = _row_key(row, deduplicate_by)
+                if key in seen_keys:
+                    continue
+                seen_keys.add(key)
             row_count += 1
             for spec in metric_specs:
                 name = cast(str, spec["name"])
@@ -141,7 +152,7 @@ def build_nba_data_summary(
                     value = (row.get(column) or "").strip()
                     if value:
                         cast(set[str], values[name]).add(value)
-                else:
+                elif operation == "sum":
                     column = cast(str, spec["column"])
                     raw_value = (row.get(column) or "").strip().replace(",", "")
                     if raw_value:
@@ -151,6 +162,17 @@ def build_nba_data_summary(
                             raise NbaDataPipelineError(
                                 f"metric {name} encountered non-numeric value in {column}"
                             ) from error
+                else:
+                    start_column = cast(str, spec["start_column"])
+                    end_column = cast(str, spec["end_column"])
+                    delta = _clock_seconds(row.get(start_column), start_column) - _clock_seconds(
+                        row.get(end_column), end_column
+                    )
+                    if delta < 0:
+                        raise NbaDataPipelineError(
+                            f"metric {name} encountered a negative clock delta"
+                        )
+                    values[name] = cast(float, values[name]) + delta
 
     metrics: dict[str, float | int] = {}
     for spec in metric_specs:
@@ -187,6 +209,8 @@ def build_nba_data_summary(
             "terms_note": _text(manifest.get("terms_note"), "terms_note"),
         },
         "rows_processed": row_count,
+        "source_rows": source_row_count,
+        "duplicates_skipped": source_row_count - row_count,
         "metrics": metrics,
         "cached": False,
     }
@@ -274,12 +298,20 @@ def _load_manifest(path: Path) -> dict[str, Any]:
     if len(resource_ids) != len(set(resource_ids)):
         raise NbaDataPipelineError("resource ids must be unique")
     build = _mapping(manifest.get("build"), "build")
-    if set(build) - {"resource_id", "delimiter", "encoding", "archive_member", "metrics"}:
+    if set(build) - {
+        "resource_id",
+        "delimiter",
+        "encoding",
+        "archive_member",
+        "deduplicate_by",
+        "metrics",
+    }:
         raise NbaDataPipelineError("build contains unsupported fields")
     _resource_by_id(manifest, _text(build.get("resource_id"), "build.resource_id"))
     _delimiter(build.get("delimiter", ","))
     _text(build.get("encoding", "utf-8-sig"), "build.encoding")
     _optional_text(build.get("archive_member"), "build.archive_member")
+    _deduplicate_by(build.get("deduplicate_by"))
     _metric_specs(build)
     return manifest
 
@@ -301,6 +333,8 @@ def _metric_specs(build: Mapping[str, Any]) -> list[dict[str, Any]]:
         allowed = (
             {"name", "operation", "numerator", "denominator"}
             if operation == "ratio"
+            else {"name", "operation", "start_column", "end_column", "where"}
+            if operation == "clock_delta_sum"
             else {"name", "operation", "where"}
             if operation == "count"
             else {"name", "operation", "column", "where"}
@@ -309,6 +343,9 @@ def _metric_specs(build: Mapping[str, Any]) -> list[dict[str, Any]]:
             raise NbaDataPipelineError(f"metric {name} contains unsupported fields")
         if operation in {"sum", "distinct_count"}:
             _text(spec.get("column"), f"metric {name}.column")
+        if operation == "clock_delta_sum":
+            _text(spec.get("start_column"), f"metric {name}.start_column")
+            _text(spec.get("end_column"), f"metric {name}.end_column")
         if operation == "ratio":
             _text(spec.get("numerator"), f"metric {name}.numerator")
             _text(spec.get("denominator"), f"metric {name}.denominator")
@@ -351,18 +388,61 @@ def _validate_where(raw: object, metric: str) -> None:
             raise NbaDataPipelineError(f"{operator} condition must contain a string")
 
 
-def _validate_columns(metrics: list[dict[str, Any]], columns: set[str]) -> None:
-    required: set[str] = set()
+def _validate_columns(
+    metrics: list[dict[str, Any]],
+    columns: set[str],
+    deduplicate_by: tuple[str, ...],
+) -> None:
+    required: set[str] = set(deduplicate_by)
     for spec in metrics:
         column = spec.get("column")
         if isinstance(column, str):
             required.add(column)
+        for clock_column in (spec.get("start_column"), spec.get("end_column")):
+            if isinstance(clock_column, str):
+                required.add(clock_column)
         where = spec.get("where")
         if isinstance(where, dict):
             required.update(where)
     missing = sorted(required - columns)
     if missing:
         raise NbaDataPipelineError(f"CSV resource is missing columns: {missing}")
+
+
+def _deduplicate_by(value: object) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    if not isinstance(value, list) or not value or not all(isinstance(item, str) for item in value):
+        raise NbaDataPipelineError("build.deduplicate_by must be a non-empty string list")
+    columns = tuple(_text(item, "build.deduplicate_by[]") for item in value)
+    if len(columns) != len(set(columns)):
+        raise NbaDataPipelineError("build.deduplicate_by columns must be unique")
+    return columns
+
+
+def _row_key(row: Mapping[str, str | None], columns: tuple[str, ...]) -> bytes:
+    digest = hashlib.sha256()
+    for column in columns:
+        value = (row.get(column) or "").encode("utf-8")
+        digest.update(len(value).to_bytes(8, "big"))
+        digest.update(value)
+    return digest.digest()
+
+
+def _clock_seconds(value: object, column: str) -> float:
+    if not isinstance(value, str):
+        raise NbaDataPipelineError(f"clock column {column} must be text")
+    parts = value.strip().split(":")
+    if len(parts) != 2:
+        raise NbaDataPipelineError(f"clock column {column} must use MM:SS")
+    try:
+        minutes = int(parts[0])
+        seconds = float(parts[1])
+    except ValueError as error:
+        raise NbaDataPipelineError(f"clock column {column} must use MM:SS") from error
+    if minutes < 0 or not math.isfinite(seconds) or not 0.0 <= seconds < 60.0:
+        raise NbaDataPipelineError(f"clock column {column} is out of range")
+    return minutes * 60.0 + seconds
 
 
 def _matches(row: Mapping[str, str | None], raw_where: object) -> bool:

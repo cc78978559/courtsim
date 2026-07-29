@@ -68,6 +68,7 @@ def build_project_status(root: str | Path) -> dict[str, object]:
             "deterministic-game-simulation",
             "local-nba-data-pipeline",
             "nba-data-source-audit",
+            "nba-possession-source-audit",
             "nba-reference-targets",
             "nba-quick-sim-inspection",
             "nba-quick-sim-comparison",

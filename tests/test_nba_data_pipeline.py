@@ -298,6 +298,65 @@ def test_bad_rows_and_empty_denominator_fail_explicitly(tmp_path: Path) -> None:
         build_nba_data_summary(manifest, cache, tmp_path / "zero.json")
 
 
+def test_composite_deduplication_and_clock_delta_are_local(tmp_path: Path) -> None:
+    source = tmp_path / "possessions.csv"
+    source.write_text(
+        "game,start,end,events,value\ng1,12:00,11:45,a,1\ng1,12:00,11:45,a,1\ng1,11:45,11:35,b,2\n",
+        encoding="utf-8",
+    )
+    manifest = tmp_path / "manifest.json"
+    write_json(
+        manifest,
+        {
+            "schema_version": 1,
+            "dataset_id": "dedup-clock-test",
+            "season": "2024-25",
+            "provider": "local-test",
+            "terms_note": "Personal research fixture.",
+            "resources": [
+                {
+                    "resource_id": "possessions",
+                    "filename": source.name,
+                    "path": source.name,
+                    "sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+                }
+            ],
+            "build": {
+                "resource_id": "possessions",
+                "deduplicate_by": ["game", "start", "end", "events"],
+                "metrics": [
+                    {"name": "possessions", "operation": "count"},
+                    {"name": "value", "operation": "sum", "column": "value"},
+                    {
+                        "name": "duration_seconds",
+                        "operation": "clock_delta_sum",
+                        "start_column": "start",
+                        "end_column": "end",
+                    },
+                    {
+                        "name": "mean_seconds",
+                        "operation": "ratio",
+                        "numerator": "duration_seconds",
+                        "denominator": "possessions",
+                    },
+                ],
+            },
+        },
+    )
+    cache = tmp_path / "cache"
+    sync_nba_data(manifest, cache)
+    summary = build_nba_data_summary(manifest, cache, tmp_path / "summary.json")
+    assert summary["source_rows"] == 3
+    assert summary["rows_processed"] == 2
+    assert summary["duplicates_skipped"] == 1
+    assert summary["metrics"] == {
+        "duration_seconds": 25.0,
+        "mean_seconds": 12.5,
+        "possessions": 2,
+        "value": 3.0,
+    }
+
+
 def test_manifest_validation_rejects_ambiguous_contracts(tmp_path: Path) -> None:
     manifest, _ = _fixture(tmp_path)
     base: dict[str, Any] = json.loads(manifest.read_text(encoding="utf-8"))

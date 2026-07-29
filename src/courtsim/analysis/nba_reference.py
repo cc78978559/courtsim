@@ -218,6 +218,24 @@ def calculate_nba_core_metrics(snapshot_path: str | Path) -> dict[str, float]:
     }
 
 
+def calculate_nba_core_totals(snapshot_path: str | Path) -> dict[str, int]:
+    """Return strict core team totals without requiring a companion source."""
+    _, traditional, advanced = _validated_snapshot(snapshot_path)
+    team_games = int(_sum(traditional, "GP"))
+    return {
+        "teams": len(traditional),
+        "games": team_games // 2,
+        "possessions": int(_sum(advanced, "POSS")),
+        "field_goals_made": int(_sum(traditional, "FGM")),
+        "field_goal_attempts": int(_sum(traditional, "FGA")),
+        "three_points_made": int(_sum(traditional, "3PM")),
+        "three_point_attempts": int(_sum(traditional, "3PA")),
+        "turnovers": int(_sum(traditional, "TOV")),
+        "offensive_rebounds": int(_sum(traditional, "OREB")),
+        "rebounds": int(_sum(traditional, "OREB") + _sum(traditional, "DREB")),
+    }
+
+
 def calculate_nba_reference_totals(
     snapshot_path: str | Path,
     free_throw_snapshot_path: str | Path,
@@ -268,18 +286,10 @@ def calculate_nba_reference_totals(
         "FTA": calculated_fta,
     }:
         raise NbaReferenceError("NBA free-throw totals do not match rows")
-    team_games = int(_sum(traditional, "GP"))
     return {
-        "teams": len(traditional),
-        "games": team_games // 2,
-        "field_goals_made": int(_sum(traditional, "FGM")),
-        "field_goal_attempts": int(_sum(traditional, "FGA")),
-        "three_points_made": int(_sum(traditional, "3PM")),
-        "three_point_attempts": int(_sum(traditional, "3PA")),
+        **calculate_nba_core_totals(snapshot_path),
         "free_throws_made": calculated_ftm,
         "free_throw_attempts": calculated_fta,
-        "turnovers": int(_sum(traditional, "TOV")),
-        "rebounds": int(_sum(traditional, "OREB") + _sum(traditional, "DREB")),
     }
 
 

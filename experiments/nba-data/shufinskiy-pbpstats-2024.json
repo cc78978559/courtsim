@@ -1,0 +1,132 @@
+{
+  "build": {
+    "deduplicate_by": [
+      "GAMEID",
+      "PERIOD",
+      "STARTTIME",
+      "ENDTIME",
+      "OPPONENT",
+      "STARTTYPE",
+      "EVENTS"
+    ],
+    "encoding": "utf-8-sig",
+    "metrics": [
+      {
+        "column": "GAMEID",
+        "name": "games",
+        "operation": "distinct_count"
+      },
+      {
+        "column": "OPPONENT",
+        "name": "teams",
+        "operation": "distinct_count"
+      },
+      {
+        "name": "possessions",
+        "operation": "count"
+      },
+      {
+        "end_column": "ENDTIME",
+        "name": "possession_seconds",
+        "operation": "clock_delta_sum",
+        "start_column": "STARTTIME"
+      },
+      {
+        "column": "FG2A",
+        "name": "two_point_attempts",
+        "operation": "sum"
+      },
+      {
+        "column": "FG2M",
+        "name": "two_points_made",
+        "operation": "sum"
+      },
+      {
+        "column": "FG3A",
+        "name": "three_point_attempts",
+        "operation": "sum"
+      },
+      {
+        "column": "FG3M",
+        "name": "three_points_made",
+        "operation": "sum"
+      },
+      {
+        "column": "OFFENSIVEREBOUNDS",
+        "name": "offensive_rebounds",
+        "operation": "sum"
+      },
+      {
+        "column": "TURNOVERS",
+        "name": "turnovers",
+        "operation": "sum"
+      },
+      {
+        "column": "SHOOTINGFOULSDRAWN",
+        "name": "shooting_fouls_drawn",
+        "operation": "sum"
+      },
+      {
+        "column": "NONSHOOTINGFOULSTHATRESULTEDINFTS",
+        "name": "nonshooting_fouls_resulted_in_fts",
+        "operation": "sum"
+      },
+      {
+        "denominator": "possessions",
+        "name": "mean_possession_seconds",
+        "numerator": "possession_seconds",
+        "operation": "ratio"
+      },
+      {
+        "denominator": "games",
+        "name": "combined_possessions_per_game",
+        "numerator": "possessions",
+        "operation": "ratio"
+      },
+      {
+        "denominator": "two_point_attempts",
+        "name": "two_point_percentage",
+        "numerator": "two_points_made",
+        "operation": "ratio"
+      },
+      {
+        "denominator": "three_point_attempts",
+        "name": "three_point_percentage",
+        "numerator": "three_points_made",
+        "operation": "ratio"
+      },
+      {
+        "denominator": "possessions",
+        "name": "turnover_per_possession",
+        "numerator": "turnovers",
+        "operation": "ratio"
+      },
+      {
+        "denominator": "possessions",
+        "name": "offensive_rebound_per_possession",
+        "numerator": "offensive_rebounds",
+        "operation": "ratio"
+      },
+      {
+        "denominator": "possessions",
+        "name": "shooting_foul_per_possession",
+        "numerator": "shooting_fouls_drawn",
+        "operation": "ratio"
+      }
+    ],
+    "resource_id": "pbpstats"
+  },
+  "dataset_id": "shufinskiy-pbpstats-2024",
+  "provider": "shufinskiy/nba_data pbpstats projection",
+  "resources": [
+    {
+      "filename": "pbpstats_2024.tar.xz",
+      "resource_id": "pbpstats",
+      "sha256": "3e124793cc7fbc279627926e207b634fd593e5b56a69b8d0324f21460913c5c6",
+      "url": "https://github.com/shufinskiy/nba_data/raw/main/datasets/pbpstats_2024.tar.xz"
+    }
+  ],
+  "schema_version": 1,
+  "season": "2024-25",
+  "terms_note": "Free personal research only; preserve upstream attribution and do not redistribute raw NBA-derived data."
+}

@@ -18,6 +18,9 @@
 `experiments/nba-data/shufinskiy-nbastatsv3-2024.json`。它不需要账号或 API Key，
 原始数据仍只进入本地缓存。
 
+回合级清单为 `experiments/nba-data/shufinskiy-pbpstats-2024.json`。该来源会为同一
+回合的每条描述重复聚合字段，因此清单使用复合键去重，不能直接对原始行求和。
+
 ## 工作流
 
 1. 将下载文件放在仓库外，或放入被忽略的 `.cache/nba-data`；本地 `path` 相对清单
@@ -50,6 +53,21 @@ Copy-Item experiments/nba-data/hoopr-pbp-manifest.example.json work/nba-data.jso
 `warning` 和 `rejected`。只有通过指标进入 `promotion`；例如逐事件篮板包含球队及
 死球篮板，不能直接冒充传统球队篮板总量。
 
+回合级构建和审计：
+
+```powershell
+.\tools.cmd nba-data sync experiments/nba-data/shufinskiy-pbpstats-2024.json
+.\tools.cmd nba-data build experiments/nba-data/shufinskiy-pbpstats-2024.json `
+  work/nba-2024-25-possession-summary.json
+.\tools.cmd nba-data audit-possessions work/nba-2024-25-possession-summary.json `
+  experiments/sources/nba-2024-25-team-core.json `
+  work/nba-2024-25-possession-audit.json
+```
+
+`pbpstats` 的实际回合边界与 NBA 球队 `POSS` 汇总口径不同。审计不会把两者静默
+混合：回合时长和犯规率保留为来源独有指标，只有与固定球队总量对齐的指标才进入
+`reconciled_metrics`。
+
 默认缓存目录是 `.cache/nba-data/<dataset_id>/`。跨机器接续时传递原始数据文件，
 或在新机器上再次执行 `sync`；Git 只需要传递清单和处理代码。
 
@@ -71,7 +89,11 @@ Copy-Item experiments/nba-data/hoopr-pbp-manifest.example.json work/nba-data.jso
 - `count`：计数匹配行；
 - `distinct_count`：统计某列非空唯一值；
 - `sum`：对某列流式求和；
+- `clock_delta_sum`：将 `MM:SS` 起止时钟转换为秒并求和；
 - `ratio`：用两个已定义指标相除。
+
+`build.deduplicate_by` 可声明复合去重键。此模式仍逐行读取压缩 CSV，但会在内存中
+保留已见键的 SHA-256 摘要，而不是保留完整原始行。
 
 条件支持 `equals`、`not_equals`、`in`、`contains`、`not_contains`、
 `contains_ci`、`not_contains_ci` 和 `truthy`；`_ci` 变体不区分大小写。
