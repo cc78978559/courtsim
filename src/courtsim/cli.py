@@ -58,6 +58,12 @@ from courtsim.analysis.matrix_style_coverage import (
     build_matrix_style_coverage,
 )
 from courtsim.analysis.model_audit_runner import run_model_audit_to_directory
+from courtsim.analysis.nba_data_pipeline import (
+    NbaDataPipelineError,
+    build_nba_data_summary,
+    inspect_nba_data,
+    sync_nba_data,
+)
 from courtsim.analysis.nba_reference import (
     TEAM_METRIC_ORDER,
     NbaReferenceError,
@@ -178,6 +184,35 @@ def _parser() -> argparse.ArgumentParser:
     )
     project_status.add_argument("--root", type=Path, default=Path("."))
     project_status.add_argument("--pretty", action="store_true")
+
+    nba_data = subparsers.add_parser(
+        "nba-data",
+        help="sync and stream-reduce free personal NBA datasets locally",
+    )
+    nba_data_actions = nba_data.add_subparsers(dest="nba_data_action", required=True)
+    nba_data_sync = nba_data_actions.add_parser(
+        "sync",
+        help="populate the verified local raw-data cache",
+    )
+    nba_data_sync.add_argument("manifest", type=Path)
+    nba_data_sync.add_argument("--cache", type=Path, default=Path(".cache/nba-data"))
+    nba_data_sync.add_argument("--offline", action="store_true")
+    nba_data_sync.add_argument("--force", action="store_true")
+    nba_data_build = nba_data_actions.add_parser(
+        "build",
+        help="stream cached CSV data into a compact JSON summary",
+    )
+    nba_data_build.add_argument("manifest", type=Path)
+    nba_data_build.add_argument("output", type=Path)
+    nba_data_build.add_argument("--cache", type=Path, default=Path(".cache/nba-data"))
+    nba_data_build.add_argument("--force", action="store_true")
+    nba_data_status = nba_data_actions.add_parser(
+        "status",
+        help="inspect cache and summary freshness without reading raw rows",
+    )
+    nba_data_status.add_argument("manifest", type=Path)
+    nba_data_status.add_argument("--cache", type=Path, default=Path(".cache/nba-data"))
+    nba_data_status.add_argument("--output", type=Path)
 
     quick_sim_status = subparsers.add_parser(
         "nba-quick-sim-status",
@@ -539,6 +574,37 @@ def main(argv: list[str] | None = None) -> int:
             )
             release_status = cast(dict[str, object], status_report["release"])
             return 0 if release_status["hashes_ok"] is True else 4
+
+        if arguments.command == "nba-data":
+            if arguments.nba_data_action == "sync":
+                nba_data_report = sync_nba_data(
+                    arguments.manifest,
+                    arguments.cache,
+                    offline=arguments.offline,
+                    force=arguments.force,
+                )
+            elif arguments.nba_data_action == "build":
+                nba_data_report = build_nba_data_summary(
+                    arguments.manifest,
+                    arguments.cache,
+                    arguments.output,
+                    force=arguments.force,
+                )
+            else:
+                nba_data_report = inspect_nba_data(
+                    arguments.manifest,
+                    arguments.cache,
+                    arguments.output,
+                )
+            print(
+                json.dumps(
+                    nba_data_report,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0
 
         if arguments.command == "nba-quick-sim-status":
             result = quick_sim_batch_from_json(arguments.checkpoint.read_text(encoding="utf-8"))
@@ -1013,6 +1079,7 @@ def main(argv: list[str] | None = None) -> int:
         MatrixStyleCoverageError,
         MatrixRobustnessError,
         NbaReferenceError,
+        NbaDataPipelineError,
         NBAFranchiseArtifactError,
         NBAFranchiseRunnerError,
         ParameterOverlayError,

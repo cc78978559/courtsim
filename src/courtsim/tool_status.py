@@ -66,6 +66,7 @@ def build_project_status(root: str | Path) -> dict[str, object]:
         "workspace": git,
         "capabilities": [
             "deterministic-game-simulation",
+            "local-nba-data-pipeline",
             "nba-reference-targets",
             "nba-quick-sim-inspection",
             "nba-quick-sim-comparison",

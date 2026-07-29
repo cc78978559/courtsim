@@ -1,0 +1,59 @@
+{
+  "build": {
+    "encoding": "utf-8-sig",
+    "metrics": [
+      {
+        "column": "game_id",
+        "name": "games",
+        "operation": "distinct_count"
+      },
+      {
+        "name": "events",
+        "operation": "count"
+      },
+      {
+        "name": "shooting_events",
+        "operation": "count",
+        "where": {
+          "shooting_play": {
+            "truthy": true
+          }
+        }
+      },
+      {
+        "column": "score_value",
+        "name": "points_recorded",
+        "operation": "sum"
+      },
+      {
+        "name": "turnovers",
+        "operation": "count",
+        "where": {
+          "type_text": {
+            "contains": "Turnover"
+          }
+        }
+      },
+      {
+        "denominator": "games",
+        "name": "events_per_game",
+        "numerator": "events",
+        "operation": "ratio"
+      }
+    ],
+    "resource_id": "play-by-play"
+  },
+  "dataset_id": "hoopr-nba-2024-25",
+  "provider": "SportsDataverse hoopR",
+  "resources": [
+    {
+      "filename": "nba_pbp_2025.csv.gz",
+      "path": "nba_pbp_2025.csv.gz",
+      "resource_id": "play-by-play",
+      "sha256": null
+    }
+  ],
+  "schema_version": 1,
+  "season": "2024-25",
+  "terms_note": "Free personal research only. Preserve upstream attribution and review source terms before redistribution."
+}

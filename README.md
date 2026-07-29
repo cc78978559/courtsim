@@ -45,11 +45,18 @@ franchise 状态循环；仍不包含最终玩法 UI。
 
 ```powershell
 .\tools.cmd project-status
+.\tools.cmd nba-data sync work/nba-data.json
+.\tools.cmd nba-data build work/nba-data.json work/nba-summary.json
+.\tools.cmd nba-data status work/nba-data.json --output work/nba-summary.json
 .\tools.cmd nba-quick-sim-status work/quick-sim/checkpoint.json
 .\tools.cmd nba-quick-sim-compare work/quick-sim/checkpoint.json reference.json
 .\tools.cmd nba-franchise-checkpoint-verify work/franchise/season-00002.json.gz
 .\tools.cmd nba-franchise-status work/franchise/manifest.json
 ```
+
+`nba-data` 将免费个人研究数据下载或复制到被 Git 忽略的本地缓存，并以流式方式生成
+紧凑 JSON；原始逐回合记录不会进入 AI 上下文。清单格式见
+[NBA 本地数据流水线](docs/nba-local-data-pipeline-v1.md)。
 
 日常修改使用 `check-fast`；阶段冻结和交付前必须运行包含慢速 NBA 集成及覆盖率的
 `.\tools.cmd check`。

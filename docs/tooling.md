@@ -38,6 +38,9 @@
 
 ```powershell
 .\tools.cmd project-status
+.\tools.cmd nba-data sync <manifest.json>
+.\tools.cmd nba-data build <manifest.json> <summary.json>
+.\tools.cmd nba-data status <manifest.json> --output <summary.json>
 .\tools.cmd nba-quick-sim-status <checkpoint.json>
 .\tools.cmd nba-quick-sim-compare <checkpoint.json> <reference.json>
 .\tools.cmd nba-franchise-checkpoint-verify <checkpoint.json.gz>
@@ -45,6 +48,8 @@
 ```
 
 这些入口默认输出紧凑 JSON，并在报告状态前验证治理哈希或产物哈希。
+`nba-data` 原始缓存位于 `.cache/nba-data/` 且不进入 Git；构建过程逐行聚合，
+详情见 [NBA 本地数据流水线](nba-local-data-pipeline-v1.md)。
 
 ## 模拟产物工具
 
