@@ -91,6 +91,10 @@ from courtsim.analysis.quick_sim_comparison import (
     load_quick_sim_reference,
     quick_sim_report_to_json,
 )
+from courtsim.analysis.quick_sim_pairing import (
+    QuickSimPairingError,
+    compare_paired_quick_sim_batches,
+)
 from courtsim.analysis.realism_targets import (
     RealismTargetError,
     load_realism_target_set,
@@ -273,6 +277,13 @@ def _parser() -> argparse.ArgumentParser:
     quick_sim_compare.add_argument("checkpoint", type=Path)
     quick_sim_compare.add_argument("reference", type=Path)
     quick_sim_compare.add_argument("--output", type=Path)
+    quick_sim_paired = subparsers.add_parser(
+        "nba-quick-sim-paired-diff",
+        help="compare complete baseline and candidate batches with identical seeds",
+    )
+    quick_sim_paired.add_argument("baseline", type=Path)
+    quick_sim_paired.add_argument("candidate", type=Path)
+    quick_sim_paired.add_argument("output", type=Path)
 
     franchise_checkpoint = subparsers.add_parser(
         "nba-franchise-checkpoint-verify",
@@ -718,6 +729,18 @@ def main(argv: list[str] | None = None) -> int:
                 write_json(arguments.output, json.loads(payload))
                 print(f"completed: {arguments.output}")
             return 0 if comparison_report.passed else 14
+
+        if arguments.command == "nba-quick-sim-paired-diff":
+            baseline = quick_sim_batch_from_json(arguments.baseline.read_text(encoding="utf-8"))
+            paired_candidate = quick_sim_batch_from_json(
+                arguments.candidate.read_text(encoding="utf-8")
+            )
+            paired_report = compare_paired_quick_sim_batches(baseline, paired_candidate)
+            write_json(arguments.output, paired_report)
+            print(
+                json.dumps(paired_report, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+            )
+            return 0
 
         if arguments.command == "nba-franchise-checkpoint-verify":
             state, _, receipt = load_nba_franchise_checkpoint(
@@ -1166,6 +1189,7 @@ def main(argv: list[str] | None = None) -> int:
         PlayerProfileOverlayError,
         ProjectStatusError,
         QuickSimBatchError,
+        QuickSimPairingError,
         QuickSimComparisonError,
         ReplayError,
         RealismTargetError,

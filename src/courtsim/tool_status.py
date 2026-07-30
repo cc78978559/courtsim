@@ -74,6 +74,7 @@ def build_project_status(root: str | Path) -> dict[str, object]:
             "nba-reference-targets",
             "nba-quick-sim-inspection",
             "nba-quick-sim-comparison",
+            "nba-quick-sim-paired-comparison",
             "nba-franchise-checkpoint-verification",
             "nba-franchise-manifest-inspection",
             "artifact-retention",

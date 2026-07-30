@@ -93,6 +93,21 @@ Copy-Item experiments/nba-data/hoopr-pbp-manifest.example.json work/nba-data.jso
 `passed` 的审计，将每队相对联盟的 RIM/MIDRANGE/THREE 分布转换为小型倾向偏移。
 `NBAQuickSimExecutor.shot_zone_profiles` 可显式加载这些画像；画像只作用于当次模拟的
 临时球员倾向，不改写生涯能力，也不会污染后续赛季存档。
+`execute_nba_franchise_season(..., shot_zone_profiles=profiles)` 会在每赛季重建阵容后应用
+同一份画像，因此交易、成长和轮换仍先于临时倾向调整发生。默认值为 `None`，旧模拟
+结果不变。
+
+基线和画像候选应使用完全相同的 `QuickSimBatchSpec` 分别生成检查点，再做配对比较：
+
+```powershell
+.\tools.cmd nba-quick-sim-paired-diff `
+  work/quick-sim-baseline.json `
+  work/quick-sim-shot-profiles.json `
+  work/quick-sim-shot-profile-diff.json
+```
+
+比较器要求两个批次均完整，且规格、赛季编号和派生种子逐项相同；报告提供六项快速
+模拟指标的基线均值、候选均值、平均差及单赛季差值范围。
 
 默认缓存目录是 `.cache/nba-data/<dataset_id>/`。跨机器接续时传递原始数据文件，
 或在新机器上再次执行 `sync`；Git 只需要传递清单和处理代码。

@@ -11,6 +11,7 @@ from courtsim.analysis.nba_quick_sim_executor import (
     NBAQuickSimMatchupTeam,
     build_nba_player_season_summaries,
 )
+from courtsim.analysis.nba_shot_profiles import NBAShotProfileSet
 from courtsim.cap_mechanics import CapLedger, cap_rules_for_salary_cap, expire_cap_ledger
 from courtsim.career import CareerPlayer, CareerStatus, DraftRules
 from courtsim.domain.game import GameClockConfig
@@ -147,6 +148,7 @@ def execute_nba_franchise_season(
     manager_trade_rules: ManagerTradeRules | None = None,
     trade_market_rules: TradeMarketRules | None = None,
     three_team_market_rules: ThreeTeamMarketRules | None = None,
+    shot_zone_profiles: NBAShotProfileSet | None = None,
 ) -> NBAFranchiseSeasonExecution:
     team_ids = tuple(roster.team_id for roster in state.management.rosters)
     if set(profiles) != set(team_ids):
@@ -276,6 +278,7 @@ def execute_nba_franchise_season(
         state.alignment,
         matchup_teams=matchup_teams,
         season_config=season_config or SeasonConfig(),
+        shot_zone_profiles=shot_zone_profiles,
     ).execute(season_id, seed)
     next_learning = advance_manager_learning_from_season(
         simulation.season,
