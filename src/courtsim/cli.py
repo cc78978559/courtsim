@@ -76,6 +76,10 @@ from courtsim.analysis.nba_reference import (
     build_nba_core_target_payload,
     build_nba_team_target_payload,
 )
+from courtsim.analysis.nba_shot_profiles import (
+    NbaShotProfileError,
+    build_nba_shot_profile_payload,
+)
 from courtsim.analysis.performance import run_model_benchmark
 from courtsim.analysis.quick_sim_batch import (
     QuickSimBatchError,
@@ -247,6 +251,14 @@ def _parser() -> argparse.ArgumentParser:
     nba_shot_audit.add_argument("output", type=Path)
     nba_shot_audit.add_argument("--tolerance", type=float, default=0.001)
     nba_shot_audit.add_argument("--warning-multiplier", type=float, default=5.0)
+    nba_shot_profiles = nba_data_actions.add_parser(
+        "build-shot-profiles",
+        help="derive quick-sim team shot-zone profiles from a passed local audit",
+    )
+    nba_shot_profiles.add_argument("summary", type=Path)
+    nba_shot_profiles.add_argument("audit", type=Path)
+    nba_shot_profiles.add_argument("output", type=Path)
+    nba_shot_profiles.add_argument("--zone-tendency-loading", type=float, default=0.75)
 
     quick_sim_status = subparsers.add_parser(
         "nba-quick-sim-status",
@@ -647,12 +659,19 @@ def main(argv: list[str] | None = None) -> int:
                     warning_multiplier=arguments.warning_multiplier,
                 )
                 write_json(arguments.output, nba_data_report)
-            else:
+            elif arguments.nba_data_action == "audit-shots":
                 nba_data_report = build_nba_shot_audit(
                     arguments.summary,
                     arguments.core_snapshot,
                     tolerance=arguments.tolerance,
                     warning_multiplier=arguments.warning_multiplier,
+                )
+                write_json(arguments.output, nba_data_report)
+            else:
+                nba_data_report = build_nba_shot_profile_payload(
+                    arguments.summary,
+                    arguments.audit,
+                    zone_tendency_loading=arguments.zone_tendency_loading,
                 )
                 write_json(arguments.output, nba_data_report)
             print(
@@ -1139,6 +1158,7 @@ def main(argv: list[str] | None = None) -> int:
         MatrixRobustnessError,
         NbaReferenceError,
         NbaDataAuditError,
+        NbaShotProfileError,
         NbaDataPipelineError,
         NBAFranchiseArtifactError,
         NBAFranchiseRunnerError,

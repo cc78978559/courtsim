@@ -1,6 +1,7 @@
 {
   "build": {
     "encoding": "utf-8-sig",
+    "group_by": "TEAM_NAME",
     "metrics": [
       {
         "column": "GAME_ID",

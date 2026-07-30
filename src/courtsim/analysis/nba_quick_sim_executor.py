@@ -7,6 +7,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from typing import cast
 
+from courtsim.analysis.nba_shot_profiles import (
+    NBAShotProfileSet,
+    apply_nba_shot_profiles,
+    apply_nba_team_shot_profile,
+)
 from courtsim.analysis.quick_sim_comparison import (
     QuickSimSeasonSummary,
     summarize_quick_sim_season,
@@ -113,6 +118,7 @@ class NBAQuickSimExecutor:
     playoff_game_rest_days: int = 1
     playoff_round_rest_days: int = 2
     version: str = NBA_QUICK_SIM_EXECUTOR_VERSION
+    shot_zone_profiles: NBAShotProfileSet | None = None
 
     def __post_init__(self) -> None:
         team_ids = tuple(team.team_id for team in self.teams)
@@ -152,6 +158,14 @@ class NBAQuickSimExecutor:
             raise ValueError("NBA quick simulation rest days must be non-negative integers")
         if self.version != NBA_QUICK_SIM_EXECUTOR_VERSION:
             raise ValueError("unsupported NBA quick simulation executor version")
+        if self.shot_zone_profiles is not None:
+            if (
+                self.shot_zone_profiles.zone_tendency_loading
+                != self.parameters.schema.zone_tendency_loading
+            ):
+                raise ValueError("NBA shot profile loading differs from model parameters")
+            if {item.team_id for item in self.shot_zone_profiles.teams} != set(team_ids):
+                raise ValueError("NBA shot profiles must cover every quick-sim team")
 
     def __call__(self, season_id: str, seed: int) -> QuickSimSeasonSummary:
         return self.execute(season_id, seed).summary
@@ -159,12 +173,28 @@ class NBAQuickSimExecutor:
     def execute(self, season_id: str, seed: int) -> NBAQuickSimExecution:
         if not season_id.strip():
             raise ValueError("NBA quick simulation season_id must not be blank")
+        profile_set = self.shot_zone_profiles
+        teams = apply_nba_shot_profiles(self.teams, profile_set) if profile_set else self.teams
+        if profile_set is None:
+            matchup_teams = self.matchup_teams
+        else:
+            profile_by_team = {item.team_id: item for item in profile_set.teams}
+            matchup_teams = tuple(
+                replace(
+                    item,
+                    team=apply_nba_team_shot_profile(
+                        item.team,
+                        profile_by_team[item.team.team_id],
+                    ),
+                )
+                for item in self.matchup_teams
+            )
         schedule = generate_nba_schedule(
-            tuple(team.team_id for team in self.teams),
+            tuple(team.team_id for team in teams),
             alignment=self.alignment,
         )
         matchup_map = {
-            (item.team.team_id, item.opponent_team_id): item.team for item in self.matchup_teams
+            (item.team.team_id, item.opponent_team_id): item.team for item in matchup_teams
         }
 
         def resolve_matchup(
@@ -182,7 +212,7 @@ class NBAQuickSimExecutor:
             parameters=self.parameters,
             game_config=self.game_config,
             schedule=schedule,
-            teams=self.teams,
+            teams=teams,
             frame=RandomFrame(seed, RandomFrameAddress(season_id, 0, 0, 0, 0)),
             rules=self.game_rules,
             fatigue_config=self.fatigue_config,
@@ -192,7 +222,7 @@ class NBAQuickSimExecutor:
         )
         east_regular = _conference_seeds(season, self.alignment.east_team_ids)
         west_regular = _conference_seeds(season, self.alignment.west_team_ids)
-        team_map = {team.team_id: team for team in self.teams}
+        team_map = {team.team_id: team for team in teams}
         runtime = _PostseasonRuntime.from_season(
             season,
             team_map=team_map,

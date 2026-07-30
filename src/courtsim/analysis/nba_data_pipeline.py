@@ -115,23 +115,18 @@ def build_nba_data_summary(
     encoding = _text(build.get("encoding", "utf-8-sig"), "build.encoding")
     archive_member = _optional_text(build.get("archive_member"), "build.archive_member")
     deduplicate_by = _deduplicate_by(build.get("deduplicate_by"))
+    group_by = _optional_text(build.get("group_by"), "build.group_by")
     row_count = 0
     source_row_count = 0
     seen_keys: set[bytes] = set()
-    values: dict[str, float | int | set[str]] = {}
-    for spec in metric_specs:
-        name = _text(spec.get("name"), "build.metrics[].name")
-        operation = _text(spec.get("operation"), f"build.metrics.{name}.operation")
-        if operation == "distinct_count":
-            values[name] = set()
-        elif operation != "ratio":
-            values[name] = 0.0 if operation in {"sum", "clock_delta_sum"} else 0
+    values = _initial_metric_values(metric_specs)
+    grouped_values: dict[str, dict[str, float | int | set[str]]] = {}
 
     with _open_csv_text(source, encoding=encoding, archive_member=archive_member) as stream:
         reader = csv.DictReader(stream, delimiter=delimiter)
         if reader.fieldnames is None:
             raise NbaDataPipelineError("CSV resource has no header")
-        _validate_columns(metric_specs, set(reader.fieldnames), deduplicate_by)
+        _validate_columns(metric_specs, set(reader.fieldnames), deduplicate_by, group_by)
         for row in reader:
             source_row_count += 1
             if deduplicate_by:
@@ -140,58 +135,17 @@ def build_nba_data_summary(
                     continue
                 seen_keys.add(key)
             row_count += 1
-            for spec in metric_specs:
-                name = cast(str, spec["name"])
-                operation = cast(str, spec["operation"])
-                if operation == "ratio" or not _matches(row, spec.get("where")):
-                    continue
-                if operation == "count":
-                    values[name] = cast(int, values[name]) + 1
-                elif operation == "distinct_count":
-                    column = cast(str, spec["column"])
-                    value = (row.get(column) or "").strip()
-                    if value:
-                        cast(set[str], values[name]).add(value)
-                elif operation == "sum":
-                    column = cast(str, spec["column"])
-                    raw_value = (row.get(column) or "").strip().replace(",", "")
-                    if raw_value:
-                        try:
-                            values[name] = cast(float, values[name]) + float(raw_value)
-                        except ValueError as error:
-                            raise NbaDataPipelineError(
-                                f"metric {name} encountered non-numeric value in {column}"
-                            ) from error
-                else:
-                    start_column = cast(str, spec["start_column"])
-                    end_column = cast(str, spec["end_column"])
-                    delta = _clock_seconds(row.get(start_column), start_column) - _clock_seconds(
-                        row.get(end_column), end_column
-                    )
-                    if delta < 0:
-                        raise NbaDataPipelineError(
-                            f"metric {name} encountered a negative clock delta"
-                        )
-                    values[name] = cast(float, values[name]) + delta
+            _accumulate_metric_values(values, metric_specs, row)
+            if group_by is not None:
+                group = (row.get(group_by) or "").strip()
+                if not group:
+                    raise NbaDataPipelineError(f"group_by column {group_by} contains a blank value")
+                group_values = grouped_values.setdefault(
+                    group, _initial_metric_values(metric_specs)
+                )
+                _accumulate_metric_values(group_values, metric_specs, row)
 
-    metrics: dict[str, float | int] = {}
-    for spec in metric_specs:
-        name = cast(str, spec["name"])
-        operation = cast(str, spec["operation"])
-        if operation == "distinct_count":
-            metrics[name] = len(cast(set[str], values[name]))
-        elif operation != "ratio":
-            value = cast(float | int, values[name])
-            metrics[name] = int(value) if operation == "count" else round(float(value), 12)
-    for spec in metric_specs:
-        if spec["operation"] != "ratio":
-            continue
-        name = cast(str, spec["name"])
-        numerator = metrics[cast(str, spec["numerator"])]
-        denominator = metrics[cast(str, spec["denominator"])]
-        if denominator == 0:
-            raise NbaDataPipelineError(f"metric {name} has a zero denominator")
-        metrics[name] = round(float(numerator) / float(denominator), 12)
+    metrics = _finalize_metric_values(values, metric_specs)
 
     payload: dict[str, object] = {
         "schema_version": NBA_DATA_SUMMARY_VERSION,
@@ -214,6 +168,12 @@ def build_nba_data_summary(
         "metrics": metrics,
         "cached": False,
     }
+    if group_by is not None:
+        payload["group_by"] = group_by
+        payload["groups"] = {
+            group: _finalize_metric_values(grouped_values[group], metric_specs)
+            for group in sorted(grouped_values)
+        }
     payload["local_reduction"] = {
         "raw_bytes": source.stat().st_size,
         "summary_bytes": 0,
@@ -304,6 +264,7 @@ def _load_manifest(path: Path) -> dict[str, Any]:
         "encoding",
         "archive_member",
         "deduplicate_by",
+        "group_by",
         "metrics",
     }:
         raise NbaDataPipelineError("build contains unsupported fields")
@@ -312,6 +273,7 @@ def _load_manifest(path: Path) -> dict[str, Any]:
     _text(build.get("encoding", "utf-8-sig"), "build.encoding")
     _optional_text(build.get("archive_member"), "build.archive_member")
     _deduplicate_by(build.get("deduplicate_by"))
+    _optional_text(build.get("group_by"), "build.group_by")
     _metric_specs(build)
     return manifest
 
@@ -392,8 +354,11 @@ def _validate_columns(
     metrics: list[dict[str, Any]],
     columns: set[str],
     deduplicate_by: tuple[str, ...],
+    group_by: str | None,
 ) -> None:
     required: set[str] = set(deduplicate_by)
+    if group_by is not None:
+        required.add(group_by)
     for spec in metrics:
         column = spec.get("column")
         if isinstance(column, str):
@@ -407,6 +372,83 @@ def _validate_columns(
     missing = sorted(required - columns)
     if missing:
         raise NbaDataPipelineError(f"CSV resource is missing columns: {missing}")
+
+
+def _initial_metric_values(
+    metric_specs: list[dict[str, Any]],
+) -> dict[str, float | int | set[str]]:
+    values: dict[str, float | int | set[str]] = {}
+    for spec in metric_specs:
+        name = cast(str, spec["name"])
+        operation = cast(str, spec["operation"])
+        if operation == "distinct_count":
+            values[name] = set()
+        elif operation != "ratio":
+            values[name] = 0.0 if operation in {"sum", "clock_delta_sum"} else 0
+    return values
+
+
+def _accumulate_metric_values(
+    values: dict[str, float | int | set[str]],
+    metric_specs: list[dict[str, Any]],
+    row: Mapping[str, str | None],
+) -> None:
+    for spec in metric_specs:
+        name = cast(str, spec["name"])
+        operation = cast(str, spec["operation"])
+        if operation == "ratio" or not _matches(row, spec.get("where")):
+            continue
+        if operation == "count":
+            values[name] = cast(int, values[name]) + 1
+        elif operation == "distinct_count":
+            column = cast(str, spec["column"])
+            value = (row.get(column) or "").strip()
+            if value:
+                cast(set[str], values[name]).add(value)
+        elif operation == "sum":
+            column = cast(str, spec["column"])
+            raw_value = (row.get(column) or "").strip().replace(",", "")
+            if raw_value:
+                try:
+                    values[name] = cast(float, values[name]) + float(raw_value)
+                except ValueError as error:
+                    raise NbaDataPipelineError(
+                        f"metric {name} encountered non-numeric value in {column}"
+                    ) from error
+        else:
+            start_column = cast(str, spec["start_column"])
+            end_column = cast(str, spec["end_column"])
+            delta = _clock_seconds(row.get(start_column), start_column) - _clock_seconds(
+                row.get(end_column), end_column
+            )
+            if delta < 0:
+                raise NbaDataPipelineError(f"metric {name} encountered a negative clock delta")
+            values[name] = cast(float, values[name]) + delta
+
+
+def _finalize_metric_values(
+    values: dict[str, float | int | set[str]],
+    metric_specs: list[dict[str, Any]],
+) -> dict[str, float | int]:
+    metrics: dict[str, float | int] = {}
+    for spec in metric_specs:
+        name = cast(str, spec["name"])
+        operation = cast(str, spec["operation"])
+        if operation == "distinct_count":
+            metrics[name] = len(cast(set[str], values[name]))
+        elif operation != "ratio":
+            value = cast(float | int, values[name])
+            metrics[name] = int(value) if operation == "count" else round(float(value), 12)
+    for spec in metric_specs:
+        if spec["operation"] != "ratio":
+            continue
+        name = cast(str, spec["name"])
+        numerator = metrics[cast(str, spec["numerator"])]
+        denominator = metrics[cast(str, spec["denominator"])]
+        if denominator == 0:
+            raise NbaDataPipelineError(f"metric {name} has a zero denominator")
+        metrics[name] = round(float(numerator) / float(denominator), 12)
+    return metrics
 
 
 def _deduplicate_by(value: object) -> tuple[str, ...]:

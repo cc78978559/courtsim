@@ -80,11 +80,19 @@ Copy-Item experiments/nba-data/hoopr-pbp-manifest.example.json work/nba-data.jso
 .\tools.cmd nba-data audit-shots work/nba-2024-25-shot-zone-summary.json `
   experiments/sources/nba-2024-25-team-core.json `
   work/nba-2024-25-shot-zone-audit.json
+.\tools.cmd nba-data build-shot-profiles work/nba-2024-25-shot-zone-summary.json `
+  work/nba-2024-25-shot-zone-audit.json `
+  work/nba-2024-25-team-shot-profiles.json
 ```
 
 `audit-shots` 用球队总量核对球队数、比赛数、投篮和三分的命中/出手及命中率。
 区域分布没有第二个固定来源可逐项核对，因此明确保留在 `source_only_metrics`，供模拟
 校准使用，不伪装成多来源共识。
+
+投篮清单使用 `TEAM_NAME` 本地分组；`build-shot-profiles` 只接受哈希匹配且状态为
+`passed` 的审计，将每队相对联盟的 RIM/MIDRANGE/THREE 分布转换为小型倾向偏移。
+`NBAQuickSimExecutor.shot_zone_profiles` 可显式加载这些画像；画像只作用于当次模拟的
+临时球员倾向，不改写生涯能力，也不会污染后续赛季存档。
 
 默认缓存目录是 `.cache/nba-data/<dataset_id>/`。跨机器接续时传递原始数据文件，
 或在新机器上再次执行 `sync`；Git 只需要传递清单和处理代码。
@@ -112,6 +120,9 @@ Copy-Item experiments/nba-data/hoopr-pbp-manifest.example.json work/nba-data.jso
 
 `build.deduplicate_by` 可声明复合去重键。此模式仍逐行读取压缩 CSV，但会在内存中
 保留已见键的 SHA-256 摘要，而不是保留完整原始行。
+
+`build.group_by` 可声明一个非空分组列；流水线仍只流式保留各组聚合状态，并在输出的
+`groups` 中按键稳定排序，不把原始行载入内存。
 
 条件支持 `equals`、`not_equals`、`in`、`contains`、`not_contains`、
 `contains_ci`、`not_contains_ci` 和 `truthy`；`_ci` 变体不区分大小写。

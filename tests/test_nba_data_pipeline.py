@@ -142,6 +142,21 @@ def test_cli_pipeline_emits_compact_json(
     assert "\n  " not in json.dumps(report, separators=(",", ":"))
 
 
+def test_build_can_reduce_metrics_by_group_without_loading_rows(tmp_path: Path) -> None:
+    manifest, _ = _fixture(tmp_path)
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    payload["build"]["group_by"] = "team_id"
+    write_json(manifest, payload)
+    cache = tmp_path / "cache"
+    sync_nba_data(manifest, cache)
+    summary = build_nba_data_summary(manifest, cache, tmp_path / "grouped.json")
+    assert summary["group_by"] == "team_id"
+    assert summary["groups"] == {
+        "A": {"events": 2, "games": 2, "points": 5.0, "points_per_shot": 2.5, "shots": 2},
+        "B": {"events": 2, "games": 2, "points": 0.0, "points_per_shot": 0.0, "shots": 1},
+    }
+
+
 def test_build_rejects_unverified_or_incompatible_inputs(tmp_path: Path) -> None:
     manifest, source = _fixture(tmp_path)
     cache = tmp_path / "cache"
