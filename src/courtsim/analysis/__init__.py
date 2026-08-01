@@ -60,6 +60,7 @@ from courtsim.analysis.nba_reference import (
 )
 from courtsim.analysis.nba_shot_profile_evaluation import (
     NbaShotProfileEvaluationError,
+    aggregate_nba_shot_profile_evaluations,
     evaluate_nba_shot_profile_audits,
 )
 from courtsim.analysis.nba_shot_profiles import (
@@ -152,6 +153,7 @@ __all__ = [
     "ShardMergeError",
     "ShareMetric",
     "TeamDistributionMetrics",
+    "aggregate_nba_shot_profile_evaluations",
     "apply_nba_shot_profiles",
     "audit_comparison_to_json",
     "audit_game_results",

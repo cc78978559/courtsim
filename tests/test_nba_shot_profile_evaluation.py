@@ -9,6 +9,7 @@ from courtsim.analysis.distribution import (
 )
 from courtsim.analysis.nba_shot_profile_evaluation import (
     NbaShotProfileEvaluationError,
+    aggregate_nba_shot_profile_evaluations,
     evaluate_nba_shot_profile_audits,
 )
 from courtsim.analysis.nba_shot_profiles import NBAShotProfileSet, NBATeamShotProfile
@@ -126,3 +127,52 @@ def test_team_zone_evaluation_handles_perfect_baseline() -> None:
     report = evaluate_nba_shot_profile_audits(audit, audit, profiles)
     assert report["status"] == "unchanged"
     assert report["relative_rmse_improvement"] is None
+
+
+def test_team_zone_evaluation_batch_pools_squared_errors() -> None:
+    profiles = NBAShotProfileSet(
+        "profiles",
+        "2024-25",
+        0.75,
+        (NBATeamShotProfile("A", (0.5, 0.1, 0.4), (0, 0, 0)),),
+    )
+    baseline = _audit(_team("A", (0.4, 0.2, 0.4)))
+    first = evaluate_nba_shot_profile_audits(
+        baseline,
+        _audit(_team("A", (0.48, 0.12, 0.4))),
+        profiles,
+    )
+    second = evaluate_nba_shot_profile_audits(
+        baseline,
+        _audit(_team("A", (0.46, 0.14, 0.4))),
+        profiles,
+    )
+    batch = aggregate_nba_shot_profile_evaluations((first, second))
+    assert batch["runs"] == 2
+    assert batch["improved_runs"] == 2
+    assert batch["status"] == "improved"
+    assert batch["baseline_rmse"] == pytest.approx(first["baseline_rmse"])
+    first_candidate = first["candidate_rmse"]
+    second_candidate = second["candidate_rmse"]
+    zone_rows = batch["zone_rmse"]
+    team_rows = batch["team_results"]
+    assert isinstance(first_candidate, float)
+    assert isinstance(second_candidate, float)
+    assert isinstance(zone_rows, list)
+    assert isinstance(team_rows, list)
+    expected = ((first_candidate**2 + second_candidate**2) / 2) ** 0.5
+    assert batch["candidate_rmse"] == pytest.approx(expected)
+    assert len(zone_rows) == 3
+    assert [row["zone"] for row in zone_rows] == ["RIM", "MIDRANGE", "THREE"]
+    assert len(team_rows) == 1
+
+
+def test_team_zone_evaluation_batch_rejects_mixed_profiles() -> None:
+    report = {
+        "schema_version": 1,
+        "profile_id": "A",
+        "season": "2024-25",
+        "teams": 30,
+    }
+    with pytest.raises(NbaShotProfileEvaluationError, match="identity differs"):
+        aggregate_nba_shot_profile_evaluations((report, {**report, "profile_id": "B"}))

@@ -78,6 +78,7 @@ from courtsim.analysis.nba_reference import (
 )
 from courtsim.analysis.nba_shot_profile_evaluation import (
     NbaShotProfileEvaluationError,
+    aggregate_nba_shot_profile_evaluations,
     evaluate_nba_shot_profile_audits,
 )
 from courtsim.analysis.nba_shot_profiles import (
@@ -297,6 +298,12 @@ def _parser() -> argparse.ArgumentParser:
     shot_profile_evaluate.add_argument("candidate_audit", type=Path)
     shot_profile_evaluate.add_argument("profiles", type=Path)
     shot_profile_evaluate.add_argument("output", type=Path)
+    shot_profile_batch = subparsers.add_parser(
+        "nba-shot-profile-evaluate-batch",
+        help="pool multiple compatible shot-profile evaluation reports",
+    )
+    shot_profile_batch.add_argument("output", type=Path)
+    shot_profile_batch.add_argument("reports", type=Path, nargs="+")
 
     franchise_checkpoint = subparsers.add_parser(
         "nba-franchise-checkpoint-verify",
@@ -761,6 +768,25 @@ def main(argv: list[str] | None = None) -> int:
                 load_distribution_audit(arguments.candidate_audit),
                 load_nba_shot_profile_set(arguments.profiles),
             )
+            write_json(arguments.output, evaluation)
+            print(json.dumps(evaluation, ensure_ascii=False, separators=(",", ":"), sort_keys=True))
+            return 0
+
+        if arguments.command == "nba-shot-profile-evaluate-batch":
+            reports: list[dict[str, object]] = []
+            for path in arguments.reports:
+                try:
+                    raw = json.loads(path.read_text(encoding="utf-8"))
+                except json.JSONDecodeError as error:
+                    raise NbaShotProfileEvaluationError(
+                        "invalid shot profile evaluation JSON"
+                    ) from error
+                if not isinstance(raw, dict):
+                    raise NbaShotProfileEvaluationError(
+                        "shot profile evaluation report must be an object"
+                    )
+                reports.append(raw)
+            evaluation = aggregate_nba_shot_profile_evaluations(tuple(reports))
             write_json(arguments.output, evaluation)
             print(json.dumps(evaluation, ensure_ascii=False, separators=(",", ":"), sort_keys=True))
             return 0

@@ -124,6 +124,18 @@ Copy-Item experiments/nba-data/hoopr-pbp-manifest.example.json work/nba-data.jso
 `candidate_rmse` 低于 `baseline_rmse` 才标记为 `improved`；短时长 smoke 不可替代
 标准时长、多种子的校准结论。
 
+多个种子分别生成评价报告后，使用 pooled RMSE 汇总，避免直接平均各批误差：
+
+```powershell
+.\tools.cmd nba-shot-profile-evaluate-batch `
+  work/shot-profile-batch.json `
+  work/seed-1-evaluation.json `
+  work/seed-2-evaluation.json `
+  work/seed-3-evaluation.json
+```
+
+批报告保留改善、退化和不变的运行数，并分别汇总逐区域及逐队 RMSE。
+
 默认缓存目录是 `.cache/nba-data/<dataset_id>/`。跨机器接续时传递原始数据文件，
 或在新机器上再次执行 `sync`；Git 只需要传递清单和处理代码。
 

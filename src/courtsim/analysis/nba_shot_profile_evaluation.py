@@ -123,6 +123,55 @@ def evaluate_nba_shot_profile_audits(
     }
 
 
+def aggregate_nba_shot_profile_evaluations(
+    reports: tuple[dict[str, object], ...],
+) -> dict[str, object]:
+    """Pool compatible per-seed evaluations without averaging away squared error."""
+    if not reports:
+        raise NbaShotProfileEvaluationError("shot profile evaluation batch must not be empty")
+    first = reports[0]
+    identity = tuple(first.get(key) for key in ("profile_id", "season", "teams"))
+    if any(value is None for value in identity):
+        raise NbaShotProfileEvaluationError("shot profile evaluation identity is incomplete")
+    for report in reports:
+        if report.get("schema_version") != NBA_SHOT_PROFILE_EVALUATION_VERSION:
+            raise NbaShotProfileEvaluationError("shot profile evaluation version differs")
+        if tuple(report.get(key) for key in ("profile_id", "season", "teams")) != identity:
+            raise NbaShotProfileEvaluationError("shot profile evaluation identity differs")
+
+    baseline_rmse = _pooled_rmse(reports, "baseline_rmse")
+    candidate_rmse = _pooled_rmse(reports, "candidate_rmse")
+    zone_rows = _pool_group_rows(reports, "zone_rmse", "zone")
+    team_rows = _pool_group_rows(reports, "team_results", "team_id")
+    improvement = baseline_rmse - candidate_rmse
+    statuses = [report.get("status") for report in reports]
+    profile_id, season, teams = identity
+    return {
+        "schema_version": NBA_SHOT_PROFILE_EVALUATION_VERSION,
+        "evaluation_id": f"{profile_id}-batch-v1",
+        "profile_id": profile_id,
+        "season": season,
+        "teams": teams,
+        "runs": len(reports),
+        "status": "improved"
+        if improvement > 0
+        else "regressed"
+        if improvement < 0
+        else "unchanged",
+        "baseline_rmse": round(baseline_rmse, 12),
+        "candidate_rmse": round(candidate_rmse, 12),
+        "rmse_improvement": round(improvement, 12),
+        "relative_rmse_improvement": (
+            None if baseline_rmse == 0.0 else round(improvement / baseline_rmse, 12)
+        ),
+        "improved_runs": statuses.count("improved"),
+        "regressed_runs": statuses.count("regressed"),
+        "unchanged_runs": statuses.count("unchanged"),
+        "zone_rmse": zone_rows,
+        "team_results": team_rows,
+    }
+
+
 def _shares(team: TeamDistributionMetrics) -> tuple[float, float, float]:
     by_zone = {item.key: item.share for item in team.shot_zone_shares}
     if set(by_zone) != set(_ZONES):
@@ -137,3 +186,87 @@ def _shares(team: TeamDistributionMetrics) -> tuple[float, float, float]:
 
 def _rmse(squared_errors: list[float]) -> float:
     return math.sqrt(math.fsum(squared_errors) / len(squared_errors))
+
+
+def _number(value: object, field: str) -> float:
+    if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(value):
+        raise NbaShotProfileEvaluationError(f"shot profile evaluation {field} is invalid")
+    return float(value)
+
+
+def _pooled_rmse(reports: tuple[dict[str, object], ...], field: str) -> float:
+    values = [_number(report.get(field), field) for report in reports]
+    return math.sqrt(math.fsum(value * value for value in values) / len(values))
+
+
+def _pool_group_rows(
+    reports: tuple[dict[str, object], ...],
+    field: str,
+    identity_field: str,
+) -> list[dict[str, object]]:
+    groups: list[dict[str, dict[str, object]]] = []
+    for report in reports:
+        raw_rows = report.get(field)
+        if not isinstance(raw_rows, list):
+            raise NbaShotProfileEvaluationError(f"shot profile evaluation {field} is invalid")
+        rows: dict[str, dict[str, object]] = {}
+        for raw in raw_rows:
+            if not isinstance(raw, dict) or not isinstance(raw.get(identity_field), str):
+                raise NbaShotProfileEvaluationError(
+                    f"shot profile evaluation {field} identity is invalid"
+                )
+            rows[cast(str, raw[identity_field])] = raw
+        if len(rows) != len(raw_rows):
+            raise NbaShotProfileEvaluationError(
+                f"shot profile evaluation {field} identities are duplicated"
+            )
+        groups.append(rows)
+    identities = set(groups[0])
+    if any(set(group) != identities for group in groups[1:]):
+        raise NbaShotProfileEvaluationError(f"shot profile evaluation {field} differs")
+    pooled = []
+    ordered_identities = _ZONES if field == "zone_rmse" else tuple(sorted(identities))
+    if set(ordered_identities) != identities:
+        raise NbaShotProfileEvaluationError(f"shot profile evaluation {field} differs")
+    for item_id in ordered_identities:
+        baseline = _pooled_rmse(
+            tuple(
+                {
+                    "value": group[item_id].get(
+                        "baseline" if field == "zone_rmse" else "baseline_rmse"
+                    )
+                }
+                for group in groups
+            ),
+            "value",
+        )
+        candidate = _pooled_rmse(
+            tuple(
+                {
+                    "value": group[item_id].get(
+                        "candidate" if field == "zone_rmse" else "candidate_rmse"
+                    )
+                }
+                for group in groups
+            ),
+            "value",
+        )
+        if field == "zone_rmse":
+            pooled.append(
+                {
+                    identity_field: item_id,
+                    "baseline": round(baseline, 12),
+                    "candidate": round(candidate, 12),
+                    "improvement": round(baseline - candidate, 12),
+                }
+            )
+        else:
+            pooled.append(
+                {
+                    identity_field: item_id,
+                    "baseline_rmse": round(baseline, 12),
+                    "candidate_rmse": round(candidate, 12),
+                    "rmse_improvement": round(baseline - candidate, 12),
+                }
+            )
+    return pooled
