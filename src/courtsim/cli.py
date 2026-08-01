@@ -76,9 +76,14 @@ from courtsim.analysis.nba_reference import (
     build_nba_core_target_payload,
     build_nba_team_target_payload,
 )
+from courtsim.analysis.nba_shot_profile_evaluation import (
+    NbaShotProfileEvaluationError,
+    evaluate_nba_shot_profile_audits,
+)
 from courtsim.analysis.nba_shot_profiles import (
     NbaShotProfileError,
     build_nba_shot_profile_payload,
+    load_nba_shot_profile_set,
 )
 from courtsim.analysis.performance import run_model_benchmark
 from courtsim.analysis.quick_sim_batch import (
@@ -284,6 +289,14 @@ def _parser() -> argparse.ArgumentParser:
     quick_sim_paired.add_argument("baseline", type=Path)
     quick_sim_paired.add_argument("candidate", type=Path)
     quick_sim_paired.add_argument("output", type=Path)
+    shot_profile_evaluate = subparsers.add_parser(
+        "nba-shot-profile-evaluate",
+        help="compare baseline and candidate team shot-zone audits with NBA profiles",
+    )
+    shot_profile_evaluate.add_argument("baseline_audit", type=Path)
+    shot_profile_evaluate.add_argument("candidate_audit", type=Path)
+    shot_profile_evaluate.add_argument("profiles", type=Path)
+    shot_profile_evaluate.add_argument("output", type=Path)
 
     franchise_checkpoint = subparsers.add_parser(
         "nba-franchise-checkpoint-verify",
@@ -742,6 +755,16 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
 
+        if arguments.command == "nba-shot-profile-evaluate":
+            evaluation = evaluate_nba_shot_profile_audits(
+                load_distribution_audit(arguments.baseline_audit),
+                load_distribution_audit(arguments.candidate_audit),
+                load_nba_shot_profile_set(arguments.profiles),
+            )
+            write_json(arguments.output, evaluation)
+            print(json.dumps(evaluation, ensure_ascii=False, separators=(",", ":"), sort_keys=True))
+            return 0
+
         if arguments.command == "nba-franchise-checkpoint-verify":
             state, _, receipt = load_nba_franchise_checkpoint(
                 arguments.checkpoint,
@@ -1182,6 +1205,7 @@ def main(argv: list[str] | None = None) -> int:
         NbaReferenceError,
         NbaDataAuditError,
         NbaShotProfileError,
+        NbaShotProfileEvaluationError,
         NbaDataPipelineError,
         NBAFranchiseArtifactError,
         NBAFranchiseRunnerError,

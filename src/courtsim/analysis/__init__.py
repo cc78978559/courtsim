@@ -58,6 +58,10 @@ from courtsim.analysis.nba_reference import (
     calculate_nba_core_metrics,
     calculate_nba_team_metrics,
 )
+from courtsim.analysis.nba_shot_profile_evaluation import (
+    NbaShotProfileEvaluationError,
+    evaluate_nba_shot_profile_audits,
+)
 from courtsim.analysis.nba_shot_profiles import (
     NbaShotProfileError,
     NBAShotProfileSet,
@@ -128,6 +132,7 @@ __all__ = [
     "NBATeamShotProfile",
     "NbaReferenceError",
     "NbaShotProfileError",
+    "NbaShotProfileEvaluationError",
     "PlayerFoulShare",
     "PlayerUsageShare",
     "QuickSimBatchError",
@@ -170,6 +175,7 @@ __all__ = [
     "create_artifact_archive",
     "distribution_audit_to_json",
     "evaluate_audit_gates",
+    "evaluate_nba_shot_profile_audits",
     "load_audit_gates",
     "load_distribution_audit",
     "load_nba_shot_profile_set",

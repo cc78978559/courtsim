@@ -151,7 +151,11 @@ def game_result_to_dict(result: GameResult) -> dict[str, object]:
     }
 
 
-def game_result_from_dict(value: object, config: GameClockConfig) -> GameResult:
+def game_result_from_dict(
+    value: object,
+    config: GameClockConfig,
+    allowed_possession_seconds: tuple[int, ...] | None = None,
+) -> GameResult:
     obj = _object(value, "game result")
     legacy_keys = {
         "schema_version",
@@ -322,7 +326,7 @@ def game_result_from_dict(value: object, config: GameClockConfig) -> GameResult:
         None if schema_version == 1 else _nullable_string(obj, "fatigue_version"),
     )
     try:
-        validate_game_result(result, config)
+        validate_game_result(result, config, allowed_possession_seconds)
     except ValueError as error:
         raise SerializationError(str(error)) from error
     return result
@@ -337,9 +341,13 @@ def game_result_to_json(result: GameResult) -> str:
     )
 
 
-def game_result_from_json(payload: str, config: GameClockConfig) -> GameResult:
+def game_result_from_json(
+    payload: str,
+    config: GameClockConfig,
+    allowed_possession_seconds: tuple[int, ...] | None = None,
+) -> GameResult:
     try:
         value = json.loads(payload)
     except json.JSONDecodeError as error:
         raise SerializationError("invalid JSON") from error
-    return game_result_from_dict(value, config)
+    return game_result_from_dict(value, config, allowed_possession_seconds)

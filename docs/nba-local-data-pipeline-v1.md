@@ -109,6 +109,21 @@ Copy-Item experiments/nba-data/hoopr-pbp-manifest.example.json work/nba-data.jso
 比较器要求两个批次均完整，且规格、赛季编号和派生种子逐项相同；报告提供六项快速
 模拟指标的基线均值、候选均值、平均差及单赛季差值范围。
 
+快速模拟总览不能证明投篮画像更真实。标准时长执行后，应分别把常规赛比赛结果交给
+`audit_game_results`，再比较每队区域误差：
+
+```powershell
+.\tools.cmd nba-shot-profile-evaluate `
+  work/standard-baseline-audit.json `
+  work/standard-profiled-audit.json `
+  work/nba-2024-25-team-shot-profiles.json `
+  work/standard-shot-profile-evaluation.json
+```
+
+评估器计算全部 30 队 × 3 区域的 RMSE、MAE、逐区域 RMSE 和改善/恶化计数。只有
+`candidate_rmse` 低于 `baseline_rmse` 才标记为 `improved`；短时长 smoke 不可替代
+标准时长、多种子的校准结论。
+
 默认缓存目录是 `.cache/nba-data/<dataset_id>/`。跨机器接续时传递原始数据文件，
 或在新机器上再次执行 `sync`；Git 只需要传递清单和处理代码。
 

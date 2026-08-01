@@ -71,6 +71,7 @@ def build_project_status(root: str | Path) -> dict[str, object]:
             "nba-possession-source-audit",
             "nba-shot-zone-source-audit",
             "nba-team-shot-zone-profiles",
+            "nba-team-shot-zone-evaluation",
             "nba-reference-targets",
             "nba-quick-sim-inspection",
             "nba-quick-sim-comparison",
