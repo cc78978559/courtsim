@@ -75,7 +75,16 @@ def test_batch_checkpoints_resumes_and_verifies_cells(tmp_path: Path) -> None:
     assert len(calls) == 2
     assert (tmp_path / "batch" / "evaluation-batch.json").is_file()
 
+    # A completed batch is a verified no-op: it does not rerun or rewrite artifacts.
     manifest_path = tmp_path / "batch" / "batch-manifest.json"
+    aggregate_path = tmp_path / "batch" / "evaluation-batch.json"
+    manifest_mtime = manifest_path.stat().st_mtime_ns
+    aggregate_mtime = aggregate_path.stat().st_mtime_ns
+    assert run() == second
+    assert len(calls) == 2
+    assert manifest_path.stat().st_mtime_ns == manifest_mtime
+    assert aggregate_path.stat().st_mtime_ns == aggregate_mtime
+
     completed_cells = second["cells"]
     assert isinstance(completed_cells, list)
     assert all(isinstance(cell, dict) for cell in completed_cells)
@@ -89,4 +98,37 @@ def test_batch_checkpoints_resumes_and_verifies_cells(tmp_path: Path) -> None:
 
     write_json(tmp_path / "batch" / "run-0001" / "evaluation.json", {"tampered": True})
     with pytest.raises(NbaShotProfileBatchError, match="hash differs"):
+        run()
+
+
+def test_batch_rejects_tampered_aggregate(tmp_path: Path) -> None:
+    inputs = []
+    for name in ("profile", "schema", "parameters", "lineup"):
+        path = tmp_path / f"{name}.json"
+        path.write_text("{}", encoding="utf-8")
+        inputs.append(path)
+
+    def fake_runner(**kwargs: object) -> dict[str, object]:
+        output = Path(str(kwargs["output_directory"]))
+        summary = {"status": "improved", "games": 1}
+        write_json(output / "evaluation.json", _evaluation())
+        write_json(output / "manifest.json", {"summary": summary})
+        return {"summary": summary}
+
+    def run() -> dict[str, object]:
+        return run_nba_shot_profile_batch(
+            profile_path=inputs[0],
+            schema_path=inputs[1],
+            parameters_path=inputs[2],
+            lineup_path=inputs[3],
+            output_directory=tmp_path / "batch",
+            master_seed=7,
+            runs=1,
+            game_config=GameClockConfig(1, 120, 24, 60, overtime_enabled=True),
+            experiment_runner=fake_runner,
+        )
+
+    run()
+    write_json(tmp_path / "batch" / "evaluation-batch.json", {"tampered": True})
+    with pytest.raises(NbaShotProfileBatchError, match="aggregate artifact differs"):
         run()

@@ -70,6 +70,7 @@ def run_nba_shot_profile_batch(
     }
     manifest_path = output / "batch-manifest.json"
     cells: list[dict[str, object]] = []
+    previous: dict[str, object] | None = None
     if manifest_path.exists():
         previous = _load_object(manifest_path, "shot profile batch manifest")
         if previous.get("spec") != spec:
@@ -79,7 +80,10 @@ def run_nba_shot_profile_batch(
             raise NbaShotProfileBatchError("shot profile batch cells are invalid")
         cells = [cast(dict[str, object], item) for item in raw_cells]
         _verify_cells(output, cells, master_seed, runs)
+        _verify_checkpoint(previous, output, cells, runs)
     remaining = runs - len(cells)
+    if remaining == 0 and previous is not None:
+        return previous
     new_runs = remaining if maximum_new_runs is None else min(remaining, maximum_new_runs)
     for run_index in range(len(cells), len(cells) + new_runs):
         seed = derive_seed(master_seed, NBA_SHOT_PROFILE_BATCH_VERSION, run_index)
@@ -177,6 +181,33 @@ def _verify_cells(
             path = run_directory / filename
             if not path.is_file() or sha256_file(path) != cell.get(field):
                 raise NbaShotProfileBatchError("shot profile batch cell artifact hash differs")
+
+
+def _verify_checkpoint(
+    manifest: dict[str, object],
+    output: Path,
+    cells: list[dict[str, object]],
+    runs: int,
+) -> None:
+    if manifest.get("completed_runs") != len(cells):
+        raise NbaShotProfileBatchError("shot profile batch completed count differs")
+    if manifest.get("complete") is not (len(cells) == runs):
+        raise NbaShotProfileBatchError("shot profile batch completion state differs")
+    aggregate = manifest.get("aggregate")
+    if not cells:
+        if aggregate is not None:
+            raise NbaShotProfileBatchError("empty shot profile batch has an aggregate")
+        return
+    if not isinstance(aggregate, dict):
+        raise NbaShotProfileBatchError("shot profile batch aggregate receipt is invalid")
+    aggregate_path = output / "evaluation-batch.json"
+    if (
+        aggregate.get("path") != aggregate_path.name
+        or not aggregate_path.is_file()
+        or aggregate.get("sha256") != sha256_file(aggregate_path)
+        or aggregate.get("bytes") != aggregate_path.stat().st_size
+    ):
+        raise NbaShotProfileBatchError("shot profile batch aggregate artifact differs")
 
 
 def _input_receipt(role: str, path: Path) -> dict[str, object]:
