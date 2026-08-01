@@ -1,0 +1,419 @@
+{
+  "calibration": {
+    "base_profile_id": "nba-2024-25-shot-zones-v1",
+    "base_profile_path": "nba-2024-25-team-shot-profiles.json",
+    "base_profile_sha256": "b70cace5695d6285c518f4c810a0142596e137181187464ae9325d8cbfbb9f2f",
+    "baseline_audit_path": "standard-shot-baseline-audit.json",
+    "baseline_audit_sha256": "a5061368ac7ff60fe978486354cdd13a166acc8a53d15723a883b8dbb0492660",
+    "calibration_strength": 0.75,
+    "contrast_calibration_strengths": [
+      1.0,
+      0.75
+    ],
+    "maximum_absolute_offset": 30,
+    "method": "three-anchor-log-contrasts-v1"
+  },
+  "profile_id": "nba-2024-25-shot-zones-v1-baseline-calibrated-0.75x-contrasts-1-0.75",
+  "schema_version": 2,
+  "season": "2024-25",
+  "sources": {
+    "audit_path": "nba-2024-25-shot-zone-audit.json",
+    "audit_sha256": "8132f901511e3b7071f95447021314c855492e8e32ee3b7e8672a068cd05a3f6",
+    "raw_source_sha256": "950100f9c84fe750ae2ac8eaeb82d24cdfb9f60a9ed04ceaa66f64789d7c216e",
+    "summary_path": "nba-2024-25-shot-zone-summary.json",
+    "summary_sha256": "c5ae52207cb3442a6f6bc62b21c56c5f6f5631fe3722f5f9a3378056e1eac656"
+  },
+  "teams": [
+    {
+      "rating_offsets": {
+        "MIDRANGE": -13,
+        "RIM": 7,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.06044102019128587,
+        "RIM": 0.5292242295430393,
+        "THREE": 0.41033475026567484
+      },
+      "team_id": "Atlanta Hawks"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -12,
+        "RIM": -3,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.08683283662963967,
+        "RIM": 0.37740449742617177,
+        "THREE": 0.5357626659441885
+      },
+      "team_id": "Boston Celtics"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -14,
+        "RIM": 3,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.06388101983002833,
+        "RIM": 0.4781869688385269,
+        "THREE": 0.4577903682719547
+      },
+      "team_id": "Brooklyn Nets"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -10,
+        "RIM": 4,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.08470169677066229,
+        "RIM": 0.4852216748768473,
+        "THREE": 0.43007662835249044
+      },
+      "team_id": "Charlotte Hornets"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -13,
+        "RIM": 4,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.06998011928429423,
+        "RIM": 0.4731610337972167,
+        "THREE": 0.45685884691848905
+      },
+      "team_id": "Chicago Bulls"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -12,
+        "RIM": 2,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.07818377216550242,
+        "RIM": 0.464938205265986,
+        "THREE": 0.45687802256851157
+      },
+      "team_id": "Cleveland Cavaliers"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -6,
+        "RIM": 6,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.11301084236864054,
+        "RIM": 0.4976369196552683,
+        "THREE": 0.3893522379760912
+      },
+      "team_id": "Dallas Mavericks"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -6,
+        "RIM": 9,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.10855978260869566,
+        "RIM": 0.5355978260869565,
+        "THREE": 0.3558423913043478
+      },
+      "team_id": "Denver Nuggets"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -8,
+        "RIM": 6,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.09493413011000951,
+        "RIM": 0.5109330435963602,
+        "THREE": 0.39399701208746435
+      },
+      "team_id": "Detroit Pistons"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -11,
+        "RIM": 2,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.0854020507285483,
+        "RIM": 0.4456287101996762,
+        "THREE": 0.46883432271991365
+      },
+      "team_id": "Golden State Warriors"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -6,
+        "RIM": 6,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.1105888497192845,
+        "RIM": 0.505810157984071,
+        "THREE": 0.38360099229664446
+      },
+      "team_id": "Houston Rockets"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -6,
+        "RIM": 5,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.12530712530712532,
+        "RIM": 0.4742014742014742,
+        "THREE": 0.4004914004914005
+      },
+      "team_id": "Indiana Pacers"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -8,
+        "RIM": 7,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.09088339222614841,
+        "RIM": 0.5221201413427562,
+        "THREE": 0.3869964664310954
+      },
+      "team_id": "LA Clippers"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -8,
+        "RIM": 4,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.10132724418438704,
+        "RIM": 0.4732410446696161,
+        "THREE": 0.42543171114599687
+      },
+      "team_id": "Los Angeles Lakers"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -12,
+        "RIM": 6,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.06571727201463287,
+        "RIM": 0.5282205382806375,
+        "THREE": 0.40593153906454144
+      },
+      "team_id": "Memphis Grizzlies"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -11,
+        "RIM": 4,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.08517792098627067,
+        "RIM": 0.486130568786775,
+        "THREE": 0.42869151022695434
+      },
+      "team_id": "Miami Heat"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -4,
+        "RIM": 3,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.14840440553515957,
+        "RIM": 0.4275628353572437,
+        "THREE": 0.42403275910759675
+      },
+      "team_id": "Milwaukee Bucks"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -13,
+        "RIM": 3,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.07282094124199387,
+        "RIM": 0.47201336675020883,
+        "THREE": 0.4551656920077973
+      },
+      "team_id": "Minnesota Timberwolves"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -7,
+        "RIM": 7,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.1005700325732899,
+        "RIM": 0.5141150922909881,
+        "THREE": 0.38531487513572205
+      },
+      "team_id": "New Orleans Pelicans"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -5,
+        "RIM": 7,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.11442241968557758,
+        "RIM": 0.503485987696514,
+        "THREE": 0.3819548872180451
+      },
+      "team_id": "New York Knicks"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -7,
+        "RIM": 4,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.10907894736842105,
+        "RIM": 0.4719736842105263,
+        "THREE": 0.4189473684210526
+      },
+      "team_id": "Oklahoma City Thunder"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -6,
+        "RIM": 5,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.11771396076201308,
+        "RIM": 0.4711401762866079,
+        "THREE": 0.411145862951379
+      },
+      "team_id": "Orlando Magic"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -8,
+        "RIM": 4,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.09974888392857142,
+        "RIM": 0.47474888392857145,
+        "THREE": 0.42550223214285715
+      },
+      "team_id": "Philadelphia 76ers"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -5,
+        "RIM": 2,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.13696113074204946,
+        "RIM": 0.42318021201413425,
+        "THREE": 0.43985865724381623
+      },
+      "team_id": "Phoenix Suns"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -10,
+        "RIM": 5,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.0839643050297458,
+        "RIM": 0.49770146024878315,
+        "THREE": 0.4184694429421309
+      },
+      "team_id": "Portland Trail Blazers"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -1,
+        "RIM": 5,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.16614759647935004,
+        "RIM": 0.44292484766418416,
+        "THREE": 0.3909275558564658
+      },
+      "team_id": "Sacramento Kings"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -9,
+        "RIM": 3,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.1017386579733768,
+        "RIM": 0.4572127139364303,
+        "THREE": 0.4409127954360228
+      },
+      "team_id": "San Antonio Spurs"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -8,
+        "RIM": 8,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.0859019029750737,
+        "RIM": 0.5407397480568212,
+        "THREE": 0.37335834896810505
+      },
+      "team_id": "Toronto Raptors"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -12,
+        "RIM": 4,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.07178217821782178,
+        "RIM": 0.47896039603960394,
+        "THREE": 0.44925742574257427
+      },
+      "team_id": "Utah Jazz"
+    },
+    {
+      "rating_offsets": {
+        "MIDRANGE": -10,
+        "RIM": 4,
+        "THREE": 0
+      },
+      "shot_zone_shares": {
+        "MIDRANGE": 0.09483109483109484,
+        "RIM": 0.4695428028761362,
+        "THREE": 0.4354904354904355
+      },
+      "team_id": "Washington Wizards"
+    }
+  ],
+  "zone_tendency_loading": 0.75
+}

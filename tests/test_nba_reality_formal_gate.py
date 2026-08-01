@@ -11,6 +11,7 @@ from courtsim.analysis.quick_sim_batch import (
 )
 from courtsim.analysis.quick_sim_comparison import QuickSimSeasonSummary
 from courtsim.analysis.quick_sim_formal_gate import evaluate_quick_sim_formal_gate
+from courtsim.artifacts import sha256_file
 
 ROOT = Path(__file__).resolve().parents[1]
 REALITY = ROOT / "experiments" / "sources" / "nba-2022-25-standings-playoffs.json"
@@ -37,6 +38,26 @@ def _checkpoint(path: Path, master_seed: int = 9001) -> Path:
     return path
 
 
+def _run_manifest(checkpoint: Path, path: Path) -> Path:
+    gate = json.loads(GATE.read_text(encoding="utf-8"))
+    inputs = {role: {"sha256": digest} for role, digest in gate["required_input_sha256"].items()}
+    path.write_text(
+        json.dumps(
+            {
+                "version": "nba-quick-sim-runner-v1",
+                "configuration": {
+                    "executor_version": gate["required_executor_version"],
+                    "game_config": gate["required_game_config"],
+                    "inputs": inputs,
+                },
+                "checkpoint": {"sha256": sha256_file(checkpoint)},
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
 def test_frozen_reality_contains_three_complete_nba_seasons() -> None:
     payload = json.loads(REALITY.read_text(encoding="utf-8"))
     assert payload["version"] == "nba-reality-multiseason-v1"
@@ -50,7 +71,10 @@ def test_frozen_reality_contains_three_complete_nba_seasons() -> None:
 
 
 def test_formal_gate_accepts_eligible_batch(tmp_path: Path) -> None:
-    report = evaluate_quick_sim_formal_gate(_checkpoint(tmp_path / "batch.json"), GATE)
+    checkpoint = _checkpoint(tmp_path / "batch.json")
+    report = evaluate_quick_sim_formal_gate(
+        checkpoint, GATE, _run_manifest(checkpoint, tmp_path / "run.json")
+    )
     assert report["integrity"] == {"reference": True, "reality": True}
     eligibility = cast(dict[str, bool], report["eligibility"])
     assert all(eligibility.values())
@@ -58,7 +82,10 @@ def test_formal_gate_accepts_eligible_batch(tmp_path: Path) -> None:
 
 
 def test_formal_gate_rejects_development_seed(tmp_path: Path) -> None:
-    report = evaluate_quick_sim_formal_gate(_checkpoint(tmp_path / "batch.json", 20260801), GATE)
+    checkpoint = _checkpoint(tmp_path / "batch.json", 20260801)
+    report = evaluate_quick_sim_formal_gate(
+        checkpoint, GATE, _run_manifest(checkpoint, tmp_path / "run.json")
+    )
     eligibility = cast(dict[str, bool], report["eligibility"])
     assert eligibility["unseen_master_seed"] is False
     assert report["comparison"] is None

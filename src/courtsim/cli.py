@@ -81,6 +81,10 @@ from courtsim.analysis.nba_player_identity import (
     build_nba_player_identity_payload,
 )
 from courtsim.analysis.nba_player_targets import NbaPlayerTargetError
+from courtsim.analysis.nba_quick_sim_runner import (
+    NbaQuickSimRunnerError,
+    run_nba_quick_sim_batch,
+)
 from courtsim.analysis.nba_reality import NbaRealityError, build_nba_reality_payload
 from courtsim.analysis.nba_reference import (
     TEAM_METRIC_ORDER,
@@ -108,6 +112,7 @@ from courtsim.analysis.nba_shot_profiles import (
     build_nba_shot_profile_payload,
     load_nba_shot_profile_set,
 )
+from courtsim.analysis.nba_team_strength import NbaTeamStrengthError
 from courtsim.analysis.performance import run_model_benchmark
 from courtsim.analysis.quick_sim_batch import (
     QuickSimBatchError,
@@ -344,6 +349,29 @@ def _parser() -> argparse.ArgumentParser:
     )
     quick_sim_status.add_argument("checkpoint", type=Path)
 
+    quick_sim_run = subparsers.add_parser(
+        "nba-quick-sim-run",
+        help="run or resume an input-pinned formal thirty-team quick-sim batch",
+    )
+    quick_sim_run.add_argument("profile", type=Path)
+    quick_sim_run.add_argument("strength", type=Path)
+    quick_sim_run.add_argument("checkpoint", type=Path)
+    quick_sim_run.add_argument("--manifest", type=Path)
+    quick_sim_run.add_argument("--schema", type=Path, default=DEFAULT_MODEL_SCHEMA)
+    quick_sim_run.add_argument("--parameters", type=Path, default=DEFAULT_MODEL_PARAMETERS)
+    quick_sim_run.add_argument(
+        "--lineup", type=Path, default=Path("examples/calibration_lineup_v1.json")
+    )
+    quick_sim_run.add_argument("--batch-id", required=True)
+    quick_sim_run.add_argument("--master-seed", type=int, required=True)
+    quick_sim_run.add_argument("--seasons", type=int, default=30)
+    quick_sim_run.add_argument("--maximum-new-seasons", type=int)
+    quick_sim_run.add_argument("--periods", type=int, default=4)
+    quick_sim_run.add_argument("--period-seconds", type=int, default=720)
+    quick_sim_run.add_argument("--possession-seconds", type=int, default=24)
+    quick_sim_run.add_argument("--overtime-seconds", type=int, default=300)
+    quick_sim_run.add_argument("--max-overtimes", type=int, default=8)
+
     nba_reality_build = subparsers.add_parser(
         "nba-reality-build",
         help="build source-pinned multi-season NBA standings/playoff reality",
@@ -373,6 +401,7 @@ def _parser() -> argparse.ArgumentParser:
     )
     quick_sim_formal_gate.add_argument("checkpoint", type=Path)
     quick_sim_formal_gate.add_argument("gate", type=Path)
+    quick_sim_formal_gate.add_argument("run_manifest", type=Path)
     quick_sim_formal_gate.add_argument("--output", type=Path)
     shot_profile_evaluate = subparsers.add_parser(
         "nba-shot-profile-evaluate",
@@ -985,6 +1014,40 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
 
+        if arguments.command == "nba-quick-sim-run":
+            run_manifest_path = arguments.manifest or arguments.checkpoint.with_suffix(
+                ".manifest.json"
+            )
+            quick_sim_run_manifest = run_nba_quick_sim_batch(
+                schema_path=arguments.schema,
+                parameters_path=arguments.parameters,
+                lineup_path=arguments.lineup,
+                profile_path=arguments.profile,
+                strength_path=arguments.strength,
+                checkpoint_path=arguments.checkpoint,
+                manifest_path=run_manifest_path,
+                batch_id=arguments.batch_id,
+                master_seed=arguments.master_seed,
+                seasons=arguments.seasons,
+                maximum_new_seasons=arguments.maximum_new_seasons,
+                game_config=GameClockConfig(
+                    arguments.periods,
+                    arguments.period_seconds,
+                    arguments.possession_seconds,
+                    arguments.overtime_seconds,
+                    arguments.max_overtimes,
+                    True,
+                ),
+            )
+            print(
+                json.dumps(
+                    quick_sim_run_manifest["checkpoint"],
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0
+
         if arguments.command == "nba-reality-build":
             reality, reality_reference = build_nba_reality_payload(
                 arguments.manifest, arguments.cache
@@ -1035,7 +1098,9 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if arguments.command == "nba-quick-sim-formal-gate":
-            formal_report = evaluate_quick_sim_formal_gate(arguments.checkpoint, arguments.gate)
+            formal_report = evaluate_quick_sim_formal_gate(
+                arguments.checkpoint, arguments.gate, arguments.run_manifest
+            )
             if arguments.output is not None:
                 write_json(arguments.output, formal_report)
             print(
@@ -1611,10 +1676,12 @@ def main(argv: list[str] | None = None) -> int:
         NbaShotProfileEvaluationError,
         NbaShotProfileBatchError,
         NbaShotProfileRunnerError,
+        NbaTeamStrengthError,
         NbaDataPipelineError,
         NbaPlayerIdentityError,
         NbaPlayerEvaluationError,
         NbaPlayerTargetError,
+        NbaQuickSimRunnerError,
         NbaRealityError,
         NBAFranchiseArtifactError,
         NBAFranchiseRunnerError,

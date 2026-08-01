@@ -23,10 +23,27 @@ requires all six aggregate quick-sim metrics to remain inside the observed three
 plus frozen, metric-specific guardbands. The guardbands prevent a three-season accident—such as
 all three champions being No. 1 seeds—from becoming an exact simulation requirement.
 
+Run or resume the pinned model locally. Every completed season is committed atomically to the
+checkpoint; the adjacent manifest binds the checkpoint to model, parameter, lineup, shot-profile,
+team-strength and clock hashes. Team strength is a white-box additive ability offset derived from
+2024-25 point differential, not a hidden fitted policy.
+The calibrated shot-profile file is intentionally tracked as the sole frozen exception under
+`work/`; ordinary run outputs and checkpoints remain ignored.
+
+```powershell
+.\tools.cmd nba-quick-sim-run `
+  work/nba-2024-25-team-shot-profiles-calibrated.json `
+  experiments/sources/nba-2024-25-team-strength-v1.json `
+  work/quick-sim/formal-nba-reality-v1.json `
+  --batch-id formal-nba-reality-v1 --master-seed 20260902 --seasons 30 `
+  --maximum-new-seasons 1
+```
+
 ```powershell
 .\tools.cmd nba-quick-sim-formal-gate `
   work/quick-sim/formal-checkpoint.json `
   experiments/gates/nba-2022-25-quick-sim-formal-gate-v1.json `
+  work/quick-sim/formal-checkpoint.manifest.json `
   --output work/quick-sim/formal-gate-report.json
 ```
 

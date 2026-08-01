@@ -94,6 +94,8 @@ def build_project_status(root: str | Path) -> dict[str, object]:
             "nba-quick-sim-paired-comparison",
             "nba-multiseason-standings-playoffs-reality",
             "nba-quick-sim-formal-gate",
+            "nba-quick-sim-input-pinned-runner",
+            "nba-source-derived-team-strength",
             "nba-franchise-checkpoint-verification",
             "nba-franchise-manifest-inspection",
             "artifact-retention",
