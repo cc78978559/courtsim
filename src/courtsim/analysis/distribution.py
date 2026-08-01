@@ -9,15 +9,20 @@ from typing import TypeVar
 
 from courtsim.domain.enums import (
     Coverage,
+    CreationMode,
+    FinisherRoute,
     LateGameDefenseMode,
     LateGameOffenseMode,
     PlayFamily,
     ShotZone,
+    TacticalAction,
 )
 from courtsim.domain.game import GameResult
+from courtsim.domain.plans import creation_mode_for, tactical_action_for
 from courtsim.domain.results import (
     BlockedShotSegmentResult,
     MadeShotSegmentResult,
+    MissedShotSegmentResult,
     NonShootingFoulSegmentResult,
     OffensiveFoulSegmentResult,
     OffensiveRebound,
@@ -71,6 +76,9 @@ class TeamDistributionMetrics:
     block_rate: float
     steal_rate: float
     shot_zone_shares: tuple[ShareMetric, ...]
+    route_shares: tuple[ShareMetric, ...] = ()
+    creation_mode_shares: tuple[ShareMetric, ...] = ()
+    tactical_action_shares: tuple[ShareMetric, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,6 +124,9 @@ class DistributionAudit:
     intentional_fouls_committed: int = 0
     intentional_foul_continuations: int = 0
     intentional_foul_mean_observed_seconds: float = 0.0
+    route_shares: tuple[ShareMetric, ...] = ()
+    creation_mode_shares: tuple[ShareMetric, ...] = ()
+    tactical_action_shares: tuple[ShareMetric, ...] = ()
 
 
 def _ratio(numerator: int, denominator: int) -> float:
@@ -164,6 +175,9 @@ def audit_game_results(
     zone_counts: dict[ShotZone, int] = {}
     play_counts: dict[PlayFamily, int] = {}
     coverage_counts: dict[Coverage, int] = {}
+    route_counts: dict[FinisherRoute, int] = {}
+    creation_mode_counts: dict[CreationMode, int] = {}
+    tactical_action_counts: dict[TacticalAction, int] = {}
     usage_counts: dict[tuple[str, int], int] = {}
     team_usage_totals: dict[str, int] = {}
     foul_counts: dict[tuple[str, int], int] = {}
@@ -180,6 +194,9 @@ def audit_game_results(
     team_blocks: dict[str, int] = {}
     team_steals: dict[str, int] = {}
     team_zone_counts: dict[str, dict[ShotZone, int]] = {}
+    team_route_counts: dict[str, dict[FinisherRoute, int]] = {}
+    team_creation_mode_counts: dict[str, dict[CreationMode, int]] = {}
+    team_tactical_action_counts: dict[str, dict[TacticalAction, int]] = {}
     late_game_duration_counts = {"trailing": 0, "neutral": 0, "leading": 0}
     late_game_duration_totals = {"trailing": 0, "neutral": 0, "leading": 0}
     two_for_one_possessions = 0
@@ -246,6 +263,31 @@ def audit_game_results(
             for segment in possession.result.segments:
                 play_counts[segment.plan.family] = play_counts.get(segment.plan.family, 0) + 1
                 coverage_counts[segment.coverage] = coverage_counts.get(segment.coverage, 0) + 1
+                if isinstance(
+                    segment,
+                    (
+                        MadeShotSegmentResult,
+                        MissedShotSegmentResult,
+                        BlockedShotSegmentResult,
+                        ShootingFoulSegmentResult,
+                    ),
+                ):
+                    route = segment.selection.route
+                    creation_mode = creation_mode_for(route)
+                    tactical_action = tactical_action_for(segment.plan, route)
+                    route_counts[route] = route_counts.get(route, 0) + 1
+                    creation_mode_counts[creation_mode] = (
+                        creation_mode_counts.get(creation_mode, 0) + 1
+                    )
+                    tactical_action_counts[tactical_action] = (
+                        tactical_action_counts.get(tactical_action, 0) + 1
+                    )
+                    team_routes = team_route_counts.setdefault(offense_team, {})
+                    team_routes[route] = team_routes.get(route, 0) + 1
+                    team_creation = team_creation_mode_counts.setdefault(offense_team, {})
+                    team_creation[creation_mode] = team_creation.get(creation_mode, 0) + 1
+                    team_actions = team_tactical_action_counts.setdefault(offense_team, {})
+                    team_actions[tactical_action] = team_actions.get(tactical_action, 0) + 1
                 if isinstance(segment, TurnoverSegmentResult):
                     turnovers += 1
                     team_turnovers[offense_team] = team_turnovers.get(offense_team, 0) + 1
@@ -428,6 +470,13 @@ def audit_game_results(
                 team_zone_counts.get(team_id, {}),
                 tuple(ShotZone),
             ),
+            route_shares=_shares(team_route_counts.get(team_id, {}), tuple(FinisherRoute)),
+            creation_mode_shares=_shares(
+                team_creation_mode_counts.get(team_id, {}), tuple(CreationMode)
+            ),
+            tactical_action_shares=_shares(
+                team_tactical_action_counts.get(team_id, {}), tuple(TacticalAction)
+            ),
         )
         for team_id in sorted(team_points)
     )
@@ -499,6 +548,9 @@ def audit_game_results(
             intentional_foul_duration_total,
             intentional_fouls_committed,
         ),
+        route_shares=_shares(route_counts, tuple(FinisherRoute)),
+        creation_mode_shares=_shares(creation_mode_counts, tuple(CreationMode)),
+        tactical_action_shares=_shares(tactical_action_counts, tuple(TacticalAction)),
     )
 
 

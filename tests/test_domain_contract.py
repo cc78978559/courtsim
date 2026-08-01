@@ -19,6 +19,7 @@ from courtsim.domain.enums import (
     PossessionEndReason,
     ReboundSide,
     ShotZone,
+    TacticalAction,
     TerminalChannel,
     TurnoverKind,
 )
@@ -38,6 +39,7 @@ from courtsim.domain.plans import (
     creation_mode_for,
     last_passer_for,
     legal_coverages_for,
+    tactical_action_for,
     validate_coverage,
 )
 from courtsim.domain.results import (
@@ -111,6 +113,36 @@ def test_append_only_enum_ids_are_a_golden_contract() -> None:
         ("SPOT_UP_FEED", 2),
         ("OFF_BALL_MOVEMENT_FEED", 3),
     ]
+    assert [(item.name, item.value) for item in TacticalAction] == [
+        ("BALL_SCREEN_KEEP", 0),
+        ("BALL_SCREEN_ROLL", 1),
+        ("BALL_SCREEN_POP", 2),
+        ("BALL_SCREEN_KICKOUT", 3),
+        ("ISOLATION_ATTACK", 4),
+        ("ISOLATION_KICKOUT", 5),
+        ("PINDOWN", 6),
+        ("BACKDOOR_CUT", 7),
+        ("OFF_BALL_BAILOUT", 8),
+    ]
+
+
+def test_tactical_vocabulary_is_derived_from_causal_plan_shape() -> None:
+    assert (
+        tactical_action_for(BALL_SCREEN, FinisherRoute.SCREENER_ROLL)
+        is TacticalAction.BALL_SCREEN_ROLL
+    )
+    assert (
+        tactical_action_for(ISOLATION, FinisherRoute.HELP_RELEASE)
+        is TacticalAction.ISOLATION_KICKOUT
+    )
+    assert (
+        tactical_action_for(OFF_BALL, FinisherRoute.DESIGNED_OFF_BALL_TARGET)
+        is TacticalAction.PINDOWN
+    )
+    assert (
+        tactical_action_for(OFF_BALL_NO_SCREEN, FinisherRoute.DESIGNED_OFF_BALL_TARGET)
+        is TacticalAction.BACKDOOR_CUT
+    )
     assert [(item.name, item.value) for item in ShotZone] == [
         ("RIM", 0),
         ("MIDRANGE", 1),

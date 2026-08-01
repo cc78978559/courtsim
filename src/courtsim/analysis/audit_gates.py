@@ -164,8 +164,17 @@ def load_distribution_audit(path: str | Path) -> DistributionAudit:
         "play_family_shares",
         "coverage_shares",
     }
+    expanded_share_fields = {
+        "route_shares",
+        "creation_mode_shares",
+        "tactical_action_shares",
+    }
+    expanded_present = set(raw) & expanded_share_fields
+    if expanded_present and expanded_present != expanded_share_fields:
+        raise AuditGateError("expanded tactical audit shares must be complete")
     expected = scalar_ints | scalar_floats | share_fields | {"player_usage_shares"}
-    if frozenset(raw) not in {
+    comparable_fields = frozenset(set(raw) - expanded_share_fields)
+    if comparable_fields not in {
         frozenset(expected),
         frozenset(expected | foul_floats),
         frozenset(expected | foul_floats | common_foul_floats),
@@ -324,8 +333,16 @@ def load_distribution_audit(path: str | Path) -> DistributionAudit:
         "steal_rate",
         "shot_zone_shares",
     }
+    expanded_team_metric_fields = {
+        "route_shares",
+        "creation_mode_shares",
+        "tactical_action_shares",
+    }
     for index, item in enumerate(team_metrics_raw):
-        if not isinstance(item, dict) or set(item) != team_metric_fields:
+        if not isinstance(item, dict) or frozenset(item) not in {
+            frozenset(team_metric_fields),
+            frozenset(team_metric_fields | expanded_team_metric_fields),
+        }:
             raise AuditGateError(f"team_metrics[{index}] is invalid")
         team_id = item["team_id"]
         possessions = item["possessions"]
@@ -376,6 +393,18 @@ def load_distribution_audit(path: str | Path) -> DistributionAudit:
                 shot_zone_shares=_share_metrics(
                     item["shot_zone_shares"],
                     f"team_metrics[{index}].shot_zone_shares",
+                ),
+                route_shares=_share_metrics(
+                    item.get("route_shares", []),
+                    f"team_metrics[{index}].route_shares",
+                ),
+                creation_mode_shares=_share_metrics(
+                    item.get("creation_mode_shares", []),
+                    f"team_metrics[{index}].creation_mode_shares",
+                ),
+                tactical_action_shares=_share_metrics(
+                    item.get("tactical_action_shares", []),
+                    f"team_metrics[{index}].tactical_action_shares",
                 ),
             )
         )
@@ -433,6 +462,13 @@ def load_distribution_audit(path: str | Path) -> DistributionAudit:
         intentional_foul_mean_observed_seconds=formal_strategy_float_metrics[
             "intentional_foul_mean_observed_seconds"
         ],
+        route_shares=_share_metrics(raw.get("route_shares", []), "route_shares"),
+        creation_mode_shares=_share_metrics(
+            raw.get("creation_mode_shares", []), "creation_mode_shares"
+        ),
+        tactical_action_shares=_share_metrics(
+            raw.get("tactical_action_shares", []), "tactical_action_shares"
+        ),
     )
 
 
@@ -480,6 +516,9 @@ def audit_metric_map(audit: DistributionAudit) -> dict[str, float]:
         ("shot_zone_share", audit.shot_zone_shares),
         ("play_family_share", audit.play_family_shares),
         ("coverage_share", audit.coverage_shares),
+        ("route_share", audit.route_shares),
+        ("creation_mode_share", audit.creation_mode_shares),
+        ("tactical_action_share", audit.tactical_action_shares),
     ):
         for item in shares:
             metrics[f"{prefix}.{item.key}"] = item.share
@@ -507,6 +546,13 @@ def audit_metric_map(audit: DistributionAudit) -> dict[str, float]:
         metrics[f"{prefix}.steal_rate"] = team.steal_rate
         for zone in team.shot_zone_shares:
             metrics[f"{prefix}.shot_zone_share.{zone.key}"] = zone.share
+        for metric_prefix, shares in (
+            ("route_share", team.route_shares),
+            ("creation_mode_share", team.creation_mode_shares),
+            ("tactical_action_share", team.tactical_action_shares),
+        ):
+            for item in shares:
+                metrics[f"{prefix}.{metric_prefix}.{item.key}"] = item.share
     return metrics
 
 

@@ -82,6 +82,8 @@ def build_project_status(root: str | Path) -> dict[str, object]:
             "nba-player-id-crosswalk-audit",
             "nba-player-simulation-audit",
             "nba-player-multiseed-evaluation",
+            "route-creation-tactical-audit",
+            "derived-tactical-action-vocabulary",
             "local-composite-group-reduction",
             "nba-reference-targets",
             "nba-quick-sim-inspection",
