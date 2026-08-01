@@ -8,6 +8,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, cast
 
+from courtsim.analysis.distribution import DistributionAudit, TeamDistributionMetrics
 from courtsim.artifacts import sha256_file
 from courtsim.domain.player import PlayerProfile, ShotZoneMix
 from courtsim.model.game_runtime import GameTeam
@@ -196,6 +197,54 @@ def apply_nba_shot_profiles(
     return tuple(apply_nba_team_shot_profile(team, by_team[team.team_id]) for team in teams)
 
 
+def calibrate_nba_shot_profiles(
+    profiles: NBAShotProfileSet,
+    baseline: DistributionAudit,
+    *,
+    maximum_absolute_offset: int = 30,
+) -> NBAShotProfileSet:
+    """Rebase target offsets onto measured simulated team distributions."""
+    if (
+        not isinstance(maximum_absolute_offset, int)
+        or isinstance(maximum_absolute_offset, bool)
+        or not 1 <= maximum_absolute_offset <= 100
+    ):
+        raise NbaShotProfileError("maximum absolute offset must be an integer from 1 through 100")
+    if baseline.games < 1 or baseline.completed_games != baseline.games or baseline.aborted_games:
+        raise NbaShotProfileError("shot profile baseline audit must contain complete games")
+    baseline_teams = {item.team_id: item for item in baseline.team_metrics}
+    if set(baseline_teams) != {item.team_id for item in profiles.teams}:
+        raise NbaShotProfileError("shot profile baseline team ids differ")
+    calibrated = []
+    for profile in profiles.teams:
+        if any(
+            not math.isfinite(value) or value <= 0.0 for value in profile.shares
+        ) or not math.isclose(math.fsum(profile.shares), 1.0, abs_tol=1e-9):
+            raise NbaShotProfileError(f"shot profile target shares are invalid: {profile.team_id}")
+        baseline_shares = _audit_zone_shares(baseline_teams[profile.team_id])
+        log_ratios = tuple(
+            math.log(target / observed)
+            for target, observed in zip(profile.shares, baseline_shares, strict=True)
+        )
+        mean_log_ratio = math.fsum(log_ratios) / len(log_ratios)
+        offsets = tuple(
+            max(
+                -maximum_absolute_offset,
+                min(
+                    maximum_absolute_offset,
+                    round(15.0 * (value - mean_log_ratio) / profiles.zone_tendency_loading),
+                ),
+            )
+            for value in log_ratios
+        )
+        calibrated.append(replace(profile, rating_offsets=cast(tuple[int, int, int], offsets)))
+    return replace(
+        profiles,
+        profile_id=f"{profiles.profile_id}-baseline-calibrated",
+        teams=tuple(calibrated),
+    )
+
+
 def apply_nba_team_shot_profile(
     team: GameTeam,
     profile: NBATeamShotProfile,
@@ -240,6 +289,18 @@ def _zone_shares(metrics: dict[str, Any]) -> tuple[float, float, float]:
     if not 0.999 <= math.fsum(shares) <= 1.001:
         raise NbaShotProfileError("shot zones do not reconcile with field-goal attempts")
     return shares
+
+
+def _audit_zone_shares(team: TeamDistributionMetrics) -> tuple[float, float, float]:
+    by_zone = {item.key: item.share for item in team.shot_zone_shares}
+    if set(by_zone) != set(_ZONES):
+        raise NbaShotProfileError(f"shot profile baseline zones are incomplete: {team.team_id}")
+    shares = tuple(by_zone[zone] for zone in _ZONES)
+    if any(not math.isfinite(value) or value <= 0.0 for value in shares):
+        raise NbaShotProfileError(f"shot profile baseline shares are invalid: {team.team_id}")
+    if not math.isclose(math.fsum(shares), 1.0, abs_tol=1e-9):
+        raise NbaShotProfileError(f"shot profile baseline shares do not sum to one: {team.team_id}")
+    return cast(tuple[float, float, float], shares)
 
 
 def _zone_tuple(value: object, field: str) -> tuple[float, float, float]:

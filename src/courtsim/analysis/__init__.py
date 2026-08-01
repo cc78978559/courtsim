@@ -69,6 +69,7 @@ from courtsim.analysis.nba_shot_profiles import (
     NBATeamShotProfile,
     apply_nba_shot_profiles,
     build_nba_shot_profile_payload,
+    calibrate_nba_shot_profiles,
     load_nba_shot_profile_set,
 )
 from courtsim.analysis.quick_sim_artifacts import (
@@ -170,6 +171,7 @@ __all__ = [
     "build_quick_sim_reference",
     "calculate_nba_core_metrics",
     "calculate_nba_team_metrics",
+    "calibrate_nba_shot_profiles",
     "compare_artifact_retention_reports",
     "compare_distribution_audits",
     "compare_paired_quick_sim_batches",

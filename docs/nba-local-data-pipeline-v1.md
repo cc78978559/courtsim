@@ -136,6 +136,12 @@ Copy-Item experiments/nba-data/hoopr-pbp-manifest.example.json work/nba-data.jso
 
 批报告保留改善、退化和不变的运行数，并分别汇总逐区域及逐队 RMSE。
 
+当模拟的联盟区域基线与真实联盟均值存在结构差异时，不应直接把“真实球队相对
+真实联盟均值”的偏移应用到模拟。`calibrate_nba_shot_profiles` 使用完整基线审计，
+按每队 `target_share / simulated_baseline_share` 重算中心化对数偏移，并限制最大
+绝对偏移。用于重算的基线种子必须与评价种子分离；禁止在同一批数据上生成偏移并
+报告其拟合改善。
+
 默认缓存目录是 `.cache/nba-data/<dataset_id>/`。跨机器接续时传递原始数据文件，
 或在新机器上再次执行 `sync`；Git 只需要传递清单和处理代码。
 

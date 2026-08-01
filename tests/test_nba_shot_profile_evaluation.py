@@ -12,7 +12,12 @@ from courtsim.analysis.nba_shot_profile_evaluation import (
     aggregate_nba_shot_profile_evaluations,
     evaluate_nba_shot_profile_audits,
 )
-from courtsim.analysis.nba_shot_profiles import NBAShotProfileSet, NBATeamShotProfile
+from courtsim.analysis.nba_shot_profiles import (
+    NbaShotProfileError,
+    NBAShotProfileSet,
+    NBATeamShotProfile,
+    calibrate_nba_shot_profiles,
+)
 
 
 def _team(team_id: str, shares: tuple[float, float, float]) -> TeamDistributionMetrics:
@@ -176,3 +181,24 @@ def test_team_zone_evaluation_batch_rejects_mixed_profiles() -> None:
     }
     with pytest.raises(NbaShotProfileEvaluationError, match="identity differs"):
         aggregate_nba_shot_profile_evaluations((report, {**report, "profile_id": "B"}))
+
+
+def test_shot_profiles_can_rebase_offsets_onto_simulated_baseline() -> None:
+    profiles = NBAShotProfileSet(
+        "profiles",
+        "2024-25",
+        0.75,
+        (NBATeamShotProfile("A", (0.5, 0.1, 0.4), (-4, 8, -4)),),
+    )
+    baseline = _audit(_team("A", (0.36, 0.21, 0.43)))
+    calibrated = calibrate_nba_shot_profiles(profiles, baseline)
+    assert calibrated.profile_id == "profiles-baseline-calibrated"
+    rim, midrange, three = calibrated.teams[0].rating_offsets
+    assert rim > 0
+    assert midrange < 0
+    assert abs(three) < abs(midrange)
+    with pytest.raises(NbaShotProfileError, match="complete games"):
+        calibrate_nba_shot_profiles(
+            profiles,
+            replace(baseline, completed_games=0, aborted_games=1),
+        )
