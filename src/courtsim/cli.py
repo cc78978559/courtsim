@@ -81,6 +81,7 @@ from courtsim.analysis.nba_player_identity import (
     build_nba_player_identity_payload,
 )
 from courtsim.analysis.nba_player_targets import NbaPlayerTargetError
+from courtsim.analysis.nba_reality import NbaRealityError, build_nba_reality_payload
 from courtsim.analysis.nba_reference import (
     TEAM_METRIC_ORDER,
     NbaReferenceError,
@@ -117,6 +118,10 @@ from courtsim.analysis.quick_sim_comparison import (
     compare_quick_sim_summaries,
     load_quick_sim_reference,
     quick_sim_report_to_json,
+)
+from courtsim.analysis.quick_sim_formal_gate import (
+    QuickSimFormalGateError,
+    evaluate_quick_sim_formal_gate,
 )
 from courtsim.analysis.quick_sim_pairing import (
     QuickSimPairingError,
@@ -339,6 +344,15 @@ def _parser() -> argparse.ArgumentParser:
     )
     quick_sim_status.add_argument("checkpoint", type=Path)
 
+    nba_reality_build = subparsers.add_parser(
+        "nba-reality-build",
+        help="build source-pinned multi-season NBA standings/playoff reality",
+    )
+    nba_reality_build.add_argument("manifest", type=Path)
+    nba_reality_build.add_argument("reality_output", type=Path)
+    nba_reality_build.add_argument("reference_output", type=Path)
+    nba_reality_build.add_argument("--cache", type=Path, required=True)
+
     quick_sim_compare = subparsers.add_parser(
         "nba-quick-sim-compare",
         help="compare a verified quick-simulation checkpoint with a reference",
@@ -353,6 +367,13 @@ def _parser() -> argparse.ArgumentParser:
     quick_sim_paired.add_argument("baseline", type=Path)
     quick_sim_paired.add_argument("candidate", type=Path)
     quick_sim_paired.add_argument("output", type=Path)
+    quick_sim_formal_gate = subparsers.add_parser(
+        "nba-quick-sim-formal-gate",
+        help="evaluate a complete unseen-seed batch against a frozen NBA reality gate",
+    )
+    quick_sim_formal_gate.add_argument("checkpoint", type=Path)
+    quick_sim_formal_gate.add_argument("gate", type=Path)
+    quick_sim_formal_gate.add_argument("--output", type=Path)
     shot_profile_evaluate = subparsers.add_parser(
         "nba-shot-profile-evaluate",
         help="compare baseline and candidate team shot-zone audits with NBA profiles",
@@ -964,6 +985,26 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
 
+        if arguments.command == "nba-reality-build":
+            reality, reality_reference = build_nba_reality_payload(
+                arguments.manifest, arguments.cache
+            )
+            write_json(arguments.reality_output, reality)
+            write_json(arguments.reference_output, reality_reference)
+            print(
+                json.dumps(
+                    {
+                        "dataset_id": reality["dataset_id"],
+                        "seasons": len(cast(list[object], reality["seasons"])),
+                        "reality_output": str(arguments.reality_output),
+                        "reference_output": str(arguments.reference_output),
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0
+
         if arguments.command == "nba-quick-sim-compare":
             result = quick_sim_batch_from_json(arguments.checkpoint.read_text(encoding="utf-8"))
             if not result.complete:
@@ -992,6 +1033,20 @@ def main(argv: list[str] | None = None) -> int:
                 json.dumps(paired_report, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
             )
             return 0
+
+        if arguments.command == "nba-quick-sim-formal-gate":
+            formal_report = evaluate_quick_sim_formal_gate(arguments.checkpoint, arguments.gate)
+            if arguments.output is not None:
+                write_json(arguments.output, formal_report)
+            print(
+                json.dumps(
+                    formal_report,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0 if formal_report["passed"] is True else 15
 
         if arguments.command == "nba-shot-profile-evaluate":
             evaluation = evaluate_nba_shot_profile_audits(
@@ -1560,6 +1615,7 @@ def main(argv: list[str] | None = None) -> int:
         NbaPlayerIdentityError,
         NbaPlayerEvaluationError,
         NbaPlayerTargetError,
+        NbaRealityError,
         NBAFranchiseArtifactError,
         NBAFranchiseRunnerError,
         ParameterOverlayError,
@@ -1568,6 +1624,7 @@ def main(argv: list[str] | None = None) -> int:
         QuickSimBatchError,
         QuickSimPairingError,
         QuickSimComparisonError,
+        QuickSimFormalGateError,
         ReplayError,
         RealismTargetError,
         ShardMergeError,
