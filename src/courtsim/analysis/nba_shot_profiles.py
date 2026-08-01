@@ -203,6 +203,7 @@ def calibrate_nba_shot_profiles(
     *,
     maximum_absolute_offset: int = 30,
     calibration_strength: float = 1.0,
+    zone_calibration_strengths: tuple[float, float, float] = (1.0, 1.0, 1.0),
 ) -> NBAShotProfileSet:
     """Rebase target offsets onto measured simulated team distributions."""
     if (
@@ -218,6 +219,14 @@ def calibrate_nba_shot_profiles(
         or not 0.0 < calibration_strength <= 1.0
     ):
         raise NbaShotProfileError("calibration strength must be in (0, 1]")
+    if len(zone_calibration_strengths) != len(_ZONES) or any(
+        not isinstance(value, (int, float))
+        or isinstance(value, bool)
+        or not math.isfinite(value)
+        or not 0.0 <= value <= 1.0
+        for value in zone_calibration_strengths
+    ):
+        raise NbaShotProfileError("zone calibration strengths must be three values in [0, 1]")
     if baseline.games < 1 or baseline.completed_games != baseline.games or baseline.aborted_games:
         raise NbaShotProfileError("shot profile baseline audit must contain complete games")
     baseline_teams = {item.team_id: item for item in baseline.team_metrics}
@@ -242,21 +251,26 @@ def calibrate_nba_shot_profiles(
                     maximum_absolute_offset,
                     round(
                         calibration_strength
+                        * zone_strength
                         * 15.0
                         * (value - mean_log_ratio)
                         / profiles.zone_tendency_loading
                     ),
                 ),
             )
-            for value in log_ratios
+            for value, zone_strength in zip(
+                log_ratios,
+                zone_calibration_strengths,
+                strict=True,
+            )
         )
         calibrated.append(replace(profile, rating_offsets=cast(tuple[int, int, int], offsets)))
     return replace(
         profiles,
-        profile_id=(
-            f"{profiles.profile_id}-baseline-calibrated"
-            if calibration_strength == 1.0
-            else f"{profiles.profile_id}-baseline-calibrated-{calibration_strength:g}x"
+        profile_id=_calibrated_profile_id(
+            profiles.profile_id,
+            calibration_strength,
+            zone_calibration_strengths,
         ),
         teams=tuple(calibrated),
     )
@@ -318,6 +332,19 @@ def _audit_zone_shares(team: TeamDistributionMetrics) -> tuple[float, float, flo
     if not math.isclose(math.fsum(shares), 1.0, abs_tol=1e-9):
         raise NbaShotProfileError(f"shot profile baseline shares do not sum to one: {team.team_id}")
     return cast(tuple[float, float, float], shares)
+
+
+def _calibrated_profile_id(
+    profile_id: str,
+    calibration_strength: float,
+    zone_strengths: tuple[float, float, float],
+) -> str:
+    value = f"{profile_id}-baseline-calibrated"
+    if calibration_strength != 1.0:
+        value += f"-{calibration_strength:g}x"
+    if zone_strengths != (1.0, 1.0, 1.0):
+        value += "-zones-" + "-".join(f"{strength:g}" for strength in zone_strengths)
+    return value
 
 
 def _zone_tuple(value: object, field: str) -> tuple[float, float, float]:

@@ -207,6 +207,13 @@ def test_shot_profiles_can_rebase_offsets_onto_simulated_baseline() -> None:
             strict=True,
         )
     )
+    zone_regularized = calibrate_nba_shot_profiles(
+        profiles,
+        baseline,
+        calibration_strength=0.75,
+        zone_calibration_strengths=(1.0, 1.0, 0.5),
+    )
+    assert zone_regularized.profile_id == ("profiles-baseline-calibrated-0.75x-zones-1-1-0.5")
     with pytest.raises(NbaShotProfileError, match="complete games"):
         calibrate_nba_shot_profiles(
             profiles,
@@ -214,3 +221,9 @@ def test_shot_profiles_can_rebase_offsets_onto_simulated_baseline() -> None:
         )
     with pytest.raises(NbaShotProfileError, match="strength"):
         calibrate_nba_shot_profiles(profiles, baseline, calibration_strength=0.0)
+    with pytest.raises(NbaShotProfileError, match="zone calibration"):
+        calibrate_nba_shot_profiles(
+            profiles,
+            baseline,
+            zone_calibration_strengths=(1.0, 1.0, 1.1),
+        )
