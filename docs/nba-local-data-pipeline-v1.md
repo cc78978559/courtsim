@@ -160,6 +160,20 @@ Copy-Item experiments/nba-data/hoopr-pbp-manifest.example.json work/nba-data.jso
 v2 产物记录基础画像与基线审计的 SHA-256、算法版本、最大偏移、全局强度及两个对比
 强度；默认值就是下述冻结验证采用的 `0.75 / (1.0, 0.75)`。
 
+正式 A/B 不再依赖 `work/` 临时脚本，也不会为投篮校准额外模拟 play-in 和季后赛：
+
+```powershell
+.\tools.cmd nba-shot-profile-run `
+  work/nba-2024-25-team-shot-profiles-calibrated.json `
+  --seed 20260820 `
+  --output work/runs/shot-profile-20260820 `
+  --quiet
+```
+
+命令只运行两份配对的 30 队常规赛，写出基线审计、候选审计、评价和带输入/输出
+SHA-256 的 manifest。`nba-shot-profile-evaluate`、`evaluate-batch`、`calibrate` 与 `run`
+均支持 `--quiet`；不使用静默模式时也只打印单行摘要，不再把完整 30 队 JSON 写入终端。
+
 ### 冻结校准验证（2026-08-01）
 
 参数选择严格分离为三组：`20260801` 生成基线校准，`20260802–05` 仅用于开发

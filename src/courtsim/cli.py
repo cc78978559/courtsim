@@ -81,6 +81,10 @@ from courtsim.analysis.nba_shot_profile_evaluation import (
     aggregate_nba_shot_profile_evaluations,
     evaluate_nba_shot_profile_audits,
 )
+from courtsim.analysis.nba_shot_profile_runner import (
+    NbaShotProfileRunnerError,
+    run_nba_shot_profile_experiment,
+)
 from courtsim.analysis.nba_shot_profiles import (
     NbaShotProfileError,
     build_calibrated_nba_shot_profile_payload,
@@ -299,12 +303,14 @@ def _parser() -> argparse.ArgumentParser:
     shot_profile_evaluate.add_argument("candidate_audit", type=Path)
     shot_profile_evaluate.add_argument("profiles", type=Path)
     shot_profile_evaluate.add_argument("output", type=Path)
+    shot_profile_evaluate.add_argument("--quiet", action="store_true")
     shot_profile_batch = subparsers.add_parser(
         "nba-shot-profile-evaluate-batch",
         help="pool multiple compatible shot-profile evaluation reports",
     )
     shot_profile_batch.add_argument("output", type=Path)
     shot_profile_batch.add_argument("reports", type=Path, nargs="+")
+    shot_profile_batch.add_argument("--quiet", action="store_true")
     shot_profile_calibrate = subparsers.add_parser(
         "nba-shot-profile-calibrate",
         help="materialize a source-pinned profile from a complete simulation baseline",
@@ -316,6 +322,25 @@ def _parser() -> argparse.ArgumentParser:
     shot_profile_calibrate.add_argument("--rim-contrast-strength", type=float, default=1.0)
     shot_profile_calibrate.add_argument("--midrange-contrast-strength", type=float, default=0.75)
     shot_profile_calibrate.add_argument("--maximum-absolute-offset", type=int, default=30)
+    shot_profile_calibrate.add_argument("--quiet", action="store_true")
+    shot_profile_run = subparsers.add_parser(
+        "nba-shot-profile-run",
+        help="run a paired 30-team regular-season shot-profile experiment",
+    )
+    shot_profile_run.add_argument("profile", type=Path)
+    shot_profile_run.add_argument("--schema", type=Path, default=DEFAULT_MODEL_SCHEMA)
+    shot_profile_run.add_argument("--parameters", type=Path, default=DEFAULT_MODEL_PARAMETERS)
+    shot_profile_run.add_argument(
+        "--lineup", type=Path, default=Path("examples/calibration_lineup_v1.json")
+    )
+    shot_profile_run.add_argument("--seed", type=int, default=20260801)
+    shot_profile_run.add_argument("--periods", type=int, default=4)
+    shot_profile_run.add_argument("--period-seconds", type=int, default=720)
+    shot_profile_run.add_argument("--possession-seconds", type=int, default=24)
+    shot_profile_run.add_argument("--overtime-seconds", type=int, default=300)
+    shot_profile_run.add_argument("--max-overtimes", type=int, default=8)
+    shot_profile_run.add_argument("--output", type=Path, default=Path("work/runs/shot-profile"))
+    shot_profile_run.add_argument("--quiet", action="store_true")
 
     franchise_checkpoint = subparsers.add_parser(
         "nba-franchise-checkpoint-verify",
@@ -781,7 +806,11 @@ def main(argv: list[str] | None = None) -> int:
                 load_nba_shot_profile_set(arguments.profiles),
             )
             write_json(arguments.output, evaluation)
-            print(json.dumps(evaluation, ensure_ascii=False, separators=(",", ":"), sort_keys=True))
+            if not arguments.quiet:
+                print(
+                    f"{evaluation['status']}: RMSE {evaluation['baseline_rmse']} -> "
+                    f"{evaluation['candidate_rmse']}"
+                )
             return 0
 
         if arguments.command == "nba-shot-profile-evaluate-batch":
@@ -800,7 +829,12 @@ def main(argv: list[str] | None = None) -> int:
                 reports.append(raw)
             evaluation = aggregate_nba_shot_profile_evaluations(tuple(reports))
             write_json(arguments.output, evaluation)
-            print(json.dumps(evaluation, ensure_ascii=False, separators=(",", ":"), sort_keys=True))
+            if not arguments.quiet:
+                print(
+                    f"{evaluation['status']}: {evaluation['improved_runs']}/"
+                    f"{evaluation['runs']} runs improved; RMSE "
+                    f"{evaluation['baseline_rmse']} -> {evaluation['candidate_rmse']}"
+                )
             return 0
 
         if arguments.command == "nba-shot-profile-calibrate":
@@ -815,14 +849,36 @@ def main(argv: list[str] | None = None) -> int:
                 maximum_absolute_offset=arguments.maximum_absolute_offset,
             )
             write_json(arguments.output, calibrated_payload)
-            print(
-                json.dumps(
-                    calibrated_payload,
-                    ensure_ascii=False,
-                    separators=(",", ":"),
-                    sort_keys=True,
-                )
+            if not arguments.quiet:
+                calibrated_teams = calibrated_payload["teams"]
+                if not isinstance(calibrated_teams, list):
+                    raise NbaShotProfileError("calibrated shot profile teams are invalid")
+                print(f"calibrated: {arguments.output} ({len(calibrated_teams)} teams)")
+            return 0
+
+        if arguments.command == "nba-shot-profile-run":
+            run_manifest = run_nba_shot_profile_experiment(
+                profile_path=arguments.profile,
+                schema_path=arguments.schema,
+                parameters_path=arguments.parameters,
+                lineup_path=arguments.lineup,
+                output_directory=arguments.output,
+                seed=arguments.seed,
+                game_config=GameClockConfig(
+                    arguments.periods,
+                    arguments.period_seconds,
+                    arguments.possession_seconds,
+                    arguments.overtime_seconds,
+                    arguments.max_overtimes,
+                    True,
+                ),
             )
+            if not arguments.quiet:
+                summary = cast(dict[str, object], run_manifest["summary"])
+                print(
+                    f"{summary['status']}: {summary['games']} games; RMSE "
+                    f"{summary['baseline_rmse']} -> {summary['candidate_rmse']}"
+                )
             return 0
 
         if arguments.command == "nba-franchise-checkpoint-verify":
@@ -1266,6 +1322,7 @@ def main(argv: list[str] | None = None) -> int:
         NbaDataAuditError,
         NbaShotProfileError,
         NbaShotProfileEvaluationError,
+        NbaShotProfileRunnerError,
         NbaDataPipelineError,
         NBAFranchiseArtifactError,
         NBAFranchiseRunnerError,

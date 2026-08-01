@@ -1,5 +1,4 @@
 import hashlib
-import json
 from dataclasses import replace
 from pathlib import Path
 
@@ -293,7 +292,7 @@ def test_calibrated_profile_v2_round_trips_through_cli(
         main(["nba-shot-profile-calibrate", str(profile_path), str(baseline_path), str(output)])
         == 0
     )
-    assert json.loads(capsys.readouterr().out) == json.loads(output.read_text(encoding="utf-8"))
+    assert capsys.readouterr().out.startswith("calibrated:")
     loaded = load_nba_shot_profile_set(output)
     assert loaded.profile_id == "profiles-baseline-calibrated-0.75x-contrasts-1-0.75"
     assert loaded.teams[0].rating_offsets[2] == 0
