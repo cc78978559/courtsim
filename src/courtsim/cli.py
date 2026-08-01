@@ -134,6 +134,7 @@ from courtsim.artifacts import write_json
 from courtsim.config import ConfigError, load_scenario
 from courtsim.demo import FoundationDemoSimulator
 from courtsim.domain.game import GameClockConfig
+from courtsim.draft_obligations import DraftObligationError, inspect_draft_obligation_files
 from courtsim.model.trace_mode import TraceMode
 from courtsim.nba_franchise_artifacts import (
     NBAFranchiseArtifactError,
@@ -323,6 +324,14 @@ def _parser() -> argparse.ArgumentParser:
     )
     nba_player_evaluate_batch.add_argument("output", type=Path)
     nba_player_evaluate_batch.add_argument("reports", type=Path, nargs="+")
+
+    draft_obligation_audit = subparsers.add_parser(
+        "draft-obligation-audit",
+        help="read-only verification of a draft obligation/freeze ledger v3",
+    )
+    draft_obligation_audit.add_argument("ledger", type=Path)
+    draft_obligation_audit.add_argument("assets", type=Path)
+    draft_obligation_audit.add_argument("--output", type=Path)
 
     quick_sim_status = subparsers.add_parser(
         "nba-quick-sim-status",
@@ -915,6 +924,27 @@ def main(argv: list[str] | None = None) -> int:
                 )
             )
             return 0
+
+        if arguments.command == "draft-obligation-audit":
+            draft_obligation_report = inspect_draft_obligation_files(
+                arguments.ledger, arguments.assets
+            )
+            if arguments.output is not None:
+                write_json(arguments.output, draft_obligation_report)
+            print(
+                json.dumps(
+                    {
+                        "as_of_year": draft_obligation_report.get("as_of_year"),
+                        "counts": draft_obligation_report.get("counts"),
+                        "ready": draft_obligation_report.get("ready"),
+                        "source_verified": draft_obligation_report.get("source_verified"),
+                        "version": draft_obligation_report.get("ledger_version"),
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0 if draft_obligation_report["ready"] is True else 6
 
         if arguments.command == "nba-quick-sim-status":
             result = quick_sim_batch_from_json(arguments.checkpoint.read_text(encoding="utf-8"))
@@ -1513,6 +1543,7 @@ def main(argv: list[str] | None = None) -> int:
         ArtifactRetentionError,
         AuditGateError,
         ConfigError,
+        DraftObligationError,
         ExperimentMatrixError,
         MatrixContrastError,
         MatrixContrastRobustnessError,
