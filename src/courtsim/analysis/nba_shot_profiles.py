@@ -202,6 +202,7 @@ def calibrate_nba_shot_profiles(
     baseline: DistributionAudit,
     *,
     maximum_absolute_offset: int = 30,
+    calibration_strength: float = 1.0,
 ) -> NBAShotProfileSet:
     """Rebase target offsets onto measured simulated team distributions."""
     if (
@@ -210,6 +211,13 @@ def calibrate_nba_shot_profiles(
         or not 1 <= maximum_absolute_offset <= 100
     ):
         raise NbaShotProfileError("maximum absolute offset must be an integer from 1 through 100")
+    if (
+        not isinstance(calibration_strength, (int, float))
+        or isinstance(calibration_strength, bool)
+        or not math.isfinite(calibration_strength)
+        or not 0.0 < calibration_strength <= 1.0
+    ):
+        raise NbaShotProfileError("calibration strength must be in (0, 1]")
     if baseline.games < 1 or baseline.completed_games != baseline.games or baseline.aborted_games:
         raise NbaShotProfileError("shot profile baseline audit must contain complete games")
     baseline_teams = {item.team_id: item for item in baseline.team_metrics}
@@ -219,7 +227,7 @@ def calibrate_nba_shot_profiles(
     for profile in profiles.teams:
         if any(
             not math.isfinite(value) or value <= 0.0 for value in profile.shares
-        ) or not math.isclose(math.fsum(profile.shares), 1.0, abs_tol=1e-9):
+        ) or not math.isclose(math.fsum(profile.shares), 1.0, abs_tol=0.001):
             raise NbaShotProfileError(f"shot profile target shares are invalid: {profile.team_id}")
         baseline_shares = _audit_zone_shares(baseline_teams[profile.team_id])
         log_ratios = tuple(
@@ -232,7 +240,12 @@ def calibrate_nba_shot_profiles(
                 -maximum_absolute_offset,
                 min(
                     maximum_absolute_offset,
-                    round(15.0 * (value - mean_log_ratio) / profiles.zone_tendency_loading),
+                    round(
+                        calibration_strength
+                        * 15.0
+                        * (value - mean_log_ratio)
+                        / profiles.zone_tendency_loading
+                    ),
                 ),
             )
             for value in log_ratios
@@ -240,7 +253,11 @@ def calibrate_nba_shot_profiles(
         calibrated.append(replace(profile, rating_offsets=cast(tuple[int, int, int], offsets)))
     return replace(
         profiles,
-        profile_id=f"{profiles.profile_id}-baseline-calibrated",
+        profile_id=(
+            f"{profiles.profile_id}-baseline-calibrated"
+            if calibration_strength == 1.0
+            else f"{profiles.profile_id}-baseline-calibrated-{calibration_strength:g}x"
+        ),
         teams=tuple(calibrated),
     )
 

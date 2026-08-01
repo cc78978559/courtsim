@@ -197,8 +197,20 @@ def test_shot_profiles_can_rebase_offsets_onto_simulated_baseline() -> None:
     assert rim > 0
     assert midrange < 0
     assert abs(three) < abs(midrange)
+    regularized = calibrate_nba_shot_profiles(profiles, baseline, calibration_strength=0.5)
+    assert regularized.profile_id == "profiles-baseline-calibrated-0.5x"
+    assert all(
+        abs(value) <= abs(full)
+        for value, full in zip(
+            regularized.teams[0].rating_offsets,
+            calibrated.teams[0].rating_offsets,
+            strict=True,
+        )
+    )
     with pytest.raises(NbaShotProfileError, match="complete games"):
         calibrate_nba_shot_profiles(
             profiles,
             replace(baseline, completed_games=0, aborted_games=1),
         )
+    with pytest.raises(NbaShotProfileError, match="strength"):
+        calibrate_nba_shot_profiles(profiles, baseline, calibration_strength=0.0)

@@ -140,7 +140,8 @@ Copy-Item experiments/nba-data/hoopr-pbp-manifest.example.json work/nba-data.jso
 真实联盟均值”的偏移应用到模拟。`calibrate_nba_shot_profiles` 使用完整基线审计，
 按每队 `target_share / simulated_baseline_share` 重算中心化对数偏移，并限制最大
 绝对偏移。用于重算的基线种子必须与评价种子分离；禁止在同一批数据上生成偏移并
-报告其拟合改善。
+报告其拟合改善。`calibration_strength` 可在 `(0, 1]` 内统一收缩偏移，但只能依据
+独立校准批选择，最终仍须在未参与选择的留出种子上评价。
 
 默认缓存目录是 `.cache/nba-data/<dataset_id>/`。跨机器接续时传递原始数据文件，
 或在新机器上再次执行 `sync`；Git 只需要传递清单和处理代码。
