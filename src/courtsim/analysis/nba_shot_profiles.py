@@ -204,6 +204,7 @@ def calibrate_nba_shot_profiles(
     maximum_absolute_offset: int = 30,
     calibration_strength: float = 1.0,
     zone_calibration_strengths: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    contrast_calibration_strengths: tuple[float, float] | None = None,
 ) -> NBAShotProfileSet:
     """Rebase target offsets onto measured simulated team distributions."""
     if (
@@ -227,6 +228,23 @@ def calibrate_nba_shot_profiles(
         for value in zone_calibration_strengths
     ):
         raise NbaShotProfileError("zone calibration strengths must be three values in [0, 1]")
+    if contrast_calibration_strengths is not None and (
+        len(contrast_calibration_strengths) != 2
+        or any(
+            not isinstance(value, (int, float))
+            or isinstance(value, bool)
+            or not math.isfinite(value)
+            or not 0.0 <= value <= 1.0
+            for value in contrast_calibration_strengths
+        )
+    ):
+        raise NbaShotProfileError("contrast calibration strengths must be two values in [0, 1]")
+    if contrast_calibration_strengths is not None and zone_calibration_strengths != (
+        1.0,
+        1.0,
+        1.0,
+    ):
+        raise NbaShotProfileError("zone and contrast calibration strengths are mutually exclusive")
     if baseline.games < 1 or baseline.completed_games != baseline.games or baseline.aborted_games:
         raise NbaShotProfileError("shot profile baseline audit must contain complete games")
     baseline_teams = {item.team_id: item for item in baseline.team_metrics}
@@ -244,25 +262,36 @@ def calibrate_nba_shot_profiles(
             for target, observed in zip(profile.shares, baseline_shares, strict=True)
         )
         mean_log_ratio = math.fsum(log_ratios) / len(log_ratios)
+        if contrast_calibration_strengths is None:
+            offset_values = tuple(
+                calibration_strength
+                * zone_strength
+                * 15.0
+                * (value - mean_log_ratio)
+                / profiles.zone_tendency_loading
+                for value, zone_strength in zip(
+                    log_ratios,
+                    zone_calibration_strengths,
+                    strict=True,
+                )
+            )
+        else:
+            offset_values = (
+                calibration_strength
+                * contrast_calibration_strengths[0]
+                * 15.0
+                * (log_ratios[0] - log_ratios[2])
+                / profiles.zone_tendency_loading,
+                calibration_strength
+                * contrast_calibration_strengths[1]
+                * 15.0
+                * (log_ratios[1] - log_ratios[2])
+                / profiles.zone_tendency_loading,
+                0.0,
+            )
         offsets = tuple(
-            max(
-                -maximum_absolute_offset,
-                min(
-                    maximum_absolute_offset,
-                    round(
-                        calibration_strength
-                        * zone_strength
-                        * 15.0
-                        * (value - mean_log_ratio)
-                        / profiles.zone_tendency_loading
-                    ),
-                ),
-            )
-            for value, zone_strength in zip(
-                log_ratios,
-                zone_calibration_strengths,
-                strict=True,
-            )
+            max(-maximum_absolute_offset, min(maximum_absolute_offset, round(value)))
+            for value in offset_values
         )
         calibrated.append(replace(profile, rating_offsets=cast(tuple[int, int, int], offsets)))
     return replace(
@@ -271,6 +300,7 @@ def calibrate_nba_shot_profiles(
             profiles.profile_id,
             calibration_strength,
             zone_calibration_strengths,
+            contrast_calibration_strengths,
         ),
         teams=tuple(calibrated),
     )
@@ -338,11 +368,14 @@ def _calibrated_profile_id(
     profile_id: str,
     calibration_strength: float,
     zone_strengths: tuple[float, float, float],
+    contrast_strengths: tuple[float, float] | None,
 ) -> str:
     value = f"{profile_id}-baseline-calibrated"
     if calibration_strength != 1.0:
         value += f"-{calibration_strength:g}x"
-    if zone_strengths != (1.0, 1.0, 1.0):
+    if contrast_strengths is not None:
+        value += "-contrasts-" + "-".join(f"{strength:g}" for strength in contrast_strengths)
+    elif zone_strengths != (1.0, 1.0, 1.0):
         value += "-zones-" + "-".join(f"{strength:g}" for strength in zone_strengths)
     return value
 

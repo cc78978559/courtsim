@@ -144,6 +144,24 @@ Copy-Item experiments/nba-data/hoopr-pbp-manifest.example.json work/nba-data.jso
 独立校准批选择，最终仍须在未参与选择的留出种子上评价。
 `zone_calibration_strengths` 按 `RIM/MIDRANGE/THREE` 顺序提供 `[0, 1]` 分区收缩；
 分区参数同样必须由校准批选择，并由另一组留出种子确认。
+推荐的新校准坐标是以 `THREE` 为锚点的 `log(RIM/THREE)` 与
+`log(MIDRANGE/THREE)`。传入 `contrast_calibration_strengths` 后只产生这两个可识别
+对比，三分评分固定为零；对比强度与旧分区强度互斥，避免重复控制同一自由度。
+
+### 冻结校准验证（2026-08-01）
+
+参数选择严格分离为三组：`20260801` 生成基线校准，`20260802–05` 仅用于开发
+选择，随后冻结 `calibration_strength=0.75`、`contrast_calibration_strengths=(1.0,
+0.75)`。最终留出 `20260810–19` 在参数冻结后才读取。
+
+- 10 个短时长留出种子全部改善，pooled RMSE 改善 33.52%，三区均改善；
+- 3 个标准时长留出种子全部改善，合计 7,380 场配对比赛零中止；
+- 标准 pooled RMSE 从 0.10021 降至 0.06384，改善 36.30%；
+- 标准篮下、中距离、三分 RMSE 分别改善 0.03755、0.05642、0.00164；
+- 30 队 pooled RMSE 全部改善。
+
+这些留出种子现已被读取，后续不得继续用于选择参数；若再次调参，必须建立新的开发
+批，并保留另一组未查看的最终测试种子。
 
 默认缓存目录是 `.cache/nba-data/<dataset_id>/`。跨机器接续时传递原始数据文件，
 或在新机器上再次执行 `sync`；Git 只需要传递清单和处理代码。

@@ -214,6 +214,14 @@ def test_shot_profiles_can_rebase_offsets_onto_simulated_baseline() -> None:
         zone_calibration_strengths=(1.0, 1.0, 0.5),
     )
     assert zone_regularized.profile_id == ("profiles-baseline-calibrated-0.75x-zones-1-1-0.5")
+    contrasted = calibrate_nba_shot_profiles(
+        profiles,
+        baseline,
+        calibration_strength=0.75,
+        contrast_calibration_strengths=(1.0, 0.5),
+    )
+    assert contrasted.profile_id == ("profiles-baseline-calibrated-0.75x-contrasts-1-0.5")
+    assert contrasted.teams[0].rating_offsets[2] == 0
     with pytest.raises(NbaShotProfileError, match="complete games"):
         calibrate_nba_shot_profiles(
             profiles,
@@ -226,4 +234,11 @@ def test_shot_profiles_can_rebase_offsets_onto_simulated_baseline() -> None:
             profiles,
             baseline,
             zone_calibration_strengths=(1.0, 1.0, 1.1),
+        )
+    with pytest.raises(NbaShotProfileError, match="mutually exclusive"):
+        calibrate_nba_shot_profiles(
+            profiles,
+            baseline,
+            zone_calibration_strengths=(1.0, 1.0, 0.5),
+            contrast_calibration_strengths=(1.0, 1.0),
         )
