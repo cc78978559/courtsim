@@ -43,6 +43,12 @@ from courtsim.analysis.distribution import (
     audit_game_results,
     distribution_audit_to_json,
 )
+from courtsim.analysis.nba_player_evaluation import (
+    NbaPlayerEvaluationError,
+    aggregate_nba_player_evaluations,
+    audit_nba_player_results,
+    evaluate_nba_player_audit,
+)
 from courtsim.analysis.nba_player_targets import (
     NBAPlayerSourceReceipt,
     NBAPlayerTarget,
@@ -153,6 +159,7 @@ __all__ = [
     "NBAQuickSimPostseasonState",
     "NBAShotProfileSet",
     "NBATeamShotProfile",
+    "NbaPlayerEvaluationError",
     "NbaPlayerTargetError",
     "NbaReferenceError",
     "NbaShotProfileBatchError",
@@ -178,12 +185,14 @@ __all__ = [
     "ShardMergeError",
     "ShareMetric",
     "TeamDistributionMetrics",
+    "aggregate_nba_player_evaluations",
     "aggregate_nba_shot_profile_evaluations",
     "apply_nba_shot_profiles",
     "audit_comparison_to_json",
     "audit_game_results",
     "audit_gate_report_to_json",
     "audit_metric_map",
+    "audit_nba_player_results",
     "build_archive_plan_from_retention_report",
     "build_artifact_archive_plan",
     "build_artifact_inventory",
@@ -204,6 +213,7 @@ __all__ = [
     "create_artifact_archive",
     "distribution_audit_to_json",
     "evaluate_audit_gates",
+    "evaluate_nba_player_audit",
     "evaluate_nba_shot_profile_audits",
     "inspect_nba_shot_profile_batch",
     "load_audit_gates",

@@ -70,10 +70,17 @@ from courtsim.analysis.nba_data_pipeline import (
     inspect_nba_data,
     sync_nba_data,
 )
+from courtsim.analysis.nba_player_evaluation import (
+    NbaPlayerEvaluationError,
+    aggregate_nba_player_evaluation_files,
+    build_nba_player_audit_from_bundle,
+    evaluate_nba_player_audit_files,
+)
 from courtsim.analysis.nba_player_identity import (
     NbaPlayerIdentityError,
     build_nba_player_identity_payload,
 )
+from courtsim.analysis.nba_player_targets import NbaPlayerTargetError
 from courtsim.analysis.nba_reference import (
     TEAM_METRIC_ORDER,
     NbaReferenceError,
@@ -294,6 +301,28 @@ def _parser() -> argparse.ArgumentParser:
     nba_shot_profiles.add_argument("audit", type=Path)
     nba_shot_profiles.add_argument("output", type=Path)
     nba_shot_profiles.add_argument("--zone-tendency-loading", type=float, default=0.75)
+
+    nba_player_audit = subparsers.add_parser(
+        "nba-player-audit",
+        help="audit player metrics from a verified full-trace model bundle",
+    )
+    nba_player_audit.add_argument("manifest", type=Path)
+    nba_player_audit.add_argument("targets", type=Path)
+    nba_player_audit.add_argument("identity", type=Path)
+    nba_player_audit.add_argument("output", type=Path)
+    nba_player_evaluate = subparsers.add_parser(
+        "nba-player-evaluate",
+        help="evaluate a player simulation audit against observed targets",
+    )
+    nba_player_evaluate.add_argument("audit", type=Path)
+    nba_player_evaluate.add_argument("targets", type=Path)
+    nba_player_evaluate.add_argument("output", type=Path)
+    nba_player_evaluate_batch = subparsers.add_parser(
+        "nba-player-evaluate-batch",
+        help="pool compatible player evaluation reports across seeds",
+    )
+    nba_player_evaluate_batch.add_argument("output", type=Path)
+    nba_player_evaluate_batch.add_argument("reports", type=Path, nargs="+")
 
     quick_sim_status = subparsers.add_parser(
         "nba-quick-sim-status",
@@ -827,6 +856,64 @@ def main(argv: list[str] | None = None) -> int:
                         sort_keys=True,
                     )
                 )
+            return 0
+
+        if arguments.command == "nba-player-audit":
+            player_audit_report = build_nba_player_audit_from_bundle(
+                arguments.manifest,
+                arguments.targets,
+                arguments.identity,
+            )
+            write_json(arguments.output, player_audit_report)
+            print(
+                json.dumps(
+                    {
+                        "games": player_audit_report.get("games"),
+                        "output": str(arguments.output),
+                        "players": len(cast(list[object], player_audit_report["players"])),
+                        "version": player_audit_report.get("version"),
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0
+
+        if arguments.command == "nba-player-evaluate":
+            player_evaluation_report = evaluate_nba_player_audit_files(
+                arguments.audit, arguments.targets
+            )
+            write_json(arguments.output, player_evaluation_report)
+            print(
+                json.dumps(
+                    {
+                        "metrics": len(cast(list[object], player_evaluation_report["metrics"])),
+                        "output": str(arguments.output),
+                        "players": player_evaluation_report.get("players"),
+                        "version": player_evaluation_report.get("version"),
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0
+
+        if arguments.command == "nba-player-evaluate-batch":
+            player_batch_report = aggregate_nba_player_evaluation_files(tuple(arguments.reports))
+            write_json(arguments.output, player_batch_report)
+            print(
+                json.dumps(
+                    {
+                        "metrics": len(cast(list[object], player_batch_report["metrics"])),
+                        "output": str(arguments.output),
+                        "players": player_batch_report.get("players"),
+                        "runs": player_batch_report.get("runs"),
+                        "version": player_batch_report.get("version"),
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
             return 0
 
         if arguments.command == "nba-quick-sim-status":
@@ -1440,6 +1527,8 @@ def main(argv: list[str] | None = None) -> int:
         NbaShotProfileRunnerError,
         NbaDataPipelineError,
         NbaPlayerIdentityError,
+        NbaPlayerEvaluationError,
+        NbaPlayerTargetError,
         NBAFranchiseArtifactError,
         NBAFranchiseRunnerError,
         ParameterOverlayError,

@@ -51,3 +51,38 @@ SportsDataverse hoopR 的 `player_box_2025.parquet`。构建时仅投影实际�
 90%。目前上游只发布 2025-26 当前 crosswalk，用它映射 2024-25 box-score 的真实烟测
 覆盖率为 311/580（53.62%），分钟覆盖率为 67.09%，所以产物会正确标记
 `promotion.ready=false`。它可以用于开发和缺口审计，不能作为正式球员校准输入。
+
+## 模拟审计、评价与多种子汇总
+
+先在身份产物中为目标球员显式填写 `courtsim_player_id`，且映射必须恰好覆盖目标集合。
+球员审计只接受通过哈希验证并包含 `games.jsonl` 的 full-trace model-audit bundle：
+
+```powershell
+.\tools.cmd nba-player-audit `
+  work/model-audit/manifest.json `
+  work/nba-player-targets.json `
+  work/nba-player-identity-assigned.json `
+  work/nba-player-audit.json
+.\tools.cmd nba-player-evaluate `
+  work/nba-player-audit.json `
+  work/nba-player-targets.json `
+  work/nba-player-evaluation.json
+```
+
+审计从规范 game result、box-score attribution 和 playing-time ledger 计算场次、分钟、
+标准 usage 近似、真实命中率、球队出手占比，以及 RIM/MIDRANGE/THREE 的出手占比和
+命中率。评价器分别保留每个指标的 RMSE 与 MAE，不把分钟和百分比强行合成一个缺乏
+量纲依据的“总分”。
+
+不同种子分别生成评价后，在平方误差空间汇总 RMSE：
+
+```powershell
+.\tools.cmd nba-player-evaluate-batch `
+  work/nba-player-evaluation-batch.json `
+  work/seed-1/player-evaluation.json `
+  work/seed-2/player-evaluation.json `
+  work/seed-3/player-evaluation.json
+```
+
+批处理要求目标 ID、赛季、球员数和十项指标完全一致；它不会平均掉大误差，也不会在
+多个种子之间混入不同目标集合。
