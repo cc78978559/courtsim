@@ -1,4 +1,7 @@
+import hashlib
+import json
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 
@@ -6,6 +9,7 @@ from courtsim.analysis.distribution import (
     DistributionAudit,
     ShareMetric,
     TeamDistributionMetrics,
+    distribution_audit_to_json,
 )
 from courtsim.analysis.nba_shot_profile_evaluation import (
     NbaShotProfileEvaluationError,
@@ -16,8 +20,12 @@ from courtsim.analysis.nba_shot_profiles import (
     NbaShotProfileError,
     NBAShotProfileSet,
     NBATeamShotProfile,
+    build_calibrated_nba_shot_profile_payload,
     calibrate_nba_shot_profiles,
+    load_nba_shot_profile_set,
 )
+from courtsim.artifacts import write_json
+from courtsim.cli import main
 
 
 def _team(team_id: str, shares: tuple[float, float, float]) -> TeamDistributionMetrics:
@@ -242,3 +250,50 @@ def test_shot_profiles_can_rebase_offsets_onto_simulated_baseline() -> None:
             zone_calibration_strengths=(1.0, 1.0, 0.5),
             contrast_calibration_strengths=(1.0, 1.0),
         )
+
+
+def test_calibrated_profile_v2_round_trips_through_cli(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    digest = hashlib.sha256(b"source").hexdigest()
+    profile_path = tmp_path / "profiles.json"
+    write_json(
+        profile_path,
+        {
+            "schema_version": 1,
+            "profile_id": "profiles",
+            "season": "2024-25",
+            "zone_tendency_loading": 0.75,
+            "sources": {
+                "summary_path": "summary.json",
+                "summary_sha256": digest,
+                "audit_path": "audit.json",
+                "audit_sha256": digest,
+                "raw_source_sha256": digest,
+            },
+            "teams": [
+                {
+                    "team_id": "A",
+                    "shot_zone_shares": {"RIM": 0.5, "MIDRANGE": 0.1, "THREE": 0.4},
+                    "rating_offsets": {"RIM": 0, "MIDRANGE": 0, "THREE": 0},
+                }
+            ],
+        },
+    )
+    baseline_path = tmp_path / "baseline.json"
+    baseline_path.write_text(
+        distribution_audit_to_json(_audit(_team("A", (0.36, 0.21, 0.43)))),
+        encoding="utf-8",
+    )
+    payload = build_calibrated_nba_shot_profile_payload(profile_path, baseline_path)
+    assert payload["schema_version"] == 2
+    output = tmp_path / "calibrated.json"
+    assert (
+        main(["nba-shot-profile-calibrate", str(profile_path), str(baseline_path), str(output)])
+        == 0
+    )
+    assert json.loads(capsys.readouterr().out) == json.loads(output.read_text(encoding="utf-8"))
+    loaded = load_nba_shot_profile_set(output)
+    assert loaded.profile_id == "profiles-baseline-calibrated-0.75x-contrasts-1-0.75"
+    assert loaded.teams[0].rating_offsets[2] == 0

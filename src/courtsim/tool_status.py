@@ -73,6 +73,7 @@ def build_project_status(root: str | Path) -> dict[str, object]:
             "nba-team-shot-zone-profiles",
             "nba-team-shot-zone-evaluation",
             "nba-team-shot-zone-baseline-recalibration",
+            "nba-team-shot-zone-calibrated-artifacts",
             "nba-reference-targets",
             "nba-quick-sim-inspection",
             "nba-quick-sim-comparison",

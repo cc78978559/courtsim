@@ -148,6 +148,18 @@ Copy-Item experiments/nba-data/hoopr-pbp-manifest.example.json work/nba-data.jso
 `log(MIDRANGE/THREE)`。传入 `contrast_calibration_strengths` 后只产生这两个可识别
 对比，三分评分固定为零；对比强度与旧分区强度互斥，避免重复控制同一自由度。
 
+冻结参数可物化为带来源哈希的 v2 画像，之后直接由现有加载器和快速模拟执行器使用：
+
+```powershell
+.\tools.cmd nba-shot-profile-calibrate `
+  work/nba-2024-25-team-shot-profiles.json `
+  work/standard-shot-baseline-audit.json `
+  work/nba-2024-25-team-shot-profiles-calibrated.json
+```
+
+v2 产物记录基础画像与基线审计的 SHA-256、算法版本、最大偏移、全局强度及两个对比
+强度；默认值就是下述冻结验证采用的 `0.75 / (1.0, 0.75)`。
+
 ### 冻结校准验证（2026-08-01）
 
 参数选择严格分离为三组：`20260801` 生成基线校准，`20260802–05` 仅用于开发

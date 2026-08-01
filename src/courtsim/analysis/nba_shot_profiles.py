@@ -8,6 +8,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, cast
 
+from courtsim.analysis.audit_gates import load_distribution_audit
 from courtsim.analysis.distribution import DistributionAudit, TeamDistributionMetrics
 from courtsim.artifacts import sha256_file
 from courtsim.domain.player import PlayerProfile, ShotZoneMix
@@ -15,6 +16,7 @@ from courtsim.model.game_runtime import GameTeam
 from courtsim.model.interaction_compiler import ProfileLineup
 
 NBA_SHOT_PROFILE_VERSION = 1
+NBA_CALIBRATED_SHOT_PROFILE_VERSION = 2
 _ZONES = ("RIM", "MIDRANGE", "THREE")
 _RECONCILED_METRICS = {
     "teams",
@@ -121,22 +123,74 @@ def build_nba_shot_profile_payload(
     }
 
 
+def build_calibrated_nba_shot_profile_payload(
+    profile_path: str | Path,
+    baseline_audit_path: str | Path,
+    *,
+    calibration_strength: float = 0.75,
+    contrast_calibration_strengths: tuple[float, float] = (1.0, 0.75),
+    maximum_absolute_offset: int = 30,
+) -> dict[str, object]:
+    """Materialize a source-pinned v2 profile using identifiable log contrasts."""
+    profile_file = Path(profile_path).resolve()
+    baseline_file = Path(baseline_audit_path).resolve()
+    raw = _load_object(profile_file, "shot profile")
+    profiles = load_nba_shot_profile_set(profile_file)
+    calibrated = calibrate_nba_shot_profiles(
+        profiles,
+        load_distribution_audit(baseline_file),
+        calibration_strength=calibration_strength,
+        contrast_calibration_strengths=contrast_calibration_strengths,
+        maximum_absolute_offset=maximum_absolute_offset,
+    )
+    sources = _mapping(raw.get("sources"), "sources")
+    return {
+        "schema_version": NBA_CALIBRATED_SHOT_PROFILE_VERSION,
+        "profile_id": calibrated.profile_id,
+        "season": calibrated.season,
+        "zone_tendency_loading": calibrated.zone_tendency_loading,
+        "sources": dict(sources),
+        "calibration": {
+            "method": "three-anchor-log-contrasts-v1",
+            "base_profile_id": profiles.profile_id,
+            "base_profile_path": profile_file.name,
+            "base_profile_sha256": sha256_file(profile_file),
+            "baseline_audit_path": baseline_file.name,
+            "baseline_audit_sha256": sha256_file(baseline_file),
+            "calibration_strength": calibration_strength,
+            "contrast_calibration_strengths": list(contrast_calibration_strengths),
+            "maximum_absolute_offset": maximum_absolute_offset,
+        },
+        "teams": [
+            {
+                "team_id": team.team_id,
+                "shot_zone_shares": dict(zip(_ZONES, team.shares, strict=True)),
+                "rating_offsets": dict(zip(_ZONES, team.rating_offsets, strict=True)),
+            }
+            for team in calibrated.teams
+        ],
+    }
+
+
 def load_nba_shot_profile_set(path: str | Path) -> NBAShotProfileSet:
     """Load the compact runtime portion of a generated shot profile artifact."""
     raw = _load_object(Path(path), "shot profile")
-    if (
-        set(raw)
-        != {
-            "schema_version",
-            "profile_id",
-            "season",
-            "zone_tendency_loading",
-            "sources",
-            "teams",
-        }
-        or raw.get("schema_version") != NBA_SHOT_PROFILE_VERSION
-    ):
-        raise NbaShotProfileError("shot profile does not match schema version 1")
+    schema_version = raw.get("schema_version")
+    expected_keys = {
+        "schema_version",
+        "profile_id",
+        "season",
+        "zone_tendency_loading",
+        "sources",
+        "teams",
+    }
+    if schema_version == NBA_CALIBRATED_SHOT_PROFILE_VERSION:
+        expected_keys.add("calibration")
+    if set(raw) != expected_keys or schema_version not in {
+        NBA_SHOT_PROFILE_VERSION,
+        NBA_CALIBRATED_SHOT_PROFILE_VERSION,
+    }:
+        raise NbaShotProfileError("shot profile does not match a supported schema version")
     loading = _positive_number(raw.get("zone_tendency_loading"), "zone_tendency_loading")
     sources = _mapping(raw.get("sources"), "sources")
     if set(sources) != {
@@ -151,6 +205,8 @@ def load_nba_shot_profile_set(path: str | Path) -> NBAShotProfileSet:
     _text(sources.get("audit_path"), "sources.audit_path")
     for field in ("summary_sha256", "audit_sha256", "raw_source_sha256"):
         _sha256(sources.get(field), f"sources.{field}")
+    if schema_version == NBA_CALIBRATED_SHOT_PROFILE_VERSION:
+        _validate_calibration(_mapping(raw.get("calibration"), "calibration"))
     rows = raw.get("teams")
     if not isinstance(rows, list) or not rows:
         raise NbaShotProfileError("teams must be a non-empty list")
@@ -184,6 +240,51 @@ def load_nba_shot_profile_set(path: str | Path) -> NBAShotProfileSet:
         loading,
         tuple(teams),
     )
+
+
+def _validate_calibration(value: dict[str, Any]) -> None:
+    if (
+        set(value)
+        != {
+            "method",
+            "base_profile_id",
+            "base_profile_path",
+            "base_profile_sha256",
+            "baseline_audit_path",
+            "baseline_audit_sha256",
+            "calibration_strength",
+            "contrast_calibration_strengths",
+            "maximum_absolute_offset",
+        }
+        or value.get("method") != "three-anchor-log-contrasts-v1"
+    ):
+        raise NbaShotProfileError("shot profile calibration metadata is invalid")
+    for field in ("base_profile_id", "base_profile_path", "baseline_audit_path"):
+        _text(value.get(field), f"calibration.{field}")
+    for field in ("base_profile_sha256", "baseline_audit_sha256"):
+        _sha256(value.get(field), f"calibration.{field}")
+    strength = value.get("calibration_strength")
+    contrasts = value.get("contrast_calibration_strengths")
+    maximum = value.get("maximum_absolute_offset")
+    if (
+        not isinstance(strength, (int, float))
+        or isinstance(strength, bool)
+        or not math.isfinite(strength)
+        or not 0.0 < strength <= 1.0
+        or not isinstance(contrasts, list)
+        or len(contrasts) != 2
+        or any(
+            not isinstance(item, (int, float))
+            or isinstance(item, bool)
+            or not math.isfinite(item)
+            or not 0.0 <= item <= 1.0
+            for item in contrasts
+        )
+        or not isinstance(maximum, int)
+        or isinstance(maximum, bool)
+        or not 1 <= maximum <= 100
+    ):
+        raise NbaShotProfileError("shot profile calibration values are invalid")
 
 
 def apply_nba_shot_profiles(

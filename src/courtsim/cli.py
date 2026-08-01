@@ -83,6 +83,7 @@ from courtsim.analysis.nba_shot_profile_evaluation import (
 )
 from courtsim.analysis.nba_shot_profiles import (
     NbaShotProfileError,
+    build_calibrated_nba_shot_profile_payload,
     build_nba_shot_profile_payload,
     load_nba_shot_profile_set,
 )
@@ -304,6 +305,17 @@ def _parser() -> argparse.ArgumentParser:
     )
     shot_profile_batch.add_argument("output", type=Path)
     shot_profile_batch.add_argument("reports", type=Path, nargs="+")
+    shot_profile_calibrate = subparsers.add_parser(
+        "nba-shot-profile-calibrate",
+        help="materialize a source-pinned profile from a complete simulation baseline",
+    )
+    shot_profile_calibrate.add_argument("profile", type=Path)
+    shot_profile_calibrate.add_argument("baseline_audit", type=Path)
+    shot_profile_calibrate.add_argument("output", type=Path)
+    shot_profile_calibrate.add_argument("--calibration-strength", type=float, default=0.75)
+    shot_profile_calibrate.add_argument("--rim-contrast-strength", type=float, default=1.0)
+    shot_profile_calibrate.add_argument("--midrange-contrast-strength", type=float, default=0.75)
+    shot_profile_calibrate.add_argument("--maximum-absolute-offset", type=int, default=30)
 
     franchise_checkpoint = subparsers.add_parser(
         "nba-franchise-checkpoint-verify",
@@ -789,6 +801,28 @@ def main(argv: list[str] | None = None) -> int:
             evaluation = aggregate_nba_shot_profile_evaluations(tuple(reports))
             write_json(arguments.output, evaluation)
             print(json.dumps(evaluation, ensure_ascii=False, separators=(",", ":"), sort_keys=True))
+            return 0
+
+        if arguments.command == "nba-shot-profile-calibrate":
+            calibrated_payload = build_calibrated_nba_shot_profile_payload(
+                arguments.profile,
+                arguments.baseline_audit,
+                calibration_strength=arguments.calibration_strength,
+                contrast_calibration_strengths=(
+                    arguments.rim_contrast_strength,
+                    arguments.midrange_contrast_strength,
+                ),
+                maximum_absolute_offset=arguments.maximum_absolute_offset,
+            )
+            write_json(arguments.output, calibrated_payload)
+            print(
+                json.dumps(
+                    calibrated_payload,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
             return 0
 
         if arguments.command == "nba-franchise-checkpoint-verify":
