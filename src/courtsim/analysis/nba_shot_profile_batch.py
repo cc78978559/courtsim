@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import cast
 
@@ -17,6 +18,7 @@ from courtsim.randomness import derive_seed
 
 NBA_SHOT_PROFILE_BATCH_VERSION = "nba-shot-profile-batch-v1"
 ExperimentRunner = Callable[..., dict[str, object]]
+ExperimentJob = tuple[str, str, str, str, str, int, GameClockConfig]
 
 
 class NbaShotProfileBatchError(ValueError):
@@ -34,6 +36,7 @@ def run_nba_shot_profile_batch(
     runs: int,
     game_config: GameClockConfig,
     maximum_new_runs: int | None = None,
+    workers: int = 1,
     experiment_runner: ExperimentRunner = run_nba_shot_profile_experiment,
 ) -> dict[str, object]:
     """Resume a deterministic batch, checkpointing after every completed seed."""
@@ -51,6 +54,10 @@ def run_nba_shot_profile_batch(
         or maximum_new_runs < 1
     ):
         raise NbaShotProfileBatchError("maximum new runs must be a positive integer")
+    if not isinstance(workers, int) or isinstance(workers, bool) or workers < 1:
+        raise NbaShotProfileBatchError("shot profile batch workers must be positive")
+    if workers > 1 and experiment_runner is not run_nba_shot_profile_experiment:
+        raise NbaShotProfileBatchError("parallel shot profile batches require the default runner")
     output = Path(output_directory).resolve()
     profile = Path(profile_path).resolve()
     schema = Path(schema_path).resolve()
@@ -85,32 +92,76 @@ def run_nba_shot_profile_batch(
     if remaining == 0 and previous is not None:
         return previous
     new_runs = remaining if maximum_new_runs is None else min(remaining, maximum_new_runs)
-    for run_index in range(len(cells), len(cells) + new_runs):
-        seed = derive_seed(master_seed, NBA_SHOT_PROFILE_BATCH_VERSION, run_index)
-        run_directory = output / f"run-{run_index + 1:04d}"
-        run_manifest = experiment_runner(
-            profile_path=profile,
-            schema_path=schema,
-            parameters_path=parameters,
-            lineup_path=lineup,
-            output_directory=run_directory,
-            seed=seed,
-            game_config=game_config,
+    start_index = len(cells)
+    jobs = tuple(
+        (
+            str(profile),
+            str(schema),
+            str(parameters),
+            str(lineup),
+            str(output / f"run-{run_index + 1:04d}"),
+            derive_seed(master_seed, NBA_SHOT_PROFILE_BATCH_VERSION, run_index),
+            game_config,
         )
-        evaluation_path = run_directory / "evaluation.json"
-        run_manifest_path = run_directory / "manifest.json"
-        cells.append(
-            {
-                "run_index": run_index,
-                "seed": seed,
-                "directory": run_directory.name,
-                "manifest_sha256": sha256_file(run_manifest_path),
-                "evaluation_sha256": sha256_file(evaluation_path),
-                "summary": run_manifest["summary"],
-            }
+        for run_index in range(start_index, start_index + new_runs)
+    )
+    if workers == 1:
+        manifests: Iterable[dict[str, object]] = (
+            experiment_runner(**_job_arguments(job)) for job in jobs
         )
-        _write_checkpoint(output, manifest_path, spec, cells, runs)
-    return _write_checkpoint(output, manifest_path, spec, cells, runs)
+    else:
+        executor = ProcessPoolExecutor(max_workers=min(workers, new_runs))
+        manifests = executor.map(_run_experiment_job, jobs)
+    latest: dict[str, object] | None = None
+    try:
+        for run_index, (job, run_manifest) in enumerate(
+            zip(jobs, manifests, strict=True), start=start_index
+        ):
+            run_directory = Path(job[4])
+            seed = job[5]
+            evaluation_path = run_directory / "evaluation.json"
+            run_manifest_path = run_directory / "manifest.json"
+            cells.append(
+                {
+                    "run_index": run_index,
+                    "seed": seed,
+                    "directory": run_directory.name,
+                    "manifest_sha256": sha256_file(run_manifest_path),
+                    "evaluation_sha256": sha256_file(evaluation_path),
+                    "summary": run_manifest["summary"],
+                }
+            )
+            latest = _write_checkpoint(output, manifest_path, spec, cells, runs)
+    finally:
+        if workers > 1:
+            executor.shutdown()
+    if latest is None:
+        raise NbaShotProfileBatchError("shot profile batch did not execute any runs")
+    return latest
+
+
+def _job_arguments(job: ExperimentJob) -> dict[str, object]:
+    return {
+        "profile_path": job[0],
+        "schema_path": job[1],
+        "parameters_path": job[2],
+        "lineup_path": job[3],
+        "output_directory": job[4],
+        "seed": job[5],
+        "game_config": job[6],
+    }
+
+
+def _run_experiment_job(job: ExperimentJob) -> dict[str, object]:
+    return run_nba_shot_profile_experiment(
+        profile_path=job[0],
+        schema_path=job[1],
+        parameters_path=job[2],
+        lineup_path=job[3],
+        output_directory=job[4],
+        seed=job[5],
+        game_config=job[6],
+    )
 
 
 def _write_checkpoint(

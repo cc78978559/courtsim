@@ -358,6 +358,7 @@ def _parser() -> argparse.ArgumentParser:
     shot_profile_run_batch.add_argument("--master-seed", type=int, default=20260801)
     shot_profile_run_batch.add_argument("--runs", type=int, default=3)
     shot_profile_run_batch.add_argument("--maximum-new-runs", type=int)
+    shot_profile_run_batch.add_argument("--workers", type=int, default=1)
     shot_profile_run_batch.add_argument("--periods", type=int, default=4)
     shot_profile_run_batch.add_argument("--period-seconds", type=int, default=720)
     shot_profile_run_batch.add_argument("--possession-seconds", type=int, default=24)
@@ -917,6 +918,7 @@ def main(argv: list[str] | None = None) -> int:
                 master_seed=arguments.master_seed,
                 runs=arguments.runs,
                 maximum_new_runs=arguments.maximum_new_runs,
+                workers=arguments.workers,
                 game_config=GameClockConfig(
                     arguments.periods,
                     arguments.period_seconds,

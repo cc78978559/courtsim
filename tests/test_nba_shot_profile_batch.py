@@ -52,7 +52,7 @@ def test_batch_checkpoints_resumes_and_verifies_cells(tmp_path: Path) -> None:
         write_json(output / "manifest.json", {"summary": summary, "seed": seed})
         return {"summary": summary}
 
-    def run(maximum_new_runs: int | None = None) -> dict[str, object]:
+    def run(maximum_new_runs: int | None = None, workers: int = 1) -> dict[str, object]:
         return run_nba_shot_profile_batch(
             profile_path=inputs[0],
             schema_path=inputs[1],
@@ -63,8 +63,14 @@ def test_batch_checkpoints_resumes_and_verifies_cells(tmp_path: Path) -> None:
             runs=2,
             game_config=GameClockConfig(1, 120, 24, 60, overtime_enabled=True),
             maximum_new_runs=maximum_new_runs,
+            workers=workers,
             experiment_runner=fake_runner,
         )
+
+    with pytest.raises(NbaShotProfileBatchError, match="workers must be positive"):
+        run(workers=0)
+    with pytest.raises(NbaShotProfileBatchError, match="require the default runner"):
+        run(workers=2)
 
     first = run(1)
     assert first["completed_runs"] == 1
