@@ -58,6 +58,10 @@ from courtsim.analysis.nba_reference import (
     calculate_nba_core_metrics,
     calculate_nba_team_metrics,
 )
+from courtsim.analysis.nba_shot_profile_batch import (
+    NbaShotProfileBatchError,
+    run_nba_shot_profile_batch,
+)
 from courtsim.analysis.nba_shot_profile_evaluation import (
     NbaShotProfileEvaluationError,
     aggregate_nba_shot_profile_evaluations,
@@ -138,6 +142,7 @@ __all__ = [
     "NBAShotProfileSet",
     "NBATeamShotProfile",
     "NbaReferenceError",
+    "NbaShotProfileBatchError",
     "NbaShotProfileError",
     "NbaShotProfileEvaluationError",
     "NbaShotProfileRunnerError",
@@ -199,6 +204,7 @@ __all__ = [
     "quick_sim_report_to_json",
     "realism_score_report_to_json",
     "restore_artifact_archive",
+    "run_nba_shot_profile_batch",
     "run_nba_shot_profile_experiment",
     "run_quick_sim_batch",
     "run_quick_sim_checkpoint",

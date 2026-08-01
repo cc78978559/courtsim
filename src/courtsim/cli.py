@@ -76,6 +76,10 @@ from courtsim.analysis.nba_reference import (
     build_nba_core_target_payload,
     build_nba_team_target_payload,
 )
+from courtsim.analysis.nba_shot_profile_batch import (
+    NbaShotProfileBatchError,
+    run_nba_shot_profile_batch,
+)
 from courtsim.analysis.nba_shot_profile_evaluation import (
     NbaShotProfileEvaluationError,
     aggregate_nba_shot_profile_evaluations,
@@ -341,6 +345,28 @@ def _parser() -> argparse.ArgumentParser:
     shot_profile_run.add_argument("--max-overtimes", type=int, default=8)
     shot_profile_run.add_argument("--output", type=Path, default=Path("work/runs/shot-profile"))
     shot_profile_run.add_argument("--quiet", action="store_true")
+    shot_profile_run_batch = subparsers.add_parser(
+        "nba-shot-profile-run-batch",
+        help="resume a deterministic multi-seed shot-profile experiment batch",
+    )
+    shot_profile_run_batch.add_argument("profile", type=Path)
+    shot_profile_run_batch.add_argument("--schema", type=Path, default=DEFAULT_MODEL_SCHEMA)
+    shot_profile_run_batch.add_argument("--parameters", type=Path, default=DEFAULT_MODEL_PARAMETERS)
+    shot_profile_run_batch.add_argument(
+        "--lineup", type=Path, default=Path("examples/calibration_lineup_v1.json")
+    )
+    shot_profile_run_batch.add_argument("--master-seed", type=int, default=20260801)
+    shot_profile_run_batch.add_argument("--runs", type=int, default=3)
+    shot_profile_run_batch.add_argument("--maximum-new-runs", type=int)
+    shot_profile_run_batch.add_argument("--periods", type=int, default=4)
+    shot_profile_run_batch.add_argument("--period-seconds", type=int, default=720)
+    shot_profile_run_batch.add_argument("--possession-seconds", type=int, default=24)
+    shot_profile_run_batch.add_argument("--overtime-seconds", type=int, default=300)
+    shot_profile_run_batch.add_argument("--max-overtimes", type=int, default=8)
+    shot_profile_run_batch.add_argument(
+        "--output", type=Path, default=Path("work/runs/shot-profile-batch")
+    )
+    shot_profile_run_batch.add_argument("--quiet", action="store_true")
 
     franchise_checkpoint = subparsers.add_parser(
         "nba-franchise-checkpoint-verify",
@@ -881,6 +907,32 @@ def main(argv: list[str] | None = None) -> int:
                 )
             return 0
 
+        if arguments.command == "nba-shot-profile-run-batch":
+            batch_manifest = run_nba_shot_profile_batch(
+                profile_path=arguments.profile,
+                schema_path=arguments.schema,
+                parameters_path=arguments.parameters,
+                lineup_path=arguments.lineup,
+                output_directory=arguments.output,
+                master_seed=arguments.master_seed,
+                runs=arguments.runs,
+                maximum_new_runs=arguments.maximum_new_runs,
+                game_config=GameClockConfig(
+                    arguments.periods,
+                    arguments.period_seconds,
+                    arguments.possession_seconds,
+                    arguments.overtime_seconds,
+                    arguments.max_overtimes,
+                    True,
+                ),
+            )
+            if not arguments.quiet:
+                print(
+                    f"shot-profile batch: {batch_manifest['completed_runs']}/"
+                    f"{arguments.runs} runs complete"
+                )
+            return 0
+
         if arguments.command == "nba-franchise-checkpoint-verify":
             state, _, receipt = load_nba_franchise_checkpoint(
                 arguments.checkpoint,
@@ -1322,6 +1374,7 @@ def main(argv: list[str] | None = None) -> int:
         NbaDataAuditError,
         NbaShotProfileError,
         NbaShotProfileEvaluationError,
+        NbaShotProfileBatchError,
         NbaShotProfileRunnerError,
         NbaDataPipelineError,
         NBAFranchiseArtifactError,

@@ -174,6 +174,23 @@ v2 产物记录基础画像与基线审计的 SHA-256、算法版本、最大偏
 SHA-256 的 manifest。`nba-shot-profile-evaluate`、`evaluate-batch`、`calibrate` 与 `run`
 均支持 `--quiet`；不使用静默模式时也只打印单行摘要，不再把完整 30 队 JSON 写入终端。
 
+多种子标准实验使用可恢复批处理；以下命令每次最多新增一个种子，重复执行会验证已
+完成格子的 manifest/evaluation 哈希并从下一格继续：
+
+```powershell
+.\tools.cmd nba-shot-profile-run-batch `
+  work/nba-2024-25-team-shot-profiles-calibrated.json `
+  --master-seed 20260820 `
+  --runs 3 `
+  --maximum-new-runs 1 `
+  --output work/runs/shot-profile-final `
+  --quiet
+```
+
+每个种子完成后都会原子更新 `batch-manifest.json` 和 pooled
+`evaluation-batch.json`。进程中断不会丢失已完成种子；输入哈希、规格或已有产物发生
+变化时会拒绝续跑，避免把不兼容结果混入同一批次。
+
 ### 冻结校准验证（2026-08-01）
 
 参数选择严格分离为三组：`20260801` 生成基线校准，`20260802–05` 仅用于开发
