@@ -4,7 +4,10 @@ from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
-from courtsim.analysis.nba_team_strength import apply_nba_team_strengths
+from courtsim.analysis.nba_team_strength import (
+    apply_nba_team_strengths,
+    load_nba_team_strength_alignment,
+)
 from courtsim.domain.plans import Lineup
 from courtsim.model.game_runtime import GameTeam
 from courtsim.model.interaction_compiler import ProfileLineup
@@ -75,3 +78,9 @@ def test_team_strength_applies_source_derived_offsets() -> None:
         by_id["Washington Wizards"].profiles[0].abilities.playmaking
         == templates[0].abilities.playmaking - 9
     )
+    alignment = load_nba_team_strength_alignment(
+        ROOT / "experiments" / "sources" / "nba-2024-25-team-strength-v1.json"
+    )
+    assert "Boston Celtics" in alignment.east_team_ids
+    assert "Los Angeles Lakers" in alignment.west_team_ids
+    assert len(alignment.east_team_ids) == len(alignment.west_team_ids) == 15

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import replace
 from pathlib import Path
 from typing import Any, cast
@@ -13,9 +14,20 @@ from courtsim.analysis.nba_quick_sim_executor import (
     NBAQuickSimExecutor,
 )
 from courtsim.analysis.nba_shot_profiles import load_nba_shot_profile_set
-from courtsim.analysis.nba_team_strength import apply_nba_team_strengths
+from courtsim.analysis.nba_team_strength import (
+    apply_nba_team_strengths,
+    load_nba_team_strength_alignment,
+)
 from courtsim.analysis.quick_sim_artifacts import run_quick_sim_checkpoint
-from courtsim.analysis.quick_sim_batch import QuickSimBatchSpec
+from courtsim.analysis.quick_sim_batch import (
+    QUICK_SIM_BATCH_VERSION,
+    QuickSimBatchResult,
+    QuickSimBatchSpec,
+    append_precomputed_quick_sim_summaries,
+    quick_sim_batch_from_json,
+    quick_sim_batch_to_json,
+)
+from courtsim.analysis.quick_sim_comparison import QuickSimSeasonSummary
 from courtsim.artifacts import sha256_file, write_json
 from courtsim.domain.game import GameClockConfig
 from courtsim.domain.plans import Lineup
@@ -24,10 +36,11 @@ from courtsim.domain.player_serialization import player_lineup_from_json
 from courtsim.model.game_runtime import GameTeam
 from courtsim.model.interaction_compiler import ProfileLineup
 from courtsim.model.trace_mode import TraceMode
-from courtsim.nba_league import NBAConferenceAlignment
 from courtsim.parameters import load_model_parameters
+from courtsim.randomness import derive_seed
 
 NBA_QUICK_SIM_RUNNER_VERSION = "nba-quick-sim-runner-v1"
+_WORKER_EXECUTOR: NBAQuickSimExecutor | None = None
 
 
 class NbaQuickSimRunnerError(ValueError):
@@ -48,9 +61,10 @@ def run_nba_quick_sim_batch(
     seasons: int,
     maximum_new_seasons: int | None,
     game_config: GameClockConfig,
+    workers: int = 1,
 ) -> dict[str, object]:
     """Run or resume a batch, persisting one verified season at a time."""
-    files = {
+    files: dict[str, Path] = {
         "schema": Path(schema_path).resolve(),
         "parameters": Path(parameters_path).resolve(),
         "lineup": Path(lineup_path).resolve(),
@@ -60,11 +74,19 @@ def run_nba_quick_sim_batch(
     for role, path in files.items():
         if not path.is_file():
             raise NbaQuickSimRunnerError(f"quick-sim {role} input is missing: {path}")
+    if not isinstance(workers, int) or isinstance(workers, bool) or not 1 <= workers <= 32:
+        raise NbaQuickSimRunnerError("quick-sim workers must be from 1 through 32")
+    if maximum_new_seasons is not None and (
+        not isinstance(maximum_new_seasons, int)
+        or isinstance(maximum_new_seasons, bool)
+        or maximum_new_seasons < 1
+    ):
+        raise NbaQuickSimRunnerError("maximum new quick-sim seasons must be positive")
     inputs = {
         role: {"filename": path.name, "sha256": sha256_file(path), "bytes": path.stat().st_size}
         for role, path in files.items()
     }
-    configuration = {
+    configuration: dict[str, object] = {
         "runner_version": NBA_QUICK_SIM_RUNNER_VERSION,
         "executor_version": NBA_QUICK_SIM_EXECUTOR_VERSION,
         "batch": {
@@ -90,39 +112,128 @@ def run_nba_quick_sim_batch(
     checkpoint_file = Path(checkpoint_path).resolve()
     _verify_resume_manifest(manifest_file, checkpoint_file, configuration_sha256)
 
-    profiles = load_nba_shot_profile_set(files["shot_profiles"])
-    templates = player_lineup_from_json(files["lineup"].read_text(encoding="utf-8"))
-    teams = _build_teams(tuple(item.team_id for item in profiles.teams), templates)
-    teams = apply_nba_team_strengths(teams, files["team_strength"])
-    team_ids = tuple(team.team_id for team in teams)
-    executor = NBAQuickSimExecutor(
-        load_model_parameters(files["schema"], files["parameters"]),
-        game_config,
-        teams,
-        NBAConferenceAlignment(team_ids[:15], team_ids[15:]),
-        trace_mode=TraceMode.AGGREGATE_ONLY,
-        shot_zone_profiles=profiles,
+    executor = _build_executor(files, game_config)
+    spec = QuickSimBatchSpec(batch_id, master_seed, seasons)
+    if workers == 1:
+        result, receipt = run_quick_sim_checkpoint(
+            spec,
+            executor,
+            checkpoint_file,
+            maximum_new_seasons=maximum_new_seasons,
+        )
+        payload = _manifest_payload(
+            configuration,
+            configuration_sha256,
+            checkpoint_file,
+            result,
+            receipt.file_sha256,
+        )
+        write_json(manifest_file, payload)
+        return payload
+
+    previous = (
+        quick_sim_batch_from_json(checkpoint_file.read_text(encoding="utf-8"))
+        if checkpoint_file.is_file()
+        else None
     )
-    _result, receipt = run_quick_sim_checkpoint(
-        QuickSimBatchSpec(batch_id, master_seed, seasons),
-        executor,
+    if previous is not None and previous.spec != spec:
+        raise NbaQuickSimRunnerError("parallel quick-sim checkpoint spec differs")
+    completed = len(previous.cells) if previous is not None else 0
+    remaining = seasons - completed
+    budget = remaining if maximum_new_seasons is None else min(remaining, maximum_new_seasons)
+    path_items = tuple((role, str(path)) for role, path in sorted(files.items()))
+    parallel_result = previous
+    with ProcessPoolExecutor(
+        max_workers=workers,
+        initializer=_initialize_worker,
+        initargs=(path_items, game_config),
+    ) as pool:
+        while budget > 0:
+            wave_size = min(workers, budget)
+            start = len(parallel_result.cells) if parallel_result is not None else 0
+            tasks = tuple(
+                (
+                    f"{batch_id}:season-{index + 1:04d}",
+                    derive_seed(master_seed, QUICK_SIM_BATCH_VERSION, batch_id, index),
+                )
+                for index in range(start, start + wave_size)
+            )
+            summaries = tuple(pool.map(_execute_worker_task, tasks))
+            parallel_result = append_precomputed_quick_sim_summaries(
+                spec, summaries, previous=parallel_result
+            )
+            write_json(
+                checkpoint_file,
+                json.loads(quick_sim_batch_to_json(parallel_result)),
+            )
+            payload = _manifest_payload(
+                configuration,
+                configuration_sha256,
+                checkpoint_file,
+                parallel_result,
+                sha256_file(checkpoint_file),
+            )
+            write_json(manifest_file, payload)
+            budget -= wave_size
+    if parallel_result is None:
+        raise NbaQuickSimRunnerError("quick-sim parallel runner produced no checkpoint")
+    return _manifest_payload(
+        configuration,
+        configuration_sha256,
         checkpoint_file,
-        maximum_new_seasons=maximum_new_seasons,
+        parallel_result,
+        sha256_file(checkpoint_file),
     )
-    payload: dict[str, object] = {
+
+
+def _manifest_payload(
+    configuration: dict[str, object],
+    configuration_sha256: str,
+    checkpoint_file: Path,
+    result: QuickSimBatchResult,
+    file_sha256: str,
+) -> dict[str, object]:
+    return {
         "version": NBA_QUICK_SIM_RUNNER_VERSION,
         "configuration_sha256": configuration_sha256,
         "configuration": configuration,
         "checkpoint": {
             "path": checkpoint_file.name,
-            "sha256": receipt.file_sha256,
-            "batch_sha256": receipt.batch_sha256,
-            "completed_seasons": receipt.completed_after,
-            "complete": receipt.complete,
+            "sha256": file_sha256,
+            "batch_sha256": result.batch_sha256,
+            "completed_seasons": len(result.cells),
+            "complete": result.complete,
         },
     }
-    write_json(manifest_file, payload)
-    return payload
+
+
+def _build_executor(files: dict[str, Path], game_config: GameClockConfig) -> NBAQuickSimExecutor:
+    profiles = load_nba_shot_profile_set(files["shot_profiles"])
+    templates = player_lineup_from_json(files["lineup"].read_text(encoding="utf-8"))
+    teams = _build_teams(tuple(item.team_id for item in profiles.teams), templates)
+    teams = apply_nba_team_strengths(teams, files["team_strength"])
+    alignment = load_nba_team_strength_alignment(files["team_strength"])
+    return NBAQuickSimExecutor(
+        load_model_parameters(files["schema"], files["parameters"]),
+        game_config,
+        teams,
+        alignment,
+        trace_mode=TraceMode.AGGREGATE_ONLY,
+        shot_zone_profiles=profiles,
+    )
+
+
+def _initialize_worker(
+    path_items: tuple[tuple[str, str], ...], game_config: GameClockConfig
+) -> None:
+    global _WORKER_EXECUTOR
+    _WORKER_EXECUTOR = _build_executor({role: Path(path) for role, path in path_items}, game_config)
+
+
+def _execute_worker_task(task: tuple[str, int]) -> QuickSimSeasonSummary:
+    if _WORKER_EXECUTOR is None:
+        raise NbaQuickSimRunnerError("quick-sim worker was not initialized")
+    return _WORKER_EXECUTOR(*task)
 
 
 def _verify_resume_manifest(manifest: Path, checkpoint: Path, configuration_sha256: str) -> None:

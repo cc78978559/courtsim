@@ -124,6 +124,49 @@ def run_quick_sim_batch(
     )
 
 
+def append_precomputed_quick_sim_summaries(
+    spec: QuickSimBatchSpec,
+    summaries: tuple[QuickSimSeasonSummary, ...],
+    *,
+    previous: QuickSimBatchResult | None = None,
+) -> QuickSimBatchResult:
+    """Canonically append independently computed contiguous season summaries."""
+    if previous is not None and previous.spec != spec:
+        raise QuickSimBatchError("precomputed quick-sim batch spec differs")
+    cells = list(previous.cells if previous is not None else ())
+    if len(cells) + len(summaries) > spec.seasons:
+        raise QuickSimBatchError("precomputed quick-sim batch has too many summaries")
+    for offset, summary in enumerate(summaries):
+        season_index = len(cells)
+        expected_id = f"{spec.batch_id}:season-{season_index + 1:04d}"
+        seed = derive_seed(
+            spec.master_seed,
+            QUICK_SIM_BATCH_VERSION,
+            spec.batch_id,
+            season_index,
+        )
+        if summary.season_id != expected_id or summary.team_count != spec.team_count:
+            raise QuickSimBatchError(
+                f"precomputed quick-sim summary differs at wave offset {offset}"
+            )
+        cells.append(
+            QuickSimBatchCell(
+                season_index,
+                expected_id,
+                seed,
+                summary,
+                _summary_digest(summary),
+            )
+        )
+    canonical_cells = tuple(cells)
+    return QuickSimBatchResult(
+        spec,
+        canonical_cells,
+        len(canonical_cells) == spec.seasons,
+        _batch_digest(spec, canonical_cells),
+    )
+
+
 def quick_sim_batch_to_json(result: QuickSimBatchResult) -> str:
     return json.dumps(
         {

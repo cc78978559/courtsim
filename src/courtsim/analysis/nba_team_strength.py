@@ -11,6 +11,7 @@ from courtsim.artifacts import sha256_file
 from courtsim.domain.player import AbilityRatings, PlayerProfile
 from courtsim.model.game_runtime import GameTeam
 from courtsim.model.interaction_compiler import ProfileLineup
+from courtsim.nba_league import NBAConferenceAlignment
 
 NBA_TEAM_STRENGTH_VERSION = "nba-team-strength-v1"
 
@@ -23,6 +24,25 @@ def apply_nba_team_strengths(
     teams: tuple[GameTeam, ...], strength_path: str | Path
 ) -> tuple[GameTeam, ...]:
     """Apply one transparent additive ability offset to every player on each team."""
+    offsets, _conferences = _load_team_strengths(strength_path)
+    if set(offsets) != {team.team_id for team in teams}:
+        raise NbaTeamStrengthError("NBA team strength does not cover executor teams")
+    return tuple(_apply_team_offset(team, offsets[team.team_id]) for team in teams)
+
+
+def load_nba_team_strength_alignment(
+    strength_path: str | Path,
+) -> NBAConferenceAlignment:
+    """Load an explicit, source-pinned real NBA conference alignment."""
+    offsets, conferences = _load_team_strengths(strength_path)
+    east = tuple(sorted(team_id for team_id in offsets if conferences[team_id] == "east"))
+    west = tuple(sorted(team_id for team_id in offsets if conferences[team_id] == "west"))
+    return NBAConferenceAlignment(east, west)
+
+
+def _load_team_strengths(
+    strength_path: str | Path,
+) -> tuple[dict[str, int], dict[str, str]]:
     path = Path(strength_path).resolve()
     try:
         raw: object = json.loads(path.read_text(encoding="utf-8"))
@@ -47,12 +67,14 @@ def apply_nba_team_strengths(
     if not isinstance(rows, list) or len(rows) != 30:
         raise NbaTeamStrengthError("NBA team strength requires 30 teams")
     offsets: dict[str, int] = {}
+    conferences: dict[str, str] = {}
     for value in rows:
         if not isinstance(value, dict) or set(value) != {
             "team_id",
             "point_differential",
             "games",
             "rating_offset",
+            "conference",
         }:
             raise NbaTeamStrengthError("NBA team strength row schema differs")
         item = cast(dict[str, object], value)
@@ -60,14 +82,18 @@ def apply_nba_team_strengths(
         games = _integer(item["games"], "games")
         differential = _integer(item["point_differential"], "point_differential")
         offset = _integer(item["rating_offset"], "rating_offset")
+        conference = _text(item["conference"], "conference").lower()
         if games != 82 or offset != round(differential / games * multiplier):
             raise NbaTeamStrengthError(f"NBA team strength derivation differs: {team_id}")
         if team_id in offsets:
             raise NbaTeamStrengthError("NBA team strength team ids must be unique")
+        if conference not in {"east", "west"}:
+            raise NbaTeamStrengthError(f"NBA team strength conference differs: {team_id}")
         offsets[team_id] = offset
-    if set(offsets) != {team.team_id for team in teams}:
-        raise NbaTeamStrengthError("NBA team strength does not cover executor teams")
-    return tuple(_apply_team_offset(team, offsets[team.team_id]) for team in teams)
+        conferences[team_id] = conference
+    if tuple(conferences.values()).count("east") != 15:
+        raise NbaTeamStrengthError("NBA team strength conferences must contain 15 teams each")
+    return offsets, conferences
 
 
 def _apply_team_offset(team: GameTeam, offset: int) -> GameTeam:

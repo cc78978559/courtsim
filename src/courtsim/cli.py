@@ -366,6 +366,7 @@ def _parser() -> argparse.ArgumentParser:
     quick_sim_run.add_argument("--master-seed", type=int, required=True)
     quick_sim_run.add_argument("--seasons", type=int, default=30)
     quick_sim_run.add_argument("--maximum-new-seasons", type=int)
+    quick_sim_run.add_argument("--workers", type=int, default=1)
     quick_sim_run.add_argument("--periods", type=int, default=4)
     quick_sim_run.add_argument("--period-seconds", type=int, default=720)
     quick_sim_run.add_argument("--possession-seconds", type=int, default=24)
@@ -1038,6 +1039,7 @@ def main(argv: list[str] | None = None) -> int:
                     arguments.max_overtimes,
                     True,
                 ),
+                workers=arguments.workers,
             )
             print(
                 json.dumps(

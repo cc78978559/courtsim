@@ -27,6 +27,8 @@ Run or resume the pinned model locally. Every completed season is committed atom
 checkpoint; the adjacent manifest binds the checkpoint to model, parameter, lineup, shot-profile,
 team-strength and clock hashes. Team strength is a white-box additive ability offset derived from
 2024-25 point differential, not a hidden fitted policy.
+The same source file explicitly assigns the 15 Eastern and 15 Western teams; alphabetical profile
+order is never used as a conference shortcut.
 The calibrated shot-profile file is intentionally tracked as the sole frozen exception under
 `work/`; ordinary run outputs and checkpoints remain ignored.
 
@@ -36,7 +38,7 @@ The calibrated shot-profile file is intentionally tracked as the sole frozen exc
   experiments/sources/nba-2024-25-team-strength-v1.json `
   work/quick-sim/formal-nba-reality-v1.json `
   --batch-id formal-nba-reality-v1 --master-seed 20260902 --seasons 30 `
-  --maximum-new-seasons 1
+  --maximum-new-seasons 4 --workers 4
 ```
 
 ```powershell
