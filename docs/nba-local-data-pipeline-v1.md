@@ -8,6 +8,17 @@
 流水线没有运行时第三方依赖，支持普通 CSV、`.csv.gz`、`.csv.xz`、ZIP，以及只含
 一个目标 CSV 的 `.tar.gz` / `.tar.xz`。
 
+`build.group_by` 既可使用单列字符串，也可使用有序列数组。单列继续输出兼容的
+`groups` 对象；复合分组输出按键排序的 `[{"key": ..., "metrics": ...}]`，适合在
+本地按球队和球员共同聚合，同时避免拼接字符串产生身份碰撞。
+分组汇总默认只向控制台打印数据集、行数和分组数；`nba-data build --quiet` 完全静默，
+完整球员姓名和指标只保存在 UTF-8 JSON 中。
+
+球员现实目标使用独立的 `nba-player-target-v1` 契约，固定 NBA player ID、来源哈希、
+资格门槛、分钟、usage、真实命中率、球队出手占比以及 RIM/MIDRANGE/THREE 的出手
+占比与命中率。真实 NBA ID 到 CourtSim player ID 的映射是后续独立产物，不混入
+观察目标。
+
 ## 推荐来源
 
 个人研究优先下载 SportsDataverse `hoopR` 的预构建赛季文件，或

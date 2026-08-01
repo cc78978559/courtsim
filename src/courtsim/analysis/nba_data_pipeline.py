@@ -115,12 +115,12 @@ def build_nba_data_summary(
     encoding = _text(build.get("encoding", "utf-8-sig"), "build.encoding")
     archive_member = _optional_text(build.get("archive_member"), "build.archive_member")
     deduplicate_by = _deduplicate_by(build.get("deduplicate_by"))
-    group_by = _optional_text(build.get("group_by"), "build.group_by")
+    group_by = _group_by(build.get("group_by"))
     row_count = 0
     source_row_count = 0
     seen_keys: set[bytes] = set()
     values = _initial_metric_values(metric_specs)
-    grouped_values: dict[str, dict[str, float | int | set[str]]] = {}
+    grouped_values: dict[tuple[str, ...], dict[str, float | int | set[str]]] = {}
 
     with _open_csv_text(source, encoding=encoding, archive_member=archive_member) as stream:
         reader = csv.DictReader(stream, delimiter=delimiter)
@@ -136,10 +136,12 @@ def build_nba_data_summary(
                 seen_keys.add(key)
             row_count += 1
             _accumulate_metric_values(values, metric_specs, row)
-            if group_by is not None:
-                group = (row.get(group_by) or "").strip()
-                if not group:
-                    raise NbaDataPipelineError(f"group_by column {group_by} contains a blank value")
+            if group_by:
+                group = tuple((row.get(column) or "").strip() for column in group_by)
+                if any(not value for value in group):
+                    raise NbaDataPipelineError(
+                        f"group_by columns {list(group_by)} contain a blank value"
+                    )
                 group_values = grouped_values.setdefault(
                     group, _initial_metric_values(metric_specs)
                 )
@@ -168,12 +170,21 @@ def build_nba_data_summary(
         "metrics": metrics,
         "cached": False,
     }
-    if group_by is not None:
-        payload["group_by"] = group_by
+    if len(group_by) == 1:
+        payload["group_by"] = group_by[0]
         payload["groups"] = {
-            group: _finalize_metric_values(grouped_values[group], metric_specs)
+            group[0]: _finalize_metric_values(grouped_values[group], metric_specs)
             for group in sorted(grouped_values)
         }
+    elif group_by:
+        payload["group_by"] = list(group_by)
+        payload["groups"] = [
+            {
+                "key": dict(zip(group_by, group, strict=True)),
+                "metrics": _finalize_metric_values(grouped_values[group], metric_specs),
+            }
+            for group in sorted(grouped_values)
+        ]
     payload["local_reduction"] = {
         "raw_bytes": source.stat().st_size,
         "summary_bytes": 0,
@@ -273,7 +284,7 @@ def _load_manifest(path: Path) -> dict[str, Any]:
     _text(build.get("encoding", "utf-8-sig"), "build.encoding")
     _optional_text(build.get("archive_member"), "build.archive_member")
     _deduplicate_by(build.get("deduplicate_by"))
-    _optional_text(build.get("group_by"), "build.group_by")
+    _group_by(build.get("group_by"))
     _metric_specs(build)
     return manifest
 
@@ -354,11 +365,10 @@ def _validate_columns(
     metrics: list[dict[str, Any]],
     columns: set[str],
     deduplicate_by: tuple[str, ...],
-    group_by: str | None,
+    group_by: tuple[str, ...],
 ) -> None:
     required: set[str] = set(deduplicate_by)
-    if group_by is not None:
-        required.add(group_by)
+    required.update(group_by)
     for spec in metrics:
         column = spec.get("column")
         if isinstance(column, str):
@@ -459,6 +469,19 @@ def _deduplicate_by(value: object) -> tuple[str, ...]:
     columns = tuple(_text(item, "build.deduplicate_by[]") for item in value)
     if len(columns) != len(set(columns)):
         raise NbaDataPipelineError("build.deduplicate_by columns must be unique")
+    return columns
+
+
+def _group_by(value: object) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        return (_text(value, "build.group_by"),)
+    if not isinstance(value, list) or not value or not all(isinstance(item, str) for item in value):
+        raise NbaDataPipelineError("build.group_by must be a string or non-empty string list")
+    columns = tuple(_text(item, "build.group_by[]") for item in value)
+    if len(columns) != len(set(columns)):
+        raise NbaDataPipelineError("build.group_by columns must be unique")
     return columns
 
 

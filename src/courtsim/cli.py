@@ -236,6 +236,7 @@ def _parser() -> argparse.ArgumentParser:
     nba_data_build.add_argument("output", type=Path)
     nba_data_build.add_argument("--cache", type=Path, default=Path(".cache/nba-data"))
     nba_data_build.add_argument("--force", action="store_true")
+    nba_data_build.add_argument("--quiet", action="store_true")
     nba_data_status = nba_data_actions.add_parser(
         "status",
         help="inspect cache and summary freshness without reading raw rows",
@@ -775,14 +776,26 @@ def main(argv: list[str] | None = None) -> int:
                     zone_tendency_loading=arguments.zone_tendency_loading,
                 )
                 write_json(arguments.output, nba_data_report)
-            print(
-                json.dumps(
-                    nba_data_report,
-                    ensure_ascii=False,
-                    separators=(",", ":"),
-                    sort_keys=True,
+            if not getattr(arguments, "quiet", False):
+                console_report = nba_data_report
+                groups = nba_data_report.get("groups")
+                if arguments.nba_data_action == "build" and isinstance(groups, (dict, list)):
+                    console_report = {
+                        "cached": nba_data_report.get("cached"),
+                        "dataset_id": nba_data_report.get("dataset_id"),
+                        "group_count": len(groups),
+                        "output": str(arguments.output),
+                        "rows_processed": nba_data_report.get("rows_processed"),
+                        "season": nba_data_report.get("season"),
+                    }
+                print(
+                    json.dumps(
+                        console_report,
+                        ensure_ascii=True,
+                        separators=(",", ":"),
+                        sort_keys=True,
+                    )
                 )
-            )
             return 0
 
         if arguments.command == "nba-quick-sim-status":

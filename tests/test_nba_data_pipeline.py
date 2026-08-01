@@ -140,6 +140,21 @@ def test_cli_pipeline_emits_compact_json(
     report = json.loads(capsys.readouterr().out)
     assert report["metrics"]["games"] == 2
     assert "\n  " not in json.dumps(report, separators=(",", ":"))
+    assert (
+        main(
+            [
+                "nba-data",
+                "build",
+                str(manifest),
+                str(output),
+                "--cache",
+                str(cache),
+                "--quiet",
+            ]
+        )
+        == 0
+    )
+    assert capsys.readouterr().out == ""
 
 
 def test_build_can_reduce_metrics_by_group_without_loading_rows(tmp_path: Path) -> None:
@@ -155,6 +170,33 @@ def test_build_can_reduce_metrics_by_group_without_loading_rows(tmp_path: Path) 
         "A": {"events": 2, "games": 2, "points": 5.0, "points_per_shot": 2.5, "shots": 2},
         "B": {"events": 2, "games": 2, "points": 0.0, "points_per_shot": 0.0, "shots": 1},
     }
+
+
+def test_build_can_reduce_metrics_by_composite_group(tmp_path: Path) -> None:
+    manifest, source = _fixture(tmp_path)
+    source.write_text(
+        "game_id,event_type,points,team_id,player_id\n"
+        "g1,shot,2,A,10\n"
+        "g1,turnover,0,A,10\n"
+        "g2,shot,3,A,20\n"
+        "g2,shot,0,B,10\n",
+        encoding="utf-8",
+    )
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    payload["resources"][0]["sha256"] = hashlib.sha256(source.read_bytes()).hexdigest()
+    payload["build"]["group_by"] = ["team_id", "player_id"]
+    write_json(manifest, payload)
+    cache = tmp_path / "cache"
+    sync_nba_data(manifest, cache)
+    summary = build_nba_data_summary(manifest, cache, tmp_path / "grouped.json")
+    assert summary["group_by"] == ["team_id", "player_id"]
+    groups = summary["groups"]
+    assert isinstance(groups, list)
+    assert [(row["key"], row["metrics"]["events"]) for row in groups] == [
+        ({"team_id": "A", "player_id": "10"}, 2),
+        ({"team_id": "A", "player_id": "20"}, 1),
+        ({"team_id": "B", "player_id": "10"}, 1),
+    ]
 
 
 def test_build_rejects_unverified_or_incompatible_inputs(tmp_path: Path) -> None:

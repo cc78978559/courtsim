@@ -77,6 +77,8 @@ def build_project_status(root: str | Path) -> dict[str, object]:
             "nba-team-shot-zone-experiment-runner",
             "nba-team-shot-zone-resumable-batch",
             "nba-team-shot-zone-batch-inspection",
+            "nba-player-realism-target-schema",
+            "local-composite-group-reduction",
             "nba-reference-targets",
             "nba-quick-sim-inspection",
             "nba-quick-sim-comparison",
