@@ -1,12 +1,15 @@
+import json
 from pathlib import Path
 
 import pytest
 
 from courtsim.analysis.nba_shot_profile_batch import (
     NbaShotProfileBatchError,
+    inspect_nba_shot_profile_batch,
     run_nba_shot_profile_batch,
 )
 from courtsim.artifacts import write_json
+from courtsim.cli import main
 from courtsim.domain.game import GameClockConfig
 
 
@@ -34,7 +37,9 @@ def _evaluation() -> dict[str, object]:
     }
 
 
-def test_batch_checkpoints_resumes_and_verifies_cells(tmp_path: Path) -> None:
+def test_batch_checkpoints_resumes_and_verifies_cells(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     inputs = []
     for name in ("profile", "schema", "parameters", "lineup"):
         path = tmp_path / f"{name}.json"
@@ -90,6 +95,12 @@ def test_batch_checkpoints_resumes_and_verifies_cells(tmp_path: Path) -> None:
     assert len(calls) == 2
     assert manifest_path.stat().st_mtime_ns == manifest_mtime
     assert aggregate_path.stat().st_mtime_ns == aggregate_mtime
+    inspection = inspect_nba_shot_profile_batch(manifest_path)
+    assert inspection["artifact_hashes_ok"] is True
+    assert inspection["completed_runs"] == 2
+    assert inspection["remaining_runs"] == 0
+    assert main(["nba-shot-profile-batch-status", str(manifest_path)]) == 0
+    assert json.loads(capsys.readouterr().out)["complete"] is True
 
     completed_cells = second["cells"]
     assert isinstance(completed_cells, list)

@@ -60,6 +60,7 @@ from courtsim.analysis.nba_reference import (
 )
 from courtsim.analysis.nba_shot_profile_batch import (
     NbaShotProfileBatchError,
+    inspect_nba_shot_profile_batch,
     run_nba_shot_profile_batch,
 )
 from courtsim.analysis.nba_shot_profile_evaluation import (
@@ -192,6 +193,7 @@ __all__ = [
     "distribution_audit_to_json",
     "evaluate_audit_gates",
     "evaluate_nba_shot_profile_audits",
+    "inspect_nba_shot_profile_batch",
     "load_audit_gates",
     "load_distribution_audit",
     "load_nba_shot_profile_set",

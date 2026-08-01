@@ -195,6 +195,15 @@ SHA-256 的 manifest。`nba-shot-profile-evaluate`、`evaluate-batch`、`calibra
 各 worker 写独立种子目录，主进程仍按确定顺序校验哈希并更新检查点。worker 数不属于
 实验规格，因此可以在续跑时调整；默认值仍为 `1`，适合内存较小的个人电脑。
 
+只查看或跨机器核验批次时，无需重新提供输入文件：
+
+```powershell
+.\tools.cmd nba-shot-profile-batch-status `
+  work/runs/shot-profile-final/batch-manifest.json
+```
+
+该命令验证连续种子、逐轮产物和聚合文件哈希，并只输出一行 JSON。
+
 ### 冻结校准验证（2026-08-01）
 
 参数选择严格分离为三组：`20260801` 生成基线校准，`20260802–05` 仅用于开发

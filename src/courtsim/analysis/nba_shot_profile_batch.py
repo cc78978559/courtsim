@@ -25,6 +25,52 @@ class NbaShotProfileBatchError(ValueError):
     pass
 
 
+def inspect_nba_shot_profile_batch(manifest_path: str | Path) -> dict[str, object]:
+    """Verify a batch checkpoint and return a compact, read-only status."""
+    manifest_file = Path(manifest_path).resolve()
+    manifest = _load_object(manifest_file, "shot profile batch manifest")
+    if manifest.get("schema_version") != 1:
+        raise NbaShotProfileBatchError("shot profile batch manifest version differs")
+    spec = manifest.get("spec")
+    if not isinstance(spec, dict) or spec.get("version") != NBA_SHOT_PROFILE_BATCH_VERSION:
+        raise NbaShotProfileBatchError("shot profile batch spec version differs")
+    master_seed = spec.get("master_seed")
+    runs = spec.get("runs")
+    if (
+        not isinstance(master_seed, int)
+        or isinstance(master_seed, bool)
+        or not isinstance(runs, int)
+        or isinstance(runs, bool)
+        or not 1 <= runs <= 10_000
+    ):
+        raise NbaShotProfileBatchError("shot profile batch dimensions are invalid")
+    raw_cells = manifest.get("cells")
+    if not isinstance(raw_cells, list) or any(not isinstance(item, dict) for item in raw_cells):
+        raise NbaShotProfileBatchError("shot profile batch cells are invalid")
+    cells = [cast(dict[str, object], item) for item in raw_cells]
+    output = manifest_file.parent
+    _verify_cells(output, cells, master_seed, runs)
+    _verify_checkpoint(manifest, output, cells, runs)
+    aggregate = _load_object(output / "evaluation-batch.json", "evaluation batch")
+    if aggregate.get("runs") != len(cells):
+        raise NbaShotProfileBatchError("shot profile batch aggregate run count differs")
+    return {
+        "schema_version": 1,
+        "batch_version": NBA_SHOT_PROFILE_BATCH_VERSION,
+        "manifest_sha256": sha256_file(manifest_file),
+        "master_seed": master_seed,
+        "completed_runs": len(cells),
+        "target_runs": runs,
+        "remaining_runs": runs - len(cells),
+        "complete": len(cells) == runs,
+        "artifact_hashes_ok": True,
+        "status": aggregate.get("status"),
+        "baseline_rmse": aggregate.get("baseline_rmse"),
+        "candidate_rmse": aggregate.get("candidate_rmse"),
+        "relative_rmse_improvement": aggregate.get("relative_rmse_improvement"),
+    }
+
+
 def run_nba_shot_profile_batch(
     *,
     profile_path: str | Path,

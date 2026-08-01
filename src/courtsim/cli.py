@@ -78,6 +78,7 @@ from courtsim.analysis.nba_reference import (
 )
 from courtsim.analysis.nba_shot_profile_batch import (
     NbaShotProfileBatchError,
+    inspect_nba_shot_profile_batch,
     run_nba_shot_profile_batch,
 )
 from courtsim.analysis.nba_shot_profile_evaluation import (
@@ -368,6 +369,11 @@ def _parser() -> argparse.ArgumentParser:
         "--output", type=Path, default=Path("work/runs/shot-profile-batch")
     )
     shot_profile_run_batch.add_argument("--quiet", action="store_true")
+    shot_profile_batch_status = subparsers.add_parser(
+        "nba-shot-profile-batch-status",
+        help="verify and summarize a shot-profile batch manifest",
+    )
+    shot_profile_batch_status.add_argument("manifest", type=Path)
 
     franchise_checkpoint = subparsers.add_parser(
         "nba-franchise-checkpoint-verify",
@@ -933,6 +939,16 @@ def main(argv: list[str] | None = None) -> int:
                     f"shot-profile batch: {batch_manifest['completed_runs']}/"
                     f"{arguments.runs} runs complete"
                 )
+            return 0
+
+        if arguments.command == "nba-shot-profile-batch-status":
+            print(
+                json.dumps(
+                    inspect_nba_shot_profile_batch(arguments.manifest),
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
             return 0
 
         if arguments.command == "nba-franchise-checkpoint-verify":
