@@ -86,6 +86,7 @@ def build_project_status(root: str | Path) -> dict[str, object]:
             "derived-tactical-action-vocabulary",
             "draft-obligation-freeze-ledger-v3",
             "draft-obligation-read-only-audit",
+            "three-team-market-v2-contract-tree",
             "local-composite-group-reduction",
             "nba-reference-targets",
             "nba-quick-sim-inspection",
