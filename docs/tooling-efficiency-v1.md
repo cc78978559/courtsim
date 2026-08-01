@@ -6,6 +6,13 @@
 .\tools.cmd check-fast
 ```
 
+局部反馈可把筛选参数直接传给 `test`、`coverage`、`lint`、`format` 和
+`typecheck`。例如只运行一个测试文件：
+
+```powershell
+.\tools.cmd test tests/test_nba_shot_profile_batch.py -q
+```
+
 `check-fast` 依次执行：
 
 1. Ruff 格式检查；

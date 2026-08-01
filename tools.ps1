@@ -116,20 +116,22 @@ $env:PYTHONPATH = Join-Path $PSScriptRoot "src"
 
 switch ($Command) {
     "test" {
-        Invoke-Python @("-m", "pytest")
+        Invoke-Python (@("-m", "pytest") + $RemainingArguments)
     }
     "coverage" {
-        Invoke-Python @("-m", "coverage", "run", "-m", "pytest")
+        Invoke-Python (@("-m", "coverage", "run", "-m", "pytest") + $RemainingArguments)
         Invoke-Python @("-m", "coverage", "report")
     }
     "lint" {
-        Invoke-Python @("-m", "ruff", "check", ".")
+        $LintTargets = if ($RemainingArguments.Count -gt 0) { $RemainingArguments } else { @(".") }
+        Invoke-Python (@("-m", "ruff", "check") + $LintTargets)
     }
     "format" {
-        Invoke-Python @("-m", "ruff", "format", ".")
+        $FormatTargets = if ($RemainingArguments.Count -gt 0) { $RemainingArguments } else { @(".") }
+        Invoke-Python (@("-m", "ruff", "format") + $FormatTargets)
     }
     "typecheck" {
-        Invoke-Python @("-m", "mypy")
+        Invoke-Python (@("-m", "mypy") + $RemainingArguments)
     }
     "check" {
         Invoke-QuietPython "format" @("-m", "ruff", "format", "--check", ".")
