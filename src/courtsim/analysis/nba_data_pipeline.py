@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import gzip
 import hashlib
+import importlib
 import json
 import lzma
 import math
@@ -116,22 +117,33 @@ def build_nba_data_summary(
     archive_member = _optional_text(build.get("archive_member"), "build.archive_member")
     deduplicate_by = _deduplicate_by(build.get("deduplicate_by"))
     group_by = _group_by(build.get("group_by"))
+    row_filter = build.get("where")
     row_count = 0
     source_row_count = 0
+    filtered_row_count = 0
+    duplicate_count = 0
     seen_keys: set[bytes] = set()
     values = _initial_metric_values(metric_specs)
     grouped_values: dict[tuple[str, ...], dict[str, float | int | set[str]]] = {}
+    required_columns = _required_columns(metric_specs, deduplicate_by, group_by, row_filter)
 
-    with _open_csv_text(source, encoding=encoding, archive_member=archive_member) as stream:
-        reader = csv.DictReader(stream, delimiter=delimiter)
-        if reader.fieldnames is None:
-            raise NbaDataPipelineError("CSV resource has no header")
-        _validate_columns(metric_specs, set(reader.fieldnames), deduplicate_by, group_by)
-        for row in reader:
+    with _open_rows(
+        source,
+        encoding=encoding,
+        archive_member=archive_member,
+        delimiter=delimiter,
+        projected_columns=required_columns,
+    ) as (columns, rows):
+        _validate_columns(metric_specs, set(columns), deduplicate_by, group_by, row_filter)
+        for row in rows:
             source_row_count += 1
+            if not _matches(row, row_filter):
+                filtered_row_count += 1
+                continue
             if deduplicate_by:
                 key = _row_key(row, deduplicate_by)
                 if key in seen_keys:
+                    duplicate_count += 1
                     continue
                 seen_keys.add(key)
             row_count += 1
@@ -166,7 +178,8 @@ def build_nba_data_summary(
         },
         "rows_processed": row_count,
         "source_rows": source_row_count,
-        "duplicates_skipped": source_row_count - row_count,
+        "filtered_rows": filtered_row_count,
+        "duplicates_skipped": duplicate_count,
         "metrics": metrics,
         "cached": False,
     }
@@ -276,6 +289,7 @@ def _load_manifest(path: Path) -> dict[str, Any]:
         "archive_member",
         "deduplicate_by",
         "group_by",
+        "where",
         "metrics",
     }:
         raise NbaDataPipelineError("build contains unsupported fields")
@@ -285,6 +299,7 @@ def _load_manifest(path: Path) -> dict[str, Any]:
     _optional_text(build.get("archive_member"), "build.archive_member")
     _deduplicate_by(build.get("deduplicate_by"))
     _group_by(build.get("group_by"))
+    _validate_where(build.get("where"), "build")
     _metric_specs(build)
     return manifest
 
@@ -361,14 +376,16 @@ def _validate_where(raw: object, metric: str) -> None:
             raise NbaDataPipelineError(f"{operator} condition must contain a string")
 
 
-def _validate_columns(
+def _required_columns(
     metrics: list[dict[str, Any]],
-    columns: set[str],
     deduplicate_by: tuple[str, ...],
     group_by: tuple[str, ...],
-) -> None:
+    row_filter: object,
+) -> set[str]:
     required: set[str] = set(deduplicate_by)
     required.update(group_by)
+    if isinstance(row_filter, dict):
+        required.update(row_filter)
     for spec in metrics:
         column = spec.get("column")
         if isinstance(column, str):
@@ -379,9 +396,20 @@ def _validate_columns(
         where = spec.get("where")
         if isinstance(where, dict):
             required.update(where)
+    return required
+
+
+def _validate_columns(
+    metrics: list[dict[str, Any]],
+    columns: set[str],
+    deduplicate_by: tuple[str, ...],
+    group_by: tuple[str, ...],
+    row_filter: object,
+) -> None:
+    required = _required_columns(metrics, deduplicate_by, group_by, row_filter)
     missing = sorted(required - columns)
     if missing:
-        raise NbaDataPipelineError(f"CSV resource is missing columns: {missing}")
+        raise NbaDataPipelineError(f"data resource is missing columns: {missing}")
 
 
 def _initial_metric_values(
@@ -536,6 +564,51 @@ def _matches(row: Mapping[str, str | None], raw_where: object) -> bool:
             if truthy is not expected:
                 return False
     return True
+
+
+@contextmanager
+def _open_rows(
+    path: Path,
+    *,
+    encoding: str,
+    archive_member: str | None,
+    delimiter: str,
+    projected_columns: set[str],
+) -> Iterator[tuple[tuple[str, ...], Iterator[Mapping[str, str | None]]]]:
+    if path.suffix.lower() == ".parquet":
+        if archive_member is not None:
+            raise NbaDataPipelineError("Parquet resources cannot use archive_member")
+        try:
+            parquet = importlib.import_module("pyarrow.parquet")
+        except ImportError as error:
+            raise NbaDataPipelineError(
+                "Parquet data requires optional tools: run '.\\tools.cmd bootstrap-data'"
+            ) from error
+        parquet_file = parquet.ParquetFile(path)
+        columns = tuple(parquet_file.schema_arrow.names)
+
+        def rows() -> Iterator[Mapping[str, str | None]]:
+            selected = tuple(column for column in columns if column in projected_columns)
+            for batch in parquet_file.iter_batches(batch_size=65_536, columns=list(selected)):
+                values = batch.to_pydict()
+                for row_index in range(batch.num_rows):
+                    yield {column: _parquet_text(values[column][row_index]) for column in selected}
+
+        yield columns, rows()
+        return
+    with _open_csv_text(path, encoding=encoding, archive_member=archive_member) as stream:
+        reader = csv.DictReader(stream, delimiter=delimiter)
+        if reader.fieldnames is None:
+            raise NbaDataPipelineError("CSV resource has no header")
+        yield tuple(reader.fieldnames), reader
+
+
+def _parquet_text(value: object) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
 
 
 @contextmanager

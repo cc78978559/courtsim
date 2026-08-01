@@ -199,6 +199,27 @@ def test_build_can_reduce_metrics_by_composite_group(tmp_path: Path) -> None:
     ]
 
 
+def test_build_filter_applies_before_group_creation(tmp_path: Path) -> None:
+    manifest, _ = _fixture(tmp_path)
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    payload["build"]["group_by"] = ["team_id", "event_type"]
+    payload["build"]["where"] = {"event_type": {"equals": "shot"}}
+    write_json(manifest, payload)
+    cache = tmp_path / "cache"
+    sync_nba_data(manifest, cache)
+    summary = build_nba_data_summary(manifest, cache, tmp_path / "grouped.json")
+    assert summary["source_rows"] == 4
+    assert summary["filtered_rows"] == 1
+    assert summary["duplicates_skipped"] == 0
+    assert summary["rows_processed"] == 3
+    groups = summary["groups"]
+    assert isinstance(groups, list)
+    assert [row["key"] for row in groups] == [
+        {"team_id": "A", "event_type": "shot"},
+        {"team_id": "B", "event_type": "shot"},
+    ]
+
+
 def test_build_rejects_unverified_or_incompatible_inputs(tmp_path: Path) -> None:
     manifest, source = _fixture(tmp_path)
     cache = tmp_path / "cache"
@@ -246,6 +267,45 @@ def test_supported_archives_are_streamed(tmp_path: Path, archive_kind: str) -> N
     sync_nba_data(manifest, cache)
     summary = build_nba_data_summary(manifest, cache, tmp_path / "summary.json")
     assert summary["rows_processed"] == 4
+
+
+def test_optional_parquet_rows_are_streamed(tmp_path: Path) -> None:
+    arrow = pytest.importorskip("pyarrow")
+    parquet = pytest.importorskip("pyarrow.parquet")
+    manifest, source = _fixture(tmp_path)
+    parquet_source = tmp_path / "events.parquet"
+    parquet.write_table(
+        arrow.table(
+            {
+                "game_id": ["g1", "g1", "g2"],
+                "event_type": ["shot", "turnover", "shot"],
+                "points": [2, 0, 3],
+                "team_id": ["A", "B", "A"],
+            }
+        ),
+        parquet_source,
+    )
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    payload["resources"][0].update(
+        {
+            "filename": parquet_source.name,
+            "path": parquet_source.name,
+            "sha256": hashlib.sha256(parquet_source.read_bytes()).hexdigest(),
+        }
+    )
+    write_json(manifest, payload)
+    source.unlink()
+    cache = tmp_path / "cache"
+    sync_nba_data(manifest, cache)
+    summary = build_nba_data_summary(manifest, cache, tmp_path / "summary.json")
+    assert summary["rows_processed"] == 3
+    assert summary["metrics"] == {
+        "events": 3,
+        "games": 2,
+        "points": 5.0,
+        "points_per_shot": 2.5,
+        "shots": 2,
+    }
 
 
 def test_all_row_condition_operators_are_local(tmp_path: Path) -> None:

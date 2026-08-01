@@ -1,0 +1,30 @@
+{
+  "build": {
+    "group_by": [
+      "espn_athlete_id",
+      "nba_player_id",
+      "espn_full_name",
+      "nba_player_name",
+      "match_method",
+      "match_confidence"
+    ],
+    "metrics": [
+      {"name": "records", "operation": "count"}
+    ],
+    "resource_id": "player-crosswalk",
+    "where": {"nba_player_id": {"not_equals": ""}}
+  },
+  "dataset_id": "hoopr-player-crosswalk",
+  "provider": "SportsDataverse hoopR NBA player crosswalk",
+  "resources": [
+    {
+      "filename": "nba_player_crosswalk_2026.parquet",
+      "resource_id": "player-crosswalk",
+      "sha256": "b9f61e606607359031108f8f9d348b3fcbc029b6ae6b9c950af358ef24f6358d",
+      "url": "https://raw.githubusercontent.com/sportsdataverse/hoopR-nba-data/main/nba/crosswalk/parquet/nba_player_crosswalk_2026.parquet"
+    }
+  ],
+  "schema_version": 1,
+  "season": "2025-26",
+  "terms_note": "Free personal research; preserve SportsDataverse attribution and treat unmatched rows explicitly."
+}

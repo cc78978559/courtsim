@@ -111,6 +111,16 @@ if ($Command -eq "bootstrap") {
     exit 0
 }
 
+if ($Command -eq "bootstrap-data") {
+    if (-not (Test-Path -LiteralPath $VenvPython)) {
+        throw "Run '.\tools.cmd bootstrap' before installing optional data tools."
+    }
+    & $VenvPython -m pip install -r (Join-Path $PSScriptRoot "requirements\data.lock")
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    Write-Output "data tooling complete: $VenvPython"
+    exit 0
+}
+
 $script:Python = if (Test-Path -LiteralPath $VenvPython) { $VenvPython } else { "python" }
 $env:PYTHONPATH = Join-Path $PSScriptRoot "src"
 

@@ -7,6 +7,9 @@
 
 流水线没有运行时第三方依赖，支持普通 CSV、`.csv.gz`、`.csv.xz`、ZIP，以及只含
 一个目标 CSV 的 `.tar.gz` / `.tar.xz`。
+Parquet 是可选的本地数据工具能力：先运行 `.\tools.cmd bootstrap-data` 安装锁定的
+PyArrow；模拟运行时和默认质量门禁仍保持标准库依赖。Parquet 构建只投影 manifest
+实际使用的列，并按 65,536 行批次流式处理。
 
 `build.group_by` 既可使用单列字符串，也可使用有序列数组。单列继续输出兼容的
 `groups` 对象；复合分组输出按键排序的 `[{"key": ..., "metrics": ...}]`，适合在

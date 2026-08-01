@@ -70,6 +70,10 @@ from courtsim.analysis.nba_data_pipeline import (
     inspect_nba_data,
     sync_nba_data,
 )
+from courtsim.analysis.nba_player_identity import (
+    NbaPlayerIdentityError,
+    build_nba_player_identity_payload,
+)
 from courtsim.analysis.nba_reference import (
     TEAM_METRIC_ORDER,
     NbaReferenceError,
@@ -244,6 +248,16 @@ def _parser() -> argparse.ArgumentParser:
     nba_data_status.add_argument("manifest", type=Path)
     nba_data_status.add_argument("--cache", type=Path, default=Path(".cache/nba-data"))
     nba_data_status.add_argument("--output", type=Path)
+    nba_player_identity = nba_data_actions.add_parser(
+        "build-player-identity",
+        help="join player-box ESPN ids to pinned NBA player ids",
+    )
+    nba_player_identity.add_argument("player_box_summary", type=Path)
+    nba_player_identity.add_argument("crosswalk_summary", type=Path)
+    nba_player_identity.add_argument("output", type=Path)
+    nba_player_identity.add_argument("--minimum-player-coverage", type=float, default=0.9)
+    nba_player_identity.add_argument("--minimum-minutes-coverage", type=float, default=0.95)
+    nba_player_identity.add_argument("--minimum-match-confidence", type=float, default=0.9)
     nba_data_audit = nba_data_actions.add_parser(
         "audit",
         help="reconcile a local event summary with pinned NBA totals",
@@ -744,6 +758,15 @@ def main(argv: list[str] | None = None) -> int:
                     arguments.cache,
                     arguments.output,
                 )
+            elif arguments.nba_data_action == "build-player-identity":
+                nba_data_report = build_nba_player_identity_payload(
+                    arguments.player_box_summary,
+                    arguments.crosswalk_summary,
+                    minimum_player_coverage=arguments.minimum_player_coverage,
+                    minimum_minutes_coverage=arguments.minimum_minutes_coverage,
+                    minimum_match_confidence=arguments.minimum_match_confidence,
+                )
+                write_json(arguments.output, nba_data_report)
             elif arguments.nba_data_action == "audit":
                 nba_data_report = build_nba_data_audit(
                     arguments.summary,
@@ -787,6 +810,14 @@ def main(argv: list[str] | None = None) -> int:
                         "output": str(arguments.output),
                         "rows_processed": nba_data_report.get("rows_processed"),
                         "season": nba_data_report.get("season"),
+                    }
+                elif arguments.nba_data_action == "build-player-identity":
+                    console_report = {
+                        "coverage": nba_data_report.get("coverage"),
+                        "output": str(arguments.output),
+                        "promotion": nba_data_report.get("promotion"),
+                        "season": nba_data_report.get("season"),
+                        "version": nba_data_report.get("version"),
                     }
                 print(
                     json.dumps(
@@ -1408,6 +1439,7 @@ def main(argv: list[str] | None = None) -> int:
         NbaShotProfileBatchError,
         NbaShotProfileRunnerError,
         NbaDataPipelineError,
+        NbaPlayerIdentityError,
         NBAFranchiseArtifactError,
         NBAFranchiseRunnerError,
         ParameterOverlayError,
