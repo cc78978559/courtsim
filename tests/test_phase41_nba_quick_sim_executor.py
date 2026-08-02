@@ -6,6 +6,8 @@ from test_game_runtime import PARAMETERS, player
 from test_phase12_manager_league_adapter import career_player
 
 from courtsim.analysis.nba_quick_sim_executor import (
+    NBA_QUICK_SIM_EXECUTOR_CANDIDATE_VERSION,
+    NBA_QUICK_SIM_EXECUTOR_VERSION,
     NBAQuickSimExecutor,
     build_nba_player_season_summaries,
 )
@@ -45,6 +47,7 @@ def test_executor_runs_complete_nba_path_deterministically() -> None:
         teams,
         NBAConferenceAlignment(team_ids[:15], team_ids[15:]),
         season_config=SeasonConfig(injury_probability_bps=0),
+        version=NBA_QUICK_SIM_EXECUTOR_CANDIDATE_VERSION,
     )
     first = executor.execute("nba-season", 20260726)
     second = executor.execute("nba-season", 20260726)
@@ -60,13 +63,31 @@ def test_executor_runs_complete_nba_path_deterministically() -> None:
         len(first.postseason_state.games) * 2
     )
     assert all(
-        game.day < following.day
+        game.day <= following.day
         for game, following in zip(
             first.postseason_state.games,
             first.postseason_state.games[1:],
             strict=False,
         )
     )
+    first_round_games = [
+        game
+        for game in first.postseason_state.games
+        if len(game.address) >= 2 and game.address[1] == "1"
+    ]
+    first_game_by_series: dict[str, int] = {}
+    for game in first_round_games:
+        first_game_by_series.setdefault(game.address[2], game.day)
+    assert len(first_game_by_series) == 8
+    assert len(set(first_game_by_series.values())) == 1
+    play_in_openers = [
+        game.day
+        for game in first.postseason_state.games
+        if len(game.address) >= 3 and game.address[1] == "play-in" and game.address[2] in {"1", "2"}
+    ]
+    assert len(play_in_openers) == 4
+    assert len(set(play_in_openers)) == 1
+    assert first.version == NBA_QUICK_SIM_EXECUTOR_CANDIDATE_VERSION
     assert first.summary.team_count == 30
     assert first.summary.games == 1_230
     assert first.summary.champion_seed is not None
@@ -78,6 +99,16 @@ def test_executor_runs_complete_nba_path_deterministically() -> None:
     assert all(summary.games_available >= 82 for summary in career_summaries)
     assert sum(summary.seconds_played for summary in career_summaries) > 0
     assert executor("nba-season", 20260726) == first.summary
+
+    released = replace(executor, version=NBA_QUICK_SIM_EXECUTOR_VERSION).execute(
+        "released-nba-season", 20260726
+    )
+    released_first_round_starts: dict[str, int] = {}
+    for game in released.postseason_state.games:
+        if len(game.address) >= 2 and game.address[1] == "1":
+            released_first_round_starts.setdefault(game.address[2], game.day)
+    assert released.version == NBA_QUICK_SIM_EXECUTOR_VERSION
+    assert len(set(released_first_round_starts.values())) > 1
 
     injury_run = replace(
         executor,

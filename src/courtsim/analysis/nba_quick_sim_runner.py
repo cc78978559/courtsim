@@ -11,6 +11,7 @@ from typing import Any, cast
 
 from courtsim.analysis.nba_quick_sim_executor import (
     NBA_QUICK_SIM_EXECUTOR_VERSION,
+    NBA_QUICK_SIM_EXECUTOR_VERSIONS,
     NBAQuickSimExecutor,
 )
 from courtsim.analysis.nba_shot_profiles import load_nba_shot_profile_set
@@ -62,6 +63,7 @@ def run_nba_quick_sim_batch(
     maximum_new_seasons: int | None,
     game_config: GameClockConfig,
     workers: int = 1,
+    executor_version: str = NBA_QUICK_SIM_EXECUTOR_VERSION,
 ) -> dict[str, object]:
     """Run or resume a batch, persisting one verified season at a time."""
     files: dict[str, Path] = {
@@ -76,6 +78,8 @@ def run_nba_quick_sim_batch(
             raise NbaQuickSimRunnerError(f"quick-sim {role} input is missing: {path}")
     if not isinstance(workers, int) or isinstance(workers, bool) or not 1 <= workers <= 32:
         raise NbaQuickSimRunnerError("quick-sim workers must be from 1 through 32")
+    if executor_version not in NBA_QUICK_SIM_EXECUTOR_VERSIONS:
+        raise NbaQuickSimRunnerError("unsupported quick-sim executor version")
     if maximum_new_seasons is not None and (
         not isinstance(maximum_new_seasons, int)
         or isinstance(maximum_new_seasons, bool)
@@ -88,7 +92,7 @@ def run_nba_quick_sim_batch(
     }
     configuration: dict[str, object] = {
         "runner_version": NBA_QUICK_SIM_RUNNER_VERSION,
-        "executor_version": NBA_QUICK_SIM_EXECUTOR_VERSION,
+        "executor_version": executor_version,
         "batch": {
             "batch_id": batch_id,
             "master_seed": master_seed,
@@ -112,7 +116,7 @@ def run_nba_quick_sim_batch(
     checkpoint_file = Path(checkpoint_path).resolve()
     _verify_resume_manifest(manifest_file, checkpoint_file, configuration_sha256)
 
-    executor = _build_executor(files, game_config)
+    executor = _build_executor(files, game_config, executor_version)
     spec = QuickSimBatchSpec(batch_id, master_seed, seasons)
     if workers == 1:
         result, receipt = run_quick_sim_checkpoint(
@@ -146,7 +150,7 @@ def run_nba_quick_sim_batch(
     with ProcessPoolExecutor(
         max_workers=workers,
         initializer=_initialize_worker,
-        initargs=(path_items, game_config),
+        initargs=(path_items, game_config, executor_version),
     ) as pool:
         while budget > 0:
             wave_size = min(workers, budget)
@@ -207,7 +211,11 @@ def _manifest_payload(
     }
 
 
-def _build_executor(files: dict[str, Path], game_config: GameClockConfig) -> NBAQuickSimExecutor:
+def _build_executor(
+    files: dict[str, Path],
+    game_config: GameClockConfig,
+    executor_version: str = NBA_QUICK_SIM_EXECUTOR_VERSION,
+) -> NBAQuickSimExecutor:
     profiles = load_nba_shot_profile_set(files["shot_profiles"])
     templates = player_lineup_from_json(files["lineup"].read_text(encoding="utf-8"))
     teams = _build_teams(tuple(item.team_id for item in profiles.teams), templates)
@@ -219,15 +227,20 @@ def _build_executor(files: dict[str, Path], game_config: GameClockConfig) -> NBA
         teams,
         alignment,
         trace_mode=TraceMode.AGGREGATE_ONLY,
+        version=executor_version,
         shot_zone_profiles=profiles,
     )
 
 
 def _initialize_worker(
-    path_items: tuple[tuple[str, str], ...], game_config: GameClockConfig
+    path_items: tuple[tuple[str, str], ...],
+    game_config: GameClockConfig,
+    executor_version: str,
 ) -> None:
     global _WORKER_EXECUTOR
-    _WORKER_EXECUTOR = _build_executor({role: Path(path) for role, path in path_items}, game_config)
+    _WORKER_EXECUTOR = _build_executor(
+        {role: Path(path) for role, path in path_items}, game_config, executor_version
+    )
 
 
 def _execute_worker_task(task: tuple[str, int]) -> QuickSimSeasonSummary:

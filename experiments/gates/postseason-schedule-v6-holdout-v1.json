@@ -1,0 +1,10 @@
+{
+  "version": "postseason-schedule-holdout-v1",
+  "candidate_id": "nba-quick-sim-executor-v6",
+  "frozen_at": "2026-08-02",
+  "change": "play-in openers and every playoff round start concurrently; next round starts after the latest feeder series ends",
+  "development_master_seed": 20261110,
+  "holdout_master_seed": 20261120,
+  "minimum_holdout_seasons": 5,
+  "forbidden_master_seeds": [20260920, 20260921, 20261010, 20261011, 20261020, 20261021, 20261022, 20261030, 20261031, 20261101, 20261110]
+}

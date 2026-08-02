@@ -7,6 +7,9 @@ from pathlib import Path
 from pytest import MonkeyPatch
 
 from courtsim.analysis import nba_quick_sim_runner as runner
+from courtsim.analysis.nba_quick_sim_executor import (
+    NBA_QUICK_SIM_EXECUTOR_CANDIDATE_VERSION,
+)
 from courtsim.analysis.quick_sim_batch import quick_sim_batch_from_json
 from courtsim.analysis.quick_sim_comparison import QuickSimSeasonSummary
 from courtsim.domain.game import GameClockConfig
@@ -47,7 +50,9 @@ class _InlinePool:
 def test_parallel_runner_writes_canonical_checkpoint_waves(
     tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(runner, "_build_executor", lambda _files, _config: _FakeExecutor())
+    monkeypatch.setattr(
+        runner, "_build_executor", lambda _files, _config, _version: _FakeExecutor()
+    )
     monkeypatch.setattr(runner, "ProcessPoolExecutor", _InlinePool)
     checkpoint = tmp_path / "batch.json"
     manifest = tmp_path / "batch.manifest.json"
@@ -65,8 +70,12 @@ def test_parallel_runner_writes_canonical_checkpoint_waves(
         maximum_new_seasons=3,
         game_config=GameClockConfig(4, 720, 24, 300, 8, True),
         workers=2,
+        executor_version=NBA_QUICK_SIM_EXECUTOR_CANDIDATE_VERSION,
     )
     result = quick_sim_batch_from_json(checkpoint.read_text(encoding="utf-8"))
     assert result.complete
     assert len(result.cells) == 3
     assert payload["checkpoint"] == json.loads(manifest.read_text(encoding="utf-8"))["checkpoint"]
+    assert payload["configuration"]["executor_version"] == (
+        NBA_QUICK_SIM_EXECUTOR_CANDIDATE_VERSION
+    )

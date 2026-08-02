@@ -259,6 +259,14 @@ def verify_quick_sim_consistency_manifests(
         configuration = raw.get("configuration")
         if not isinstance(checkpoint, dict) or not isinstance(configuration, dict):
             raise QuickSimConsistencyError(f"{engine} manifest schema differs")
+        required_executor_versions = frozen.get("required_executor_version")
+        required_runner_versions = frozen.get("required_runner_version")
+        if required_executor_versions is not None and (
+            configuration.get("executor_version")
+            != cast(dict[str, str], required_executor_versions)[engine]
+            or raw.get("version") != cast(dict[str, str], required_runner_versions)[engine]
+        ):
+            return False
         if checkpoint.get("sha256") != sha256_file(Path(checkpoint_path)):
             raise QuickSimConsistencyError(f"{engine} manifest checkpoint hash differs")
         inputs = configuration.get("inputs")
@@ -288,6 +296,12 @@ def _validated_consistency_gate(raw: Mapping[str, object]) -> dict[str, object]:
         expected = common
     elif version == "quick-sim-consistency-gate-v2":
         expected = common | {"maximum_absolute_mean_error"}
+    elif version == "quick-sim-consistency-gate-v3":
+        expected = common | {
+            "maximum_absolute_mean_error",
+            "required_executor_version",
+            "required_runner_version",
+        }
     else:
         expected = set()
     if set(raw) != expected:
@@ -321,6 +335,17 @@ def _validated_consistency_gate(raw: Mapping[str, object]) -> dict[str, object]:
         for role, digest in cast(dict[object, object], requirements).items()
     ):
         raise QuickSimConsistencyError("consistency gate input hashes are invalid")
+    if version == "quick-sim-consistency-gate-v3":
+        for field in ("required_executor_version", "required_runner_version"):
+            versions = raw[field]
+            if (
+                not isinstance(versions, dict)
+                or set(versions) != {"aggregate", "full_engine"}
+                or any(
+                    not isinstance(value, str) or not value.strip() for value in versions.values()
+                )
+            ):
+                raise QuickSimConsistencyError(f"consistency gate {field} differs")
     minimum = raw["minimum_paired_seasons"]
     seeds = raw["forbidden_master_seeds"]
     rank_minimum = raw["minimum_mean_team_rank_spearman"]

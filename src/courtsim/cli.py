@@ -417,6 +417,11 @@ def _parser() -> argparse.ArgumentParser:
     quick_sim_run.add_argument("--seasons", type=int, default=30)
     quick_sim_run.add_argument("--maximum-new-seasons", type=int)
     quick_sim_run.add_argument("--workers", type=int, default=1)
+    quick_sim_run.add_argument(
+        "--executor-version",
+        default="nba-quick-sim-executor-v5",
+        choices=("nba-quick-sim-executor-v5", "nba-quick-sim-executor-v6"),
+    )
     quick_sim_run.add_argument("--periods", type=int, default=4)
     quick_sim_run.add_argument("--period-seconds", type=int, default=720)
     quick_sim_run.add_argument("--possession-seconds", type=int, default=24)
@@ -1212,6 +1217,7 @@ def main(argv: list[str] | None = None) -> int:
                     True,
                 ),
                 workers=arguments.workers,
+                executor_version=arguments.executor_version,
             )
             print(
                 json.dumps(
