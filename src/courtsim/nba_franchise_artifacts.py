@@ -32,16 +32,18 @@ from courtsim.model.interaction_compiler import ProfileLineup
 from courtsim.nba_franchise import NBA_FRANCHISE_VERSION, NBAFranchiseState
 from courtsim.rotations import RotationPlan, RotationStint
 
-NBA_FRANCHISE_ARTIFACT_VERSION = "nba-franchise-artifact-v3"
+NBA_FRANCHISE_ARTIFACT_VERSION = "nba-franchise-artifact-v4"
 NBA_FRANCHISE_STATE_SCHEMA_VERSION = 2
 NBA_FRANCHISE_CHECKPOINT_SCHEMA_VERSION = 2
 _LEGACY_ARTIFACT_VERSIONS = {
     "nba-franchise-artifact-v1",
     "nba-franchise-artifact-v2",
+    "nba-franchise-artifact-v3",
 }
 _LEGACY_FRANCHISE_VERSIONS = {
     "nba-franchise-v3",
     "nba-franchise-v4",
+    "nba-franchise-v5",
 }
 
 

@@ -139,7 +139,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "audit",
         "promotion",
     }
-    assert release["format_version"] == 54
+    assert release["format_version"] == 55
     assert release["status"] == "frozen"
     assert release["engine_version"] == __version__
     rules_registry = release["rules"]
@@ -1171,6 +1171,11 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "default_postseason_rest_days": 2,
         "default_game_rest_days": 1,
         "default_round_rest_days": 2,
+        "play_in_conferences_start_concurrently": True,
+        "play_in_openers_start_concurrently": True,
+        "same_round_series_start_concurrently": True,
+        "next_round_waits_for_latest_feeder_series": True,
+        "postseason_games_chronologically_serialized": True,
         "postseason_game_availability_ledger": True,
         "postseason_initial_final_state_audit": True,
         "postseason_player_seconds": True,
@@ -1190,7 +1195,21 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "learning_possession_totals": True,
         "learning_shot_zone_totals": True,
         "forfeit_learning_totals": True,
+        "promotion_full_engine_seasons": 30,
+        "promotion_reality_gate_id": "nba-full-engine-strength035-reality-long-v1",
+        "promotion_consistency_gate_id": ("full-season-engine-consistency-strength035-long-v1"),
+        "promotion_receipt_path": "experiments/promotion/nba-quick-sim-executor-v6.json",
+        "promotion_receipt_sha256": (
+            "cadafaadabe474d4d20747cc33d6fb920eacc55069127d5985e02317d552c962"
+        ),
     }
+    promotion_receipt_path = ROOT / nba_quick_sim_config["promotion_receipt_path"]
+    assert _sha256(promotion_receipt_path) == nba_quick_sim_config["promotion_receipt_sha256"]
+    promotion_receipt = json.loads(promotion_receipt_path.read_text(encoding="utf-8"))
+    assert promotion_receipt["candidate_id"] == NBA_QUICK_SIM_EXECUTOR_VERSION
+    assert promotion_receipt["promotion_ready"] is True
+    assert promotion_receipt["reality_gate"]["passed"] is True
+    assert promotion_receipt["consistency_gate"]["passed"] is True
     nba_franchise_registry = release["nba_franchise"]
     assert set(nba_franchise_registry) == {
         "nba_franchise_version",
@@ -1262,6 +1281,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "draft_assets_updated_by_trades": True,
         "cap_ledger_persisted_across_seasons": True,
         "trade_exceptions_expire_by_season": True,
+        "postseason_schedule": "concurrent-round-v1",
         "disk_resume": True,
     }
     nba_franchise_artifact_registry = release["nba_franchise_artifact"]
@@ -1286,8 +1306,18 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "manager_league_state_schema": 4,
         "franchise_state_schema": 2,
         "legacy_franchise_state_schemas": [1],
+        "legacy_franchise_versions": [
+            "nba-franchise-v3",
+            "nba-franchise-v4",
+            "nba-franchise-v5",
+        ],
         "checkpoint_envelope_schema": 2,
         "legacy_checkpoint_envelope_schemas": [1],
+        "legacy_artifact_versions": [
+            "nba-franchise-artifact-v1",
+            "nba-franchise-artifact-v2",
+            "nba-franchise-artifact-v3",
+        ],
         "compression": ["none", "gzip"],
         "deterministic_gzip_mtime": 0,
         "canonical_state_json": True,
@@ -1331,7 +1361,11 @@ def test_current_release_registry_is_complete_and_verified() -> None:
         "nba_franchise_artifact_version": NBA_FRANCHISE_ARTIFACT_VERSION,
         "nba_franchise_version": NBA_FRANCHISE_VERSION,
         "manifest_schema": 2,
-        "legacy_manifest_schemas": [1],
+        "legacy_manifest_schemas": [1, 2],
+        "legacy_runner_versions": [
+            "nba-franchise-runner-v2",
+            "nba-franchise-runner-v3",
+        ],
         "deterministic_season_seeds": True,
         "per_checkpoint_seed_version": True,
         "seed_address_fields": [

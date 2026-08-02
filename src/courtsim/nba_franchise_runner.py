@@ -23,9 +23,12 @@ from courtsim.nba_franchise_artifacts import (
 )
 from courtsim.randomness import derive_seed
 
-NBA_FRANCHISE_RUNNER_VERSION = "nba-franchise-runner-v3"
+NBA_FRANCHISE_RUNNER_VERSION = "nba-franchise-runner-v4"
 NBA_FRANCHISE_RUNNER_SCHEMA_VERSION = 2
-_LEGACY_RUNNER_VERSION = "nba-franchise-runner-v2"
+_LEGACY_RUNNER_VERSIONS = {
+    "nba-franchise-runner-v2",
+    "nba-franchise-runner-v3",
+}
 NBAFranchiseSeasonExecutor = Callable[
     [NBAFranchiseState, int],
     NBAFranchiseSeasonExecution,
@@ -505,7 +508,7 @@ def _compatible_state_hashes(
 ) -> set[str]:
     payload = json.loads(nba_franchise_state_to_json(state, contract_rules))
     result = {_state_sha256(state, contract_rules)}
-    for legacy in ("nba-franchise-v3", "nba-franchise-v4"):
+    for legacy in ("nba-franchise-v3", "nba-franchise-v4", "nba-franchise-v5"):
         migrated = {**payload, "version": legacy, "schema_version": 1}
         canonical = json.dumps(
             migrated,
@@ -519,9 +522,18 @@ def _compatible_state_hashes(
 
 def _migrate_manifest(manifest: dict[str, Any]) -> dict[str, object]:
     schema = _integer(manifest, "schema_version")
-    if schema == NBA_FRANCHISE_RUNNER_SCHEMA_VERSION:
+    version = _string(manifest, "version")
+    if schema == NBA_FRANCHISE_RUNNER_SCHEMA_VERSION and version == NBA_FRANCHISE_RUNNER_VERSION:
         return manifest
-    if schema != 1 or _string(manifest, "version") != _LEGACY_RUNNER_VERSION:
+    if version not in _LEGACY_RUNNER_VERSIONS:
+        raise NBAFranchiseRunnerError("unsupported NBA franchise run manifest")
+    if schema == NBA_FRANCHISE_RUNNER_SCHEMA_VERSION and version == "nba-franchise-runner-v3":
+        migrated = dict(manifest)
+        migrated["version"] = NBA_FRANCHISE_RUNNER_VERSION
+        spec = _object(migrated["spec"], "NBA franchise run spec")
+        migrated["spec"] = {**spec, "version": NBA_FRANCHISE_RUNNER_VERSION}
+        return migrated
+    if schema != 1 or version != "nba-franchise-runner-v2":
         raise NBAFranchiseRunnerError("unsupported NBA franchise run manifest")
     migrated = dict(manifest)
     migrated["schema_version"] = NBA_FRANCHISE_RUNNER_SCHEMA_VERSION
@@ -533,7 +545,7 @@ def _migrate_manifest(manifest: dict[str, Any]) -> dict[str, object]:
         {
             **_object(item, "franchise checkpoint entry"),
             "storage": "json",
-            "seed_version": _LEGACY_RUNNER_VERSION,
+            "seed_version": "nba-franchise-runner-v2",
         }
         for item in _list(migrated["checkpoints"], "franchise checkpoints")
     ]

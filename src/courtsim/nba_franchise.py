@@ -71,7 +71,7 @@ from courtsim.trade_market import (
 )
 from courtsim.trades import TradeRules
 
-NBA_FRANCHISE_VERSION = "nba-franchise-v5"
+NBA_FRANCHISE_VERSION = "nba-franchise-v6"
 
 
 @dataclass(frozen=True, slots=True)

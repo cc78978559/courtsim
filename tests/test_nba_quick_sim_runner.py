@@ -8,7 +8,7 @@ from pytest import MonkeyPatch
 
 from courtsim.analysis import nba_quick_sim_runner as runner
 from courtsim.analysis.nba_quick_sim_executor import (
-    NBA_QUICK_SIM_EXECUTOR_CANDIDATE_VERSION,
+    NBA_QUICK_SIM_EXECUTOR_VERSION,
 )
 from courtsim.analysis.quick_sim_batch import quick_sim_batch_from_json
 from courtsim.analysis.quick_sim_comparison import QuickSimSeasonSummary
@@ -70,12 +70,12 @@ def test_parallel_runner_writes_canonical_checkpoint_waves(
         maximum_new_seasons=3,
         game_config=GameClockConfig(4, 720, 24, 300, 8, True),
         workers=2,
-        executor_version=NBA_QUICK_SIM_EXECUTOR_CANDIDATE_VERSION,
+        executor_version=NBA_QUICK_SIM_EXECUTOR_VERSION,
     )
     result = quick_sim_batch_from_json(checkpoint.read_text(encoding="utf-8"))
     assert result.complete
     assert len(result.cells) == 3
     assert payload["checkpoint"] == json.loads(manifest.read_text(encoding="utf-8"))["checkpoint"]
-    assert payload["configuration"]["executor_version"] == (
-        NBA_QUICK_SIM_EXECUTOR_CANDIDATE_VERSION
-    )
+    configuration = payload["configuration"]
+    assert isinstance(configuration, dict)
+    assert configuration["executor_version"] == NBA_QUICK_SIM_EXECUTOR_VERSION

@@ -419,7 +419,7 @@ def _parser() -> argparse.ArgumentParser:
     quick_sim_run.add_argument("--workers", type=int, default=1)
     quick_sim_run.add_argument(
         "--executor-version",
-        default="nba-quick-sim-executor-v5",
+        default="nba-quick-sim-executor-v6",
         choices=("nba-quick-sim-executor-v5", "nba-quick-sim-executor-v6"),
     )
     quick_sim_run.add_argument("--periods", type=int, default=4)

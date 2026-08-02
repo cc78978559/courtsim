@@ -14,6 +14,10 @@ from courtsim.nba_franchise_artifacts import (
     nba_franchise_state_to_json,
     write_nba_franchise_checkpoint,
 )
+from courtsim.nba_franchise_runner import (
+    NBA_FRANCHISE_RUNNER_VERSION,
+    _migrate_manifest,
+)
 
 
 def test_franchise_state_json_is_canonical_and_strict() -> None:
@@ -81,7 +85,7 @@ def test_compressed_checkpoint_is_deterministic_and_migrates_v2_state(
 
     legacy = json.loads(nba_franchise_state_to_json(state, contract_rules))
     legacy["schema_version"] = 1
-    legacy["version"] = "nba-franchise-v4"
+    legacy["version"] = "nba-franchise-v5"
     migrated, _ = nba_franchise_state_from_json(json.dumps(legacy))
     assert migrated == state
 
@@ -113,3 +117,30 @@ def test_franchise_checkpoint_verification_cli(
     payload = json.loads(capsys.readouterr().out)
     assert payload["compression"] == "gzip"
     assert payload["completed_seasons"] == state.completed_seasons
+
+
+def test_runner_v3_manifest_migration_preserves_checkpoint_seed_versions() -> None:
+    legacy = {
+        "schema_version": 2,
+        "version": "nba-franchise-runner-v3",
+        "spec": {
+            "run_id": "legacy-run",
+            "master_seed": 77,
+            "seasons": 2,
+            "version": "nba-franchise-runner-v3",
+        },
+        "checkpoints": [
+            {
+                "completed_seasons": 1,
+                "seed_version": "nba-franchise-runner-v3",
+            }
+        ],
+    }
+
+    migrated = _migrate_manifest(legacy)
+
+    assert migrated["version"] == NBA_FRANCHISE_RUNNER_VERSION
+    migrated_spec = migrated["spec"]
+    assert isinstance(migrated_spec, dict)
+    assert migrated_spec["version"] == NBA_FRANCHISE_RUNNER_VERSION
+    assert migrated["checkpoints"] == legacy["checkpoints"]

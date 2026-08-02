@@ -1,6 +1,8 @@
 # CourtSim NBA quick-simulation executor v6 candidate
 
-Status: **candidate only; not promoted**.
+Historical status: the five-season candidate gate failed marginally. The later predeclared
+30-season holdout passed both frozen gates and v6 was promoted; see
+`nba-quick-sim-executor-v6.md`.
 
 ## Correctness change
 

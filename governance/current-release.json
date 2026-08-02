@@ -1,5 +1,5 @@
 {
-  "format_version": 54,
+  "format_version": 55,
   "status": "frozen",
   "engine_version": "0.54.0",
   "rules": {
@@ -135,19 +135,19 @@
     "file_sha256": "73b1031078f36eab31fe6f1b7507314e2f69f553079ab0cdf89909f8562c719d"
   },
   "nba_franchise": {
-    "nba_franchise_version": "nba-franchise-v5",
-    "path": "governance/nba-franchise-v5.json",
-    "file_sha256": "eb363fb8197a26ca7805f5d1168bc6ced39ddb0829cfd3cd8751d1ba3215eaaf"
+    "nba_franchise_version": "nba-franchise-v6",
+    "path": "governance/nba-franchise-v6.json",
+    "file_sha256": "d7b4c6ef81c16c7a15e74c536ed8157bdee54b1ccfd3a42df111e210d71467d9"
   },
   "nba_franchise_artifact": {
-    "nba_franchise_artifact_version": "nba-franchise-artifact-v3",
-    "path": "governance/nba-franchise-artifact-v3.json",
-    "file_sha256": "11f0f95970161a4d4260c9bb2c97e72b946b358e7f84cf98d25aa5158249be70"
+    "nba_franchise_artifact_version": "nba-franchise-artifact-v4",
+    "path": "governance/nba-franchise-artifact-v4.json",
+    "file_sha256": "0b9e612d004c862f476ce6ede2b35bf4d0854df2a70e48987b652767d28f6692"
   },
   "nba_franchise_runner": {
-    "nba_franchise_runner_version": "nba-franchise-runner-v3",
-    "path": "governance/nba-franchise-runner-v3.json",
-    "file_sha256": "5e6565af251302dd95e10cbe991e5d47b728a53bb66cdd9cdd97574a14531ddc"
+    "nba_franchise_runner_version": "nba-franchise-runner-v4",
+    "path": "governance/nba-franchise-runner-v4.json",
+    "file_sha256": "a63749001937e7901a3676f465bad520585de767a58fbbb59640c17e63fb8bd3"
   },
   "three_team_trades": {
     "three_team_trade_version": "three-team-trade-v1",
@@ -195,9 +195,9 @@
     "file_sha256": "9ce0f7f8225d04c6c330e61aaf0b0de2888475e6fe196c9640ef3864dbfd3af5"
   },
   "nba_quick_sim_executor": {
-    "nba_quick_sim_executor_version": "nba-quick-sim-executor-v5",
-    "path": "governance/nba-quick-sim-executor-v5.json",
-    "file_sha256": "705d49465f9e02bef453a2f6ac1ac35599e78035edae7c9de03a95ddf731f402"
+    "nba_quick_sim_executor_version": "nba-quick-sim-executor-v6",
+    "path": "governance/nba-quick-sim-executor-v6.json",
+    "file_sha256": "01a4e85b94b0709c3021fb262a4cfe86d5d0f7565a5880040c99c97637b245ed"
   },
   "model": {
     "schema_version": "demo-v1.12",

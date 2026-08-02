@@ -16,8 +16,8 @@
 - 正式发布清单：`governance/current-release.json`
 - NBA 核心目标：`experiments/nba-2024-25-regular-season-core-v1.json`
 - NBA 罚球目标：`experiments/nba-2024-25-regular-season-free-throws-v1.json`
-- 30 队快速模拟：`nba-quick-sim-executor-v5`
-- 交易和工资帽完整赛季循环：`nba-franchise-v5`
+- 30 队快速模拟：`nba-quick-sim-executor-v6`
+- 交易和工资帽完整赛季循环：`nba-franchise-v6`
 - 压缩且可迁移的原子存档：`nba-franchise-artifact-v3`
 - 带保留策略的多赛季恢复运行器：`nba-franchise-runner-v3`
 

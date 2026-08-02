@@ -1,0 +1,49 @@
+{
+  "version": "quick-sim-promotion-receipt-v1",
+  "candidate_id": "nba-quick-sim-executor-v6",
+  "decided_at": "2026-08-02",
+  "decision": "promote",
+  "promotion_ready": true,
+  "batch": {
+    "batch_id": "long-holdout-v6-strength035-v1",
+    "master_seed": 20261210,
+    "paired_seasons": 30,
+    "full_engine_batch_sha256": "8c6a4af0a722f520bde57689434be24cb5469fac8fe5ff9d9b3493abb54987b2",
+    "aggregate_batch_sha256": "eac783b322d60982cf16b942fcc385edaa35c8640a21e3c6587418537b996bc3"
+  },
+  "frozen_design": {
+    "path": "experiments/gates/postseason-schedule-v6-long-holdout-v1.json",
+    "sha256": "7f3bb68fb2cd29ba90c1f7b363d6e06d19651b231e96426122372492c5c7615a"
+  },
+  "reality_gate": {
+    "gate_id": "nba-full-engine-strength035-reality-long-v1",
+    "gate_path": "experiments/gates/nba-full-engine-strength035-reality-long-v1.json",
+    "gate_sha256": "3d2e84dc6b2f3e3afda9c0a9d8dd04c68d95973ff21a583f12649595b4a6a8e3",
+    "report_sha256": "3baca5696cbf0d927979d6f82e9ce27aec7d6a9d749fec18620eb936ae744ae6",
+    "passed": true,
+    "metrics": {
+      "win-rate-stddev": 0.11700131447062549,
+      "pace-possessions-per-team": 98.55594850948509,
+      "offensive-rating": 111.5670136186565,
+      "point-differential-stddev": 5.685248446592509,
+      "playoff-upset-rate": 0.34222222222222226,
+      "champion-seed-mean": 1.9333333333333333
+    }
+  },
+  "consistency_gate": {
+    "gate_id": "full-season-engine-consistency-strength035-long-v1",
+    "gate_path": "experiments/gates/quick-sim-engine-consistency-strength035-long-v1.json",
+    "gate_sha256": "d6c9ae4dfe78748cc80859c7d31cb62b423551da10f4b028f663ab8ce8be13ef",
+    "report_sha256": "4f51f1f95cfec82388f46c38a3167d618e30a78117121f30cc202d5f954bb288",
+    "passed": true,
+    "mean_team_rank_spearman": 0.7928958101594363,
+    "metric_gate_observed": {
+      "win-rate-stddev-mae": 0.008916505541773461,
+      "pace-possessions-per-team-mae": 0.30747835089719044,
+      "offensive-rating-mae": 0.27526570773041975,
+      "point-differential-stddev-mae": 0.3908915833611012,
+      "playoff-upset-rate-absolute-mean-error": 0.0044444444444444444,
+      "champion-seed-mean-absolute-mean-error": 0.6666666666666666
+    }
+  }
+}
