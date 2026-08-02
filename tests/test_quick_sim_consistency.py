@@ -1,12 +1,24 @@
+import hashlib
+import json
+from pathlib import Path
+
 from courtsim.analysis.quick_sim_comparison import QuickSimSeasonSummary
 from courtsim.analysis.quick_sim_consistency import (
     build_aggregate_sensitivity_report,
     compare_quick_sim_engines,
+    verify_quick_sim_consistency_manifests,
 )
 
 
-def _summary(season: str, pace: float, champion: int = 2) -> QuickSimSeasonSummary:
-    return QuickSimSeasonSummary(season, 30, 1230, 0.14, pace, 115.0, 4.5, 0.35, champion)
+def _summary(
+    season: str,
+    pace: float,
+    champion: int = 2,
+    rank_order: tuple[str, ...] | None = None,
+) -> QuickSimSeasonSummary:
+    return QuickSimSeasonSummary(
+        season, 30, 1230, 0.14, pace, 115.0, 4.5, 0.35, champion, rank_order
+    )
 
 
 def test_consistency_report_requires_a_frozen_accuracy_gate_for_promotion() -> None:
@@ -22,6 +34,106 @@ def test_consistency_report_requires_a_frozen_accuracy_gate_for_promotion() -> N
     assert complete["sample_ready"] is True
     assert complete["accuracy_gate"] == {"configured": False, "passed": None}
     assert complete["promotion_ready"] is False
+
+
+def test_consistency_report_compares_team_rank_order_when_available() -> None:
+    ordered = tuple(f"team-{index:02d}" for index in range(30))
+    aggregate = {1: _summary("1", 99.0, rank_order=ordered)}
+    full = {1: _summary("1", 99.0, rank_order=tuple(reversed(ordered)))}
+    report = compare_quick_sim_engines(aggregate, full)
+    assert report["team_rank_correlation"] == {
+        "available_seasons": 1,
+        "mean_spearman": -1.0,
+        "values": [-1.0],
+    }
+
+
+def test_frozen_consistency_gate_requires_unseen_seed_metrics_and_ranks() -> None:
+    ordered = tuple(f"team-{index:02d}" for index in range(30))
+    aggregate = {seed: _summary(str(seed), 99.0, rank_order=ordered) for seed in (1, 2, 3)}
+    full = {seed: _summary(str(seed), 98.8, rank_order=ordered) for seed in (1, 2, 3)}
+    gate = {
+        "version": "quick-sim-consistency-gate-v1",
+        "gate_id": "test-gate",
+        "frozen_at": "2026-08-02",
+        "minimum_paired_seasons": 3,
+        "forbidden_master_seeds": [10],
+        "required_input_sha256": {
+            "aggregate": {"parameters": "0" * 64},
+            "full_engine": {"parameters": "1" * 64},
+        },
+        "maximum_mae": {
+            "win-rate-stddev": 0.01,
+            "pace-possessions-per-team": 0.5,
+            "offensive-rating": 0.1,
+            "point-differential-stddev": 0.1,
+            "playoff-upset-rate": 0.1,
+            "champion-seed-mean": 0.1,
+        },
+        "minimum_mean_team_rank_spearman": 0.9,
+        "methodology": "test",
+    }
+    report = compare_quick_sim_engines(
+        aggregate, full, gate=gate, master_seed=11, inputs_verified=True
+    )
+    assert report["promotion_ready"] is True
+    rejected = compare_quick_sim_engines(
+        aggregate, full, gate=gate, master_seed=10, inputs_verified=True
+    )
+    assert rejected["promotion_ready"] is False
+
+
+def test_consistency_manifest_verification_pins_both_engine_inputs(tmp_path: Path) -> None:
+    aggregate_checkpoint = tmp_path / "aggregate.json"
+    full_checkpoint = tmp_path / "full.json"
+    aggregate_checkpoint.write_text("aggregate", encoding="utf-8")
+    full_checkpoint.write_text("full", encoding="utf-8")
+    gate = {
+        "version": "quick-sim-consistency-gate-v1",
+        "gate_id": "test-gate",
+        "frozen_at": "2026-08-02",
+        "minimum_paired_seasons": 3,
+        "forbidden_master_seeds": [],
+        "required_input_sha256": {
+            "aggregate": {"parameters": "0" * 64},
+            "full_engine": {"parameters": "1" * 64},
+        },
+        "maximum_mae": {
+            metric: 1.0
+            for metric in (
+                "win-rate-stddev",
+                "pace-possessions-per-team",
+                "offensive-rating",
+                "point-differential-stddev",
+                "playoff-upset-rate",
+                "champion-seed-mean",
+            )
+        },
+        "minimum_mean_team_rank_spearman": 0.75,
+        "methodology": "test",
+    }
+
+    def manifest(checkpoint: Path, digest: str) -> dict[str, object]:
+        return {
+            "checkpoint": {
+                "sha256": hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
+            },
+            "configuration": {"inputs": {"parameters": {"sha256": digest}}},
+        }
+
+    aggregate_manifest = tmp_path / "aggregate.manifest.json"
+    full_manifest = tmp_path / "full.manifest.json"
+    aggregate_manifest.write_text(
+        json.dumps(manifest(aggregate_checkpoint, "0" * 64)), encoding="utf-8"
+    )
+    full_manifest.write_text(json.dumps(manifest(full_checkpoint, "1" * 64)), encoding="utf-8")
+    assert verify_quick_sim_consistency_manifests(
+        gate,
+        aggregate_manifest,
+        full_manifest,
+        aggregate_checkpoint,
+        full_checkpoint,
+    )
 
 
 def test_sensitivity_report_is_paired_and_single_factor() -> None:

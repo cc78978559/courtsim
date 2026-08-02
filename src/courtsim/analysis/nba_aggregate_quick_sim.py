@@ -157,6 +157,13 @@ class NBAAggregateQuickSimExecutor:
         )
         win_rates = tuple(item.wins / 82 for item in standings)
         differentials = tuple(item.point_differential / 82 for item in standings)
+        rank_order = tuple(
+            item.team_id
+            for item in sorted(
+                standings,
+                key=lambda item: (-item.wins, -item.point_differential, item.team_id),
+            )
+        )
         summary = QuickSimSeasonSummary(
             season_id,
             30,
@@ -167,6 +174,7 @@ class NBAAggregateQuickSimExecutor:
             pstdev(differentials),
             upsets / len(postseason.series),
             seed_by_team[postseason.champion_team_id],
+            rank_order,
         )
         return NBAAggregateQuickSimExecution(season_id, standings, postseason, summary)
 

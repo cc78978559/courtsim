@@ -261,7 +261,7 @@ def quick_sim_batch_from_json(payload: str) -> QuickSimBatchResult:
 
 
 def _summary_to_dict(summary: QuickSimSeasonSummary) -> dict[str, object]:
-    return {
+    payload: dict[str, object] = {
         "season_id": summary.season_id,
         "team_count": summary.team_count,
         "games": summary.games,
@@ -272,10 +272,13 @@ def _summary_to_dict(summary: QuickSimSeasonSummary) -> dict[str, object]:
         "playoff_upset_rate": summary.playoff_upset_rate,
         "champion_seed": summary.champion_seed,
     }
+    if summary.team_rank_order is not None:
+        payload["team_rank_order"] = list(summary.team_rank_order)
+    return payload
 
 
 def _summary_from_dict(raw: dict[object, object]) -> QuickSimSeasonSummary:
-    if set(raw) != {
+    required = {
         "season_id",
         "team_count",
         "games",
@@ -285,10 +288,19 @@ def _summary_from_dict(raw: dict[object, object]) -> QuickSimSeasonSummary:
         "point_differential_stddev",
         "playoff_upset_rate",
         "champion_seed",
-    }:
+    }
+    if set(raw) not in (required, required | {"team_rank_order"}):
         raise QuickSimBatchError("invalid quick-sim summary keys")
     upset = raw["playoff_upset_rate"]
     champion = raw["champion_seed"]
+    rank_order_raw = raw.get("team_rank_order")
+    if rank_order_raw is not None and not isinstance(rank_order_raw, list):
+        raise QuickSimBatchError("quick-sim batch team_rank_order must be a list")
+    rank_order = (
+        None
+        if rank_order_raw is None
+        else tuple(_require_string(item, "team_rank_order item") for item in rank_order_raw)
+    )
     return QuickSimSeasonSummary(
         _require_string(raw["season_id"], "season_id"),
         _require_int(raw["team_count"], "team_count"),
@@ -299,6 +311,7 @@ def _summary_from_dict(raw: dict[object, object]) -> QuickSimSeasonSummary:
         _require_number(raw["point_differential_stddev"], "point_differential_stddev"),
         None if upset is None else _require_number(upset, "playoff_upset_rate"),
         None if champion is None else _require_int(champion, "champion_seed"),
+        rank_order,
     )
 
 

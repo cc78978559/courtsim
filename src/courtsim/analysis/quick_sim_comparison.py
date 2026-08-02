@@ -38,6 +38,7 @@ class QuickSimSeasonSummary:
     point_differential_stddev: float
     playoff_upset_rate: float | None
     champion_seed: int | None
+    team_rank_order: tuple[str, ...] | None = None
 
     def __post_init__(self) -> None:
         if not self.season_id.strip() or self.team_count < 2 or self.games < 1:
@@ -56,6 +57,12 @@ class QuickSimSeasonSummary:
             raise ValueError("quick-sim champion seed is invalid")
         if (self.playoff_upset_rate is None) != (self.champion_seed is None):
             raise ValueError("quick-sim postseason metrics must be present together")
+        if self.team_rank_order is not None and (
+            len(self.team_rank_order) != self.team_count
+            or len(set(self.team_rank_order)) != self.team_count
+            or any(not team_id.strip() for team_id in self.team_rank_order)
+        ):
+            raise ValueError("quick-sim team rank order must contain every unique team")
 
 
 @dataclass(frozen=True, slots=True)
@@ -180,6 +187,7 @@ def summarize_quick_sim_season(
         pstdev(point_differentials),
         upset_rate,
         champion_seed,
+        tuple(row.team_id for row in season.standings),
     )
 
 

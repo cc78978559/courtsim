@@ -138,7 +138,9 @@ from courtsim.analysis.quick_sim_comparison import (
 from courtsim.analysis.quick_sim_consistency import (
     QuickSimConsistencyError,
     compare_quick_sim_engines,
+    load_quick_sim_consistency_gate,
     run_aggregate_sensitivity,
+    verify_quick_sim_consistency_manifests,
 )
 from courtsim.analysis.quick_sim_formal_gate import (
     QuickSimFormalGateError,
@@ -488,6 +490,9 @@ def _parser() -> argparse.ArgumentParser:
     quick_sim_consistency.add_argument("aggregate", type=Path)
     quick_sim_consistency.add_argument("full_engine", type=Path)
     quick_sim_consistency.add_argument("output", type=Path)
+    quick_sim_consistency.add_argument("--gate", type=Path)
+    quick_sim_consistency.add_argument("--aggregate-manifest", type=Path)
+    quick_sim_consistency.add_argument("--full-manifest", type=Path)
     quick_sim_formal_gate = subparsers.add_parser(
         "nba-quick-sim-formal-gate",
         help="evaluate a complete unseen-seed batch against a frozen NBA reality gate",
@@ -1317,7 +1322,31 @@ def main(argv: list[str] | None = None) -> int:
             )
             aggregate_by_seed = {cell.seed: cell.summary for cell in aggregate.cells}
             full_by_seed = {cell.seed: cell.summary for cell in full_engine.cells}
-            consistency_report = compare_quick_sim_engines(aggregate_by_seed, full_by_seed)
+            if aggregate.spec != full_engine.spec:
+                raise QuickSimConsistencyError("consistency batches must use the same spec")
+            consistency_gate = (
+                None if arguments.gate is None else load_quick_sim_consistency_gate(arguments.gate)
+            )
+            inputs_verified = None
+            if consistency_gate is not None:
+                if arguments.aggregate_manifest is None or arguments.full_manifest is None:
+                    raise QuickSimConsistencyError(
+                        "consistency gate requires both aggregate and full manifests"
+                    )
+                inputs_verified = verify_quick_sim_consistency_manifests(
+                    consistency_gate,
+                    arguments.aggregate_manifest,
+                    arguments.full_manifest,
+                    arguments.aggregate,
+                    arguments.full_engine,
+                )
+            consistency_report = compare_quick_sim_engines(
+                aggregate_by_seed,
+                full_by_seed,
+                gate=consistency_gate,
+                master_seed=aggregate.spec.master_seed,
+                inputs_verified=inputs_verified,
+            )
             write_json(arguments.output, consistency_report)
             print(
                 json.dumps(
@@ -1327,6 +1356,8 @@ def main(argv: list[str] | None = None) -> int:
                     sort_keys=True,
                 )
             )
+            if consistency_gate is None:
+                return 0
             return 0 if consistency_report["promotion_ready"] is True else 16
 
         if arguments.command == "nba-quick-sim-formal-gate":
