@@ -1,7 +1,10 @@
 from pathlib import Path
 from typing import Any, cast
 
-from courtsim.analysis.nba_player_identity import build_nba_player_identity_payload
+from courtsim.analysis.nba_player_identity import (
+    augment_nba_player_crosswalk_payload,
+    build_nba_player_identity_payload,
+)
 from courtsim.artifacts import write_json
 
 
@@ -162,3 +165,51 @@ def test_player_identity_aggregates_traded_player_teams(tmp_path: Path) -> None:
     assert mapping["minutes"] == 75.0
     promotion = cast(dict[str, Any], payload["promotion"])
     assert promotion["ready"] is True
+
+
+def test_crosswalk_augmentation_uses_only_unique_exact_pinned_names(tmp_path: Path) -> None:
+    box = tmp_path / "box.json"
+    crosswalk = tmp_path / "crosswalk.json"
+    shots = tmp_path / "shots.json"
+    _summary(
+        box,
+        dataset_id="box",
+        group_by=["team_id", "athlete_id", "athlete_display_name"],
+        groups=[
+            {
+                "key": {"team_id": "1", "athlete_id": "7", "athlete_display_name": "A Player"},
+                "metrics": {"games_played": 4, "minutes": 100.0},
+            }
+        ],
+    )
+    _summary(
+        crosswalk,
+        dataset_id="crosswalk",
+        group_by=[
+            "espn_athlete_id",
+            "nba_player_id",
+            "espn_full_name",
+            "nba_player_name",
+            "match_method",
+            "match_confidence",
+        ],
+        groups=[],
+    )
+    _summary(
+        shots,
+        dataset_id="shots",
+        group_by=["TEAM_ID", "PLAYER_ID", "PLAYER_NAME"],
+        groups=[
+            {
+                "key": {"TEAM_ID": "10", "PLAYER_ID": "70", "PLAYER_NAME": "A Player"},
+                "metrics": {"field_goal_attempts": 1},
+            }
+        ],
+    )
+    augmented = augment_nba_player_crosswalk_payload(box, crosswalk, shots)
+    augmentation = augmented["augmentation"]
+    groups = augmented["groups"]
+    assert isinstance(augmentation, dict)
+    assert isinstance(groups, list)
+    assert augmentation["added_mappings"] == 1
+    assert groups[0]["key"]["nba_player_id"] == "70"

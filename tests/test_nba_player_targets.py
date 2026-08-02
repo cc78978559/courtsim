@@ -8,6 +8,7 @@ from courtsim.analysis.nba_player_targets import (
     NBAPlayerTarget,
     NbaPlayerTargetError,
     NBAPlayerTargetSet,
+    build_nba_player_target_payload,
     load_nba_player_target_set,
     nba_player_target_set_to_dict,
 )
@@ -55,3 +56,74 @@ def test_nba_player_targets_reject_incomplete_zones(tmp_path: Path) -> None:
     path.write_text(json.dumps(payload), encoding="utf-8")
     with pytest.raises(NbaPlayerTargetError, match="zones are invalid"):
         load_nba_player_target_set(path)
+
+
+def test_build_player_targets_from_pinned_local_summaries(tmp_path: Path) -> None:
+    box = tmp_path / "box.json"
+    shots = tmp_path / "shots.json"
+    identity = tmp_path / "identity.json"
+    write_json(
+        box,
+        {
+            "schema_version": 1,
+            "season": "2024-25",
+            "groups": [
+                {
+                    "key": {
+                        "team_id": "1",
+                        "athlete_id": "10",
+                        "athlete_display_name": "Player A",
+                    },
+                    "metrics": {
+                        "games_played": 20,
+                        "minutes": 600.0,
+                        "field_goal_attempts": 200.0,
+                        "free_throw_attempts": 50.0,
+                        "turnovers": 30.0,
+                        "points": 300.0,
+                    },
+                }
+            ],
+        },
+    )
+    write_json(
+        shots,
+        {
+            "schema_version": 1,
+            "season": "2024-25",
+            "groups": [
+                {
+                    "key": {"TEAM_ID": "100", "PLAYER_ID": "1000", "PLAYER_NAME": "Player A"},
+                    "metrics": {
+                        "rim_attempts": 80,
+                        "rim_made": 50,
+                        "midrange_attempts": 40,
+                        "midrange_made": 18,
+                        "three_attempts": 80,
+                        "three_made": 30,
+                    },
+                }
+            ],
+        },
+    )
+    write_json(
+        identity,
+        {
+            "schema_version": 1,
+            "season": "2024-25",
+            "mappings": [{"espn_player_id": 10, "nba_player_id": 1000}],
+        },
+    )
+    payload = build_nba_player_target_payload(
+        box,
+        shots,
+        identity,
+        target_id="fixture",
+        minimum_games=10,
+        minimum_minutes_per_game=8.0,
+    )
+    players = payload["players"]
+    assert isinstance(players, list)
+    assert len(players) == 1
+    assert players[0]["minutes_per_game"] == 30.0
+    assert players[0]["shot_zone_shares"] == {"RIM": 0.4, "MIDRANGE": 0.2, "THREE": 0.4}

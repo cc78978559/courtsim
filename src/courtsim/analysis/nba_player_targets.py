@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import json
 import math
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
+
+from courtsim.artifacts import sha256_file
 
 NBA_PLAYER_TARGET_VERSION = "nba-player-target-v1"
 NBA_PLAYER_TARGET_SCHEMA_VERSION = 1
@@ -156,13 +159,190 @@ def nba_player_target_set_to_dict(targets: NBAPlayerTargetSet) -> dict[str, obje
     }
 
 
+def build_nba_player_target_payload(
+    box_summary_path: str | Path,
+    shot_summary_path: str | Path,
+    identity_path: str | Path,
+    *,
+    target_id: str,
+    minimum_games: int = 10,
+    minimum_minutes_per_game: float = 8.0,
+) -> dict[str, object]:
+    """Build player targets locally from source-pinned box, shot and identity summaries."""
+    box_file = Path(box_summary_path).resolve()
+    shot_file = Path(shot_summary_path).resolve()
+    identity_file = Path(identity_path).resolve()
+    box = _load_object(box_file, "player box summary")
+    shots = _load_object(shot_file, "player shot summary")
+    identity = _load_object(identity_file, "player identity")
+    if box.get("season") != shots.get("season") or box.get("season") != identity.get("season"):
+        raise NbaPlayerTargetError("player target sources must use the same season")
+    mappings = identity.get("mappings")
+    if not isinstance(mappings, list):
+        raise NbaPlayerTargetError("player identity mappings are invalid")
+    nba_by_espn = {
+        _integer(_mapping(item, "identity mapping")["espn_player_id"], "espn_player_id"): _integer(
+            _mapping(item, "identity mapping")["nba_player_id"], "nba_player_id"
+        )
+        for item in mappings
+    }
+
+    player_box: dict[int, dict[str, Any]] = {}
+    team_totals: dict[str, dict[str, float]] = defaultdict(
+        lambda: {"minutes": 0.0, "fga": 0.0, "fta": 0.0, "turnovers": 0.0}
+    )
+    team_minutes_by_player: dict[int, dict[str, float]] = defaultdict(dict)
+    raw_box_groups = box.get("groups")
+    if not isinstance(raw_box_groups, list):
+        raise NbaPlayerTargetError("player box groups are invalid")
+    for item in raw_box_groups:
+        group = _mapping(item, "player box group")
+        key = _mapping(group.get("key"), "player box key")
+        metrics = _mapping(group.get("metrics"), "player box metrics")
+        espn_id = _integer_text(key.get("athlete_id"), "athlete_id")
+        team_id = _text(key.get("team_id"), "team_id")
+        values = {
+            "games": _number(metrics.get("games_played"), "games_played"),
+            "minutes": _number(metrics.get("minutes"), "minutes"),
+            "fga": _number(metrics.get("field_goal_attempts"), "field_goal_attempts"),
+            "fta": _number(metrics.get("free_throw_attempts"), "free_throw_attempts"),
+            "turnovers": _number(metrics.get("turnovers"), "turnovers"),
+            "points": _number(metrics.get("points"), "points"),
+        }
+        row = player_box.setdefault(
+            espn_id,
+            {
+                "name": _text(key.get("athlete_display_name"), "athlete_display_name"),
+                "games": 0.0,
+                "minutes": 0.0,
+                "fga": 0.0,
+                "fta": 0.0,
+                "turnovers": 0.0,
+                "points": 0.0,
+            },
+        )
+        for metric, value in values.items():
+            row[metric] += value
+        team_minutes_by_player[espn_id][team_id] = values["minutes"]
+        for metric in ("minutes", "fga", "fta", "turnovers"):
+            team_totals[team_id][metric] += values[metric]
+
+    player_shots: dict[int, dict[str, float]] = defaultdict(
+        lambda: {
+            "rim_attempts": 0.0,
+            "rim_made": 0.0,
+            "midrange_attempts": 0.0,
+            "midrange_made": 0.0,
+            "three_attempts": 0.0,
+            "three_made": 0.0,
+        }
+    )
+    raw_shot_groups = shots.get("groups")
+    if not isinstance(raw_shot_groups, list):
+        raise NbaPlayerTargetError("player shot groups are invalid")
+    for item in raw_shot_groups:
+        group = _mapping(item, "player shot group")
+        key = _mapping(group.get("key"), "player shot key")
+        metrics = _mapping(group.get("metrics"), "player shot metrics")
+        nba_id = _integer_text(key.get("PLAYER_ID"), "PLAYER_ID")
+        for metric in player_shots[nba_id]:
+            player_shots[nba_id][metric] += _number(metrics.get(metric), metric)
+
+    players = []
+    for espn_id, box_row in player_box.items():
+        mapped_nba_id = nba_by_espn.get(espn_id)
+        if mapped_nba_id is None or mapped_nba_id not in player_shots:
+            continue
+        games = int(box_row["games"])
+        minutes = float(box_row["minutes"])
+        minutes_per_game = minutes / games if games else 0.0
+        if games < minimum_games or minutes_per_game < minimum_minutes_per_game:
+            continue
+        team_minutes = team_minutes_by_player[espn_id]
+        primary_team = min(team_minutes, key=lambda team: (-team_minutes[team], team))
+        included_teams = tuple(team_minutes)
+        total_team_minutes = math.fsum(team_totals[team]["minutes"] for team in included_teams)
+        total_team_usage = math.fsum(
+            team_totals[team]["fga"]
+            + 0.44 * team_totals[team]["fta"]
+            + team_totals[team]["turnovers"]
+            for team in included_teams
+        )
+        total_team_fga = math.fsum(team_totals[team]["fga"] for team in included_teams)
+        usage_events = box_row["fga"] + 0.44 * box_row["fta"] + box_row["turnovers"]
+        shot = player_shots[mapped_nba_id]
+        attempts = tuple(
+            shot[name] for name in ("rim_attempts", "midrange_attempts", "three_attempts")
+        )
+        makes = tuple(shot[name] for name in ("rim_made", "midrange_made", "three_made"))
+        total_attempts = math.fsum(attempts)
+        if total_attempts <= 0:
+            continue
+        players.append(
+            {
+                "nba_player_id": mapped_nba_id,
+                "player_name": box_row["name"],
+                "team_id": primary_team,
+                "games_played": games,
+                "minutes_per_game": minutes_per_game,
+                "usage_rate": _ratio(
+                    usage_events * total_team_minutes,
+                    5.0 * minutes * total_team_usage,
+                ),
+                "true_shooting_percentage": _ratio(
+                    box_row["points"], 2.0 * (box_row["fga"] + 0.44 * box_row["fta"])
+                ),
+                "field_goal_attempt_share": _ratio(box_row["fga"], total_team_fga),
+                "shot_zone_shares": {
+                    zone: _ratio(value, total_attempts)
+                    for zone, value in zip(NBA_PLAYER_TARGET_ZONES, attempts, strict=True)
+                },
+                "shot_zone_percentages": {
+                    zone: _ratio(made, attempt)
+                    for zone, made, attempt in zip(
+                        NBA_PLAYER_TARGET_ZONES, makes, attempts, strict=True
+                    )
+                },
+            }
+        )
+    players.sort(key=lambda item: cast(int, item["nba_player_id"]))
+    payload = {
+        "schema_version": NBA_PLAYER_TARGET_SCHEMA_VERSION,
+        "version": NBA_PLAYER_TARGET_VERSION,
+        "target_id": target_id,
+        "season": box["season"],
+        "provider": "local source-pinned composite",
+        "eligibility": {
+            "minimum_games": minimum_games,
+            "minimum_minutes_per_game": minimum_minutes_per_game,
+        },
+        "sources": [
+            {"role": role, "path": path.name, "sha256": sha256_file(path)}
+            for role, path in (
+                ("box_scores", box_file),
+                ("shot_detail", shot_file),
+                ("identity", identity_file),
+            )
+        ],
+        "players": players,
+    }
+    # Validate the derived object through the public strict contract before returning it.
+    _target_set_from_object(payload)
+    return payload
+
+
 def load_nba_player_target_set(path: str | Path) -> NBAPlayerTargetSet:
     source = Path(path)
     try:
         raw: object = json.loads(source.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         raise NbaPlayerTargetError(f"cannot read NBA player targets: {source}") from error
-    if not isinstance(raw, dict) or set(raw) != {
+    return _target_set_from_object(raw)
+
+
+def _target_set_from_object(value: object) -> NBAPlayerTargetSet:
+    raw = _mapping(value, "NBA player target root")
+    if set(raw) != {
         "schema_version",
         "version",
         "target_id",
@@ -195,6 +375,14 @@ def load_nba_player_target_set(path: str | Path) -> NBAPlayerTargetSet:
         )
     except ValueError as error:
         raise NbaPlayerTargetError(str(error)) from error
+
+
+def _load_object(path: Path, label: str) -> dict[str, object]:
+    try:
+        raw: object = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise NbaPlayerTargetError(f"cannot read {label}: {path}") from error
+    return _mapping(raw, label)
 
 
 def _source_receipt(value: object) -> NBAPlayerSourceReceipt:
@@ -266,6 +454,13 @@ def _integer(value: object, field: str) -> int:
     return value
 
 
+def _integer_text(value: object, field: str) -> int:
+    text = _text(value, field)
+    if not text.isdigit() or int(text) < 1:
+        raise NbaPlayerTargetError(f"{field} must be a positive integer id")
+    return int(text)
+
+
 def _number(value: object, field: str) -> float:
     if not isinstance(value, (int, float)) or isinstance(value, bool):
         raise NbaPlayerTargetError(f"{field} must be numeric")
@@ -273,3 +468,7 @@ def _number(value: object, field: str) -> float:
     if not math.isfinite(result):
         raise NbaPlayerTargetError(f"{field} must be finite")
     return result
+
+
+def _ratio(numerator: float, denominator: float) -> float:
+    return numerator / denominator if denominator else 0.0

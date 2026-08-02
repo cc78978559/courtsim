@@ -1,0 +1,12 @@
+{
+  "format_version": 1,
+  "overlay_id": "pace-long-duration-17-v1",
+  "parameter_version": "demo-1.4.0-pace-long-17",
+  "notes": "Development-only one-at-a-time intervention: LONG duration 18 to 17.",
+  "overrides": [
+    {
+      "path": ["nodes", "possession_duration", "durations_seconds", "LONG"],
+      "value": 17
+    }
+  ]
+}

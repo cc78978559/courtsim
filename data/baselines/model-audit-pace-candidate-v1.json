@@ -1,0 +1,28 @@
+{
+  "candidate": true,
+  "completed_games": 180,
+  "mean_team_possessions": 98.26666666666665,
+  "points_per_100_possessions": 116.80731701505296,
+  "team_score_stddev": 13.207185630019561,
+  "methodology": "Arithmetic mean of three pre-registered 60-game holdout audits; candidate only.",
+  "parameter_change": {
+    "path": ["nodes", "possession_duration", "durations_seconds", "SHORT"],
+    "before": 12,
+    "after": 11
+  },
+  "source_audits": [
+    {
+      "master_seed": 20260901,
+      "sha256": "839d471d3680818561ff7529f57f055b47726f6b7cf5fee472108cef4a40734d"
+    },
+    {
+      "master_seed": 20260902,
+      "sha256": "0efbf46f8e4631772e69e449cfa59a51371cb05084e476e3be7aea12d8cc318a"
+    },
+    {
+      "master_seed": 20260903,
+      "sha256": "15573129568dcef174286272adc0709ccd9ca52f54d947caa9073c778cf6492d"
+    }
+  ],
+  "freeze_sha256": "709ade7aaacaa48b9bed00326b5e5d3bd415413c284ac98301742d4f671ab377"
+}

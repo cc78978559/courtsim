@@ -1,0 +1,12 @@
+{
+  "format_version": 1,
+  "overlay_id": "pace-standard-duration-14-v1",
+  "parameter_version": "demo-1.4.0-pace-standard-14",
+  "notes": "Development-only one-at-a-time intervention: STANDARD duration 15 to 14.",
+  "overrides": [
+    {
+      "path": ["nodes", "possession_duration", "durations_seconds", "STANDARD"],
+      "value": 14
+    }
+  ]
+}

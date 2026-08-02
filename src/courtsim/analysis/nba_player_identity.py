@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -14,6 +15,113 @@ NBA_PLAYER_IDENTITY_VERSION = "nba-player-identity-v1"
 
 class NbaPlayerIdentityError(ValueError):
     """Raised when player identities are ambiguous or source provenance is invalid."""
+
+
+def augment_nba_player_crosswalk_payload(
+    box_summary_path: str | Path,
+    crosswalk_summary_path: str | Path,
+    player_shot_summary_path: str | Path,
+) -> dict[str, object]:
+    """Add unique exact-name NBA ids from a same-season, source-pinned shot summary.
+
+    This is deliberately a crosswalk construction step, not a runtime name fallback. Ambiguous
+    names and normalized-but-not-exact names remain unresolved for manual review.
+    """
+    box_file = Path(box_summary_path).resolve()
+    crosswalk_file = Path(crosswalk_summary_path).resolve()
+    shot_file = Path(player_shot_summary_path).resolve()
+    box = _load_summary(box_file, "player-box summary")
+    crosswalk = _load_summary(crosswalk_file, "player crosswalk summary")
+    shots = _load_summary(shot_file, "player shot summary")
+    if box.get("season") != shots.get("season"):
+        raise NbaPlayerIdentityError("player box and shot summaries must use the same season")
+    if shots.get("group_by") != ["TEAM_ID", "PLAYER_ID", "PLAYER_NAME"]:
+        raise NbaPlayerIdentityError("player shot summary has an unsupported group key")
+
+    box_players = _box_players(box)
+    existing = _crosswalk_players(crosswalk)
+    by_name: dict[str, set[tuple[int, str]]] = {}
+    for raw_group in _groups(shots, "player shot"):
+        key = _mapping(_mapping(raw_group, "player shot group").get("key"), "player shot key")
+        name = _text(key.get("PLAYER_NAME"), "PLAYER_NAME")
+        nba_id = int(_positive_id(key.get("PLAYER_ID"), "PLAYER_ID"))
+        by_name.setdefault(_exact_name_key(name), set()).add((nba_id, name))
+
+    groups = list(_groups(crosswalk, "player crosswalk"))
+    added: list[dict[str, object]] = []
+    ambiguous: list[dict[str, object]] = []
+    for espn_id, player in sorted(box_players.items(), key=lambda item: int(item[0])):
+        if espn_id in existing:
+            continue
+        player_name = cast(str, player["player_name"])
+        candidates = by_name.get(_exact_name_key(player_name), set())
+        if len(candidates) != 1:
+            ambiguous.append(
+                {
+                    "espn_athlete_id": int(espn_id),
+                    "player_name": player_name,
+                    "candidate_nba_player_ids": sorted(item[0] for item in candidates),
+                    "reason": "no_unique_exact_same_season_name",
+                }
+            )
+            continue
+        nba_id, nba_name = next(iter(candidates))
+        group = {
+            "key": {
+                "espn_athlete_id": espn_id,
+                "nba_player_id": str(nba_id),
+                "espn_full_name": player_name,
+                "nba_player_name": nba_name,
+                "match_method": "exact_pinned_same_season_name",
+                "match_confidence": "1.0",
+            },
+            "metrics": {"records": 1},
+        }
+        groups.append(group)
+        added.append(cast(dict[str, object], group["key"]))
+    groups.sort(
+        key=lambda item: int(
+            cast(dict[str, Any], cast(dict[str, Any], item)["key"])["espn_athlete_id"]
+        )
+    )
+    combined_source = {
+        "box": sha256_file(box_file),
+        "crosswalk": sha256_file(crosswalk_file),
+        "player_shots": sha256_file(shot_file),
+    }
+    return {
+        "schema_version": 1,
+        "dataset_id": "courtsim-augmented-player-crosswalk",
+        "season": box["season"],
+        "provider": "source-pinned exact join",
+        "source": {
+            "resource_id": "derived-crosswalk",
+            "filename": "derived-locally",
+            "bytes": 0,
+            "sha256": hashlib.sha256(
+                json.dumps(combined_source, sort_keys=True).encode("utf-8")
+            ).hexdigest(),
+        },
+        "provenance": {
+            "sources": combined_source,
+            "name_policy": "casefolded whitespace-exact only; ambiguous matches rejected",
+        },
+        "group_by": [
+            "espn_athlete_id",
+            "nba_player_id",
+            "espn_full_name",
+            "nba_player_name",
+            "match_method",
+            "match_confidence",
+        ],
+        "groups": groups,
+        "augmentation": {
+            "existing_mappings": len(existing),
+            "added_mappings": len(added),
+            "unresolved_players": len(ambiguous),
+            "manual_review": ambiguous,
+        },
+    }
 
 
 def build_nba_player_identity_payload(
@@ -202,6 +310,10 @@ def _crosswalk_players(summary: dict[str, Any]) -> dict[str, dict[str, object]]:
         players[espn_id] = match
         nba_ids[nba_id] = espn_id
     return players
+
+
+def _exact_name_key(value: str) -> str:
+    return " ".join(value.casefold().split())
 
 
 def _load_summary(path: Path, label: str) -> dict[str, Any]:
