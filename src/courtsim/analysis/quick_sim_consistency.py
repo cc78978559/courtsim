@@ -56,23 +56,17 @@ def compare_quick_sim_engines(
         if aggregate[seed].team_rank_order is not None
         and full_engine[seed].team_rank_order is not None
     ]
-    sample_ready = len(seeds) >= 3
+    requested_minimum_seasons = 3
+    sample_ready = len(seeds) >= requested_minimum_seasons
     accuracy_gate: dict[str, object] = {"configured": False, "passed": None}
     promotion_ready = False
     if gate is not None:
         frozen = _validated_consistency_gate(gate)
         if master_seed is None:
             raise QuickSimConsistencyError("consistency gate requires the batch master seed")
-        maximum_mae = cast(dict[str, float], frozen["maximum_mae"])
-        metric_results = [
-            {
-                "metric": row["metric"],
-                "observed_mae": row["mae"],
-                "maximum_mae": maximum_mae[cast(str, row["metric"])],
-                "passed": cast(float, row["mae"]) <= maximum_mae[cast(str, row["metric"])],
-            }
-            for row in metrics
-        ]
+        requested_minimum_seasons = cast(int, frozen["minimum_paired_seasons"])
+        sample_ready = len(seeds) >= requested_minimum_seasons
+        metric_results = _consistency_metric_gate_results(metrics, frozen)
         rank_mean = fmean(rank_correlations) if rank_correlations else None
         rank_passed = (
             len(rank_correlations) == len(seeds)
@@ -80,7 +74,7 @@ def compare_quick_sim_engines(
             and rank_mean >= cast(float, frozen["minimum_mean_team_rank_spearman"])
         )
         eligibility = {
-            "minimum_paired_seasons": len(seeds) >= cast(int, frozen["minimum_paired_seasons"]),
+            "minimum_paired_seasons": sample_ready,
             "unseen_master_seed": master_seed
             not in cast(list[int], frozen["forbidden_master_seeds"]),
             "rank_vectors_complete": len(rank_correlations) == len(seeds),
@@ -109,7 +103,7 @@ def compare_quick_sim_engines(
         "version": QUICK_SIM_CONSISTENCY_VERSION,
         "paired_seeds": list(seeds),
         "paired_seasons": len(seeds),
-        "requested_minimum_seasons": 3,
+        "requested_minimum_seasons": requested_minimum_seasons,
         "sample_ready": sample_ready,
         # Accuracy tolerances must be frozen before a new holdout batch. The first
         # diagnostic batch deliberately cannot promote itself after its errors are seen.
@@ -278,7 +272,7 @@ def verify_quick_sim_consistency_manifests(
 
 
 def _validated_consistency_gate(raw: Mapping[str, object]) -> dict[str, object]:
-    expected = {
+    common = {
         "version",
         "gate_id",
         "frozen_at",
@@ -289,14 +283,26 @@ def _validated_consistency_gate(raw: Mapping[str, object]) -> dict[str, object]:
         "minimum_mean_team_rank_spearman",
         "methodology",
     }
-    if set(raw) != expected or raw.get("version") != "quick-sim-consistency-gate-v1":
+    version = raw.get("version")
+    if version == "quick-sim-consistency-gate-v1":
+        expected = common
+    elif version == "quick-sim-consistency-gate-v2":
+        expected = common | {"maximum_absolute_mean_error"}
+    else:
+        expected = set()
+    if set(raw) != expected:
         raise QuickSimConsistencyError("consistency gate schema differs")
     maximum_mae = raw["maximum_mae"]
-    if not isinstance(maximum_mae, dict) or set(maximum_mae) != set(QUICK_SIM_METRICS):
+    maximum_mean_error = raw.get("maximum_absolute_mean_error", {})
+    if not isinstance(maximum_mae, dict) or not isinstance(maximum_mean_error, dict):
+        raise QuickSimConsistencyError("consistency gate metric set differs")
+    if set(maximum_mae) & set(maximum_mean_error) or set(maximum_mae) | set(
+        maximum_mean_error
+    ) != set(QUICK_SIM_METRICS):
         raise QuickSimConsistencyError("consistency gate metric set differs")
     if any(
         not isinstance(value, (int, float)) or isinstance(value, bool) or value < 0
-        for value in maximum_mae.values()
+        for value in (*maximum_mae.values(), *maximum_mean_error.values())
     ):
         raise QuickSimConsistencyError("consistency gate MAE limits are invalid")
     required_inputs = raw["required_input_sha256"]
@@ -333,3 +339,32 @@ def _validated_consistency_gate(raw: Mapping[str, object]) -> dict[str, object]:
     ):
         raise QuickSimConsistencyError("consistency gate rank threshold is invalid")
     return dict(raw)
+
+
+def _consistency_metric_gate_results(
+    metrics: list[dict[str, object]],
+    gate: Mapping[str, object],
+) -> list[dict[str, object]]:
+    maximum_mae = cast(dict[str, float], gate["maximum_mae"])
+    maximum_mean_error = cast(dict[str, float], gate.get("maximum_absolute_mean_error", {}))
+    results: list[dict[str, object]] = []
+    for row in metrics:
+        metric = cast(str, row["metric"])
+        if metric in maximum_mae:
+            observed = cast(float, row["mae"])
+            maximum = maximum_mae[metric]
+            statistic = "mae"
+        else:
+            observed = abs(cast(float, row["mean_error"]))
+            maximum = maximum_mean_error[metric]
+            statistic = "absolute_mean_error"
+        results.append(
+            {
+                "metric": metric,
+                "statistic": statistic,
+                "observed": observed,
+                "maximum": maximum,
+                "passed": observed <= maximum,
+            }
+        )
+    return results

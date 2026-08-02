@@ -136,6 +136,50 @@ def test_consistency_manifest_verification_pins_both_engine_inputs(tmp_path: Pat
     )
 
 
+def test_v2_gate_uses_distribution_mean_for_stochastic_postseason_metrics() -> None:
+    ordered = tuple(f"team-{index:02d}" for index in range(30))
+    aggregate = {
+        seed: _summary(str(seed), 99.0, champion=champion, rank_order=ordered)
+        for seed, champion in zip(range(1, 6), (1, 5, 1, 5, 1), strict=True)
+    }
+    full = {
+        seed: _summary(str(seed), 99.0, champion=champion, rank_order=ordered)
+        for seed, champion in zip(range(1, 6), (5, 1, 5, 1, 1), strict=True)
+    }
+    gate = {
+        "version": "quick-sim-consistency-gate-v2",
+        "gate_id": "distribution-gate",
+        "frozen_at": "2026-08-02",
+        "minimum_paired_seasons": 5,
+        "forbidden_master_seeds": [],
+        "required_input_sha256": {
+            "aggregate": {"parameters": "0" * 64},
+            "full_engine": {"parameters": "1" * 64},
+        },
+        "maximum_mae": {
+            "win-rate-stddev": 0.1,
+            "pace-possessions-per-team": 0.1,
+            "offensive-rating": 0.1,
+            "point-differential-stddev": 0.1,
+        },
+        "maximum_absolute_mean_error": {
+            "playoff-upset-rate": 0.1,
+            "champion-seed-mean": 1.0,
+        },
+        "minimum_mean_team_rank_spearman": 0.9,
+        "methodology": "test",
+    }
+    report = compare_quick_sim_engines(
+        aggregate,
+        full,
+        gate=gate,
+        master_seed=20,
+        inputs_verified=True,
+    )
+    assert report["requested_minimum_seasons"] == 5
+    assert report["promotion_ready"] is True
+
+
 def test_sensitivity_report_is_paired_and_single_factor() -> None:
     baseline = {seed: _summary(str(seed), 99.0) for seed in (1, 2, 3)}
     report = build_aggregate_sensitivity_report(
