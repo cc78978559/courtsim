@@ -7,6 +7,7 @@ from typing import cast
 from courtsim.analysis.nba_team_strength import (
     apply_nba_team_strengths,
     load_nba_team_strength_alignment,
+    load_nba_team_strength_offsets,
 )
 from courtsim.domain.plans import Lineup
 from courtsim.model.game_runtime import GameTeam
@@ -92,3 +93,30 @@ def test_team_strength_applies_source_derived_offsets() -> None:
         {"LA Clippers", "Los Angeles Lakers"}.issubset(division)
         for division in alignment.west_divisions
     )
+
+
+def test_strength_040_candidate_is_a_bounded_single_factor_rescaling() -> None:
+    original = dict(
+        load_nba_team_strength_offsets(
+            ROOT / "experiments" / "sources" / "nba-2024-25-team-strength-v1.json"
+        )
+    )
+    candidate = dict(
+        load_nba_team_strength_offsets(
+            ROOT / "experiments" / "sources" / "nba-2024-25-team-strength-040-v1.json"
+        )
+    )
+    assert set(candidate) == set(original)
+    assert all(abs(candidate[team_id]) <= abs(offset) for team_id, offset in original.items())
+    assert candidate["Oklahoma City Thunder"] == 5
+    assert candidate["Washington Wizards"] == -5
+
+    conservative = dict(
+        load_nba_team_strength_offsets(
+            ROOT / "experiments" / "sources" / "nba-2024-25-team-strength-035-v1.json"
+        )
+    )
+    assert set(conservative) == set(candidate)
+    assert all(abs(conservative[team_id]) <= abs(offset) for team_id, offset in candidate.items())
+    assert conservative["Oklahoma City Thunder"] == 5
+    assert conservative["Washington Wizards"] == -4

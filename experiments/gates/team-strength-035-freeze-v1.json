@@ -1,0 +1,16 @@
+{
+  "version": "team-strength-freeze-v1",
+  "candidate_id": "nba-2024-25-team-strength-035-v1",
+  "frozen_at": "2026-08-02",
+  "selected_multiplier": 0.35,
+  "strength_sha256": "a0379d99dafa8faeafa2051d25d974ed301d59cc381196ee3f402842af5d607c",
+  "development_master_seeds": [20260920, 20260921, 20261010, 20261011, 20261020, 20261021, 20261022],
+  "holdout_master_seed": 20261030,
+  "selection_reason": "0.35 placed full-engine win-rate spread, point-differential spread and upset rate inside the reality ranges with more boundary margin than 0.40.",
+  "promotion_requires": [
+    "three complete holdout full-engine seasons",
+    "full-engine NBA reality gate",
+    "paired aggregate/full-engine consistency gate",
+    "thirty-season aggregate NBA reality gate"
+  ]
+}
