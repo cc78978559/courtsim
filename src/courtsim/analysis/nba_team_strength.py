@@ -24,7 +24,7 @@ def apply_nba_team_strengths(
     teams: tuple[GameTeam, ...], strength_path: str | Path
 ) -> tuple[GameTeam, ...]:
     """Apply one transparent additive ability offset to every player on each team."""
-    offsets, _conferences = _load_team_strengths(strength_path)
+    offsets, _conferences, _divisions = _load_team_strengths(strength_path)
     if set(offsets) != {team.team_id for team in teams}:
         raise NbaTeamStrengthError("NBA team strength does not cover executor teams")
     return tuple(_apply_team_offset(team, offsets[team.team_id]) for team in teams)
@@ -34,15 +34,30 @@ def load_nba_team_strength_alignment(
     strength_path: str | Path,
 ) -> NBAConferenceAlignment:
     """Load an explicit, source-pinned real NBA conference alignment."""
-    offsets, conferences = _load_team_strengths(strength_path)
+    offsets, conferences, divisions = _load_team_strengths(strength_path)
     east = tuple(sorted(team_id for team_id in offsets if conferences[team_id] == "east"))
     west = tuple(sorted(team_id for team_id in offsets if conferences[team_id] == "west"))
-    return NBAConferenceAlignment(east, west)
+    east_divisions = _division_groups(divisions, conferences, "east")
+    west_divisions = _division_groups(divisions, conferences, "west")
+    return NBAConferenceAlignment(
+        east,
+        west,
+        east_divisions=east_divisions,
+        west_divisions=west_divisions,
+    )
+
+
+def load_nba_team_strength_offsets(
+    strength_path: str | Path,
+) -> tuple[tuple[str, int], ...]:
+    """Load canonical white-box team rating offsets."""
+    offsets, _conferences, _divisions = _load_team_strengths(strength_path)
+    return tuple(sorted(offsets.items()))
 
 
 def _load_team_strengths(
     strength_path: str | Path,
-) -> tuple[dict[str, int], dict[str, str]]:
+) -> tuple[dict[str, int], dict[str, str], dict[str, str]]:
     path = Path(strength_path).resolve()
     try:
         raw: object = json.loads(path.read_text(encoding="utf-8"))
@@ -68,6 +83,7 @@ def _load_team_strengths(
         raise NbaTeamStrengthError("NBA team strength requires 30 teams")
     offsets: dict[str, int] = {}
     conferences: dict[str, str] = {}
+    divisions: dict[str, str] = {}
     for value in rows:
         if not isinstance(value, dict) or set(value) != {
             "team_id",
@@ -75,6 +91,7 @@ def _load_team_strengths(
             "games",
             "rating_offset",
             "conference",
+            "division",
         }:
             raise NbaTeamStrengthError("NBA team strength row schema differs")
         item = cast(dict[str, object], value)
@@ -83,6 +100,7 @@ def _load_team_strengths(
         differential = _integer(item["point_differential"], "point_differential")
         offset = _integer(item["rating_offset"], "rating_offset")
         conference = _text(item["conference"], "conference").lower()
+        division = _text(item["division"], "division").lower()
         if games != 82 or offset != round(differential / games * multiplier):
             raise NbaTeamStrengthError(f"NBA team strength derivation differs: {team_id}")
         if team_id in offsets:
@@ -91,9 +109,30 @@ def _load_team_strengths(
             raise NbaTeamStrengthError(f"NBA team strength conference differs: {team_id}")
         offsets[team_id] = offset
         conferences[team_id] = conference
+        divisions[team_id] = division
     if tuple(conferences.values()).count("east") != 15:
         raise NbaTeamStrengthError("NBA team strength conferences must contain 15 teams each")
-    return offsets, conferences
+    if len(set(divisions.values())) != 6 or any(
+        tuple(divisions.values()).count(division) != 5 for division in set(divisions.values())
+    ):
+        raise NbaTeamStrengthError("NBA team strength divisions must contain six groups of five")
+    return offsets, conferences, divisions
+
+
+def _division_groups(
+    divisions: dict[str, str], conferences: dict[str, str], conference: str
+) -> tuple[tuple[str, ...], ...]:
+    names = sorted(
+        {divisions[team_id] for team_id in divisions if conferences[team_id] == conference}
+    )
+    if len(names) != 3:
+        raise NbaTeamStrengthError(f"NBA {conference} division count differs")
+    return tuple(
+        sorted(
+            tuple(sorted(team_id for team_id in divisions if divisions[team_id] == name))
+            for name in names
+        )
+    )
 
 
 def _apply_team_offset(team: GameTeam, offset: int) -> GameTeam:

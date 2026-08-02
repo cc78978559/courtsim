@@ -58,6 +58,10 @@ from courtsim.analysis.matrix_style_coverage import (
     build_matrix_style_coverage,
 )
 from courtsim.analysis.model_audit_runner import run_model_audit_to_directory
+from courtsim.analysis.nba_aggregate_quick_sim import (
+    NbaAggregateQuickSimError,
+    run_nba_aggregate_quick_sim_batch,
+)
 from courtsim.analysis.nba_data_audit import (
     NbaDataAuditError,
     build_nba_data_audit,
@@ -372,6 +376,27 @@ def _parser() -> argparse.ArgumentParser:
     quick_sim_run.add_argument("--possession-seconds", type=int, default=24)
     quick_sim_run.add_argument("--overtime-seconds", type=int, default=300)
     quick_sim_run.add_argument("--max-overtimes", type=int, default=8)
+
+    aggregate_quick_sim_run = subparsers.add_parser(
+        "nba-aggregate-quick-sim-run",
+        help="run or resume a source-pinned aggregate NBA quick-sim batch",
+    )
+    aggregate_quick_sim_run.add_argument("checkpoint", type=Path)
+    aggregate_quick_sim_run.add_argument("--manifest", type=Path)
+    aggregate_quick_sim_run.add_argument(
+        "--aggregate-parameters",
+        type=Path,
+        default=Path("experiments/sources/nba-aggregate-quick-sim-parameters-v1.json"),
+    )
+    aggregate_quick_sim_run.add_argument(
+        "--strength",
+        type=Path,
+        default=Path("experiments/sources/nba-2024-25-team-strength-v1.json"),
+    )
+    aggregate_quick_sim_run.add_argument("--batch-id", required=True)
+    aggregate_quick_sim_run.add_argument("--master-seed", type=int, required=True)
+    aggregate_quick_sim_run.add_argument("--seasons", type=int, default=30)
+    aggregate_quick_sim_run.add_argument("--maximum-new-seasons", type=int)
 
     nba_reality_build = subparsers.add_parser(
         "nba-reality-build",
@@ -1050,6 +1075,29 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
 
+        if arguments.command == "nba-aggregate-quick-sim-run":
+            aggregate_manifest_path = arguments.manifest or arguments.checkpoint.with_suffix(
+                ".manifest.json"
+            )
+            aggregate_manifest = run_nba_aggregate_quick_sim_batch(
+                parameter_path=arguments.aggregate_parameters,
+                strength_path=arguments.strength,
+                checkpoint_path=arguments.checkpoint,
+                manifest_path=aggregate_manifest_path,
+                batch_id=arguments.batch_id,
+                master_seed=arguments.master_seed,
+                seasons=arguments.seasons,
+                maximum_new_seasons=arguments.maximum_new_seasons,
+            )
+            print(
+                json.dumps(
+                    aggregate_manifest["checkpoint"],
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0
+
         if arguments.command == "nba-reality-build":
             reality, reality_reference = build_nba_reality_payload(
                 arguments.manifest, arguments.cache
@@ -1674,6 +1722,7 @@ def main(argv: list[str] | None = None) -> int:
         MatrixRobustnessError,
         NbaReferenceError,
         NbaDataAuditError,
+        NbaAggregateQuickSimError,
         NbaShotProfileError,
         NbaShotProfileEvaluationError,
         NbaShotProfileBatchError,

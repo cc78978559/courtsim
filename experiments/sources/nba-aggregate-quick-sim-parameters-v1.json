@@ -1,0 +1,20 @@
+{
+  "version": "nba-aggregate-quick-sim-parameters-v1",
+  "source": {
+    "path": "../../data/baselines/model-audit-demo-1.4.0.json",
+    "sha256": "6a13f3b29afff85831d41d7a215902ba73a2e3d43cbccf287818a975c61c4c68"
+  },
+  "base_pace": 96.73,
+  "base_offensive_rating": 116.89754988111237,
+  "team_score_standard_deviation": 13.143035227830746,
+  "pace_standard_deviation": 4.0,
+  "home_advantage_points": 2.2,
+  "rating_offset_margin_points": 1.3333333333333333,
+  "methodology": {
+    "base_metrics": "frozen promoted full-engine 100-game audit",
+    "rating_offset_margin_points": "inverse of the independently frozen 0.75 point-differential-to-rating multiplier",
+    "pace_standard_deviation": "explicit design constant for game-to-game pace variation",
+    "home_advantage_points": "explicit design constant; sensitivity must be audited",
+    "score_sampling": "independent total and margin normals derived from observed team score standard deviation"
+  }
+}

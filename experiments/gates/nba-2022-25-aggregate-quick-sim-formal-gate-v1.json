@@ -1,7 +1,7 @@
 {
   "version": "quick-sim-formal-gate-v1",
-  "gate_id": "nba-2022-25-formal-quick-sim-v1",
-  "frozen_at": "2026-08-01",
+  "gate_id": "nba-2022-25-formal-aggregate-quick-sim-v1",
+  "frozen_at": "2026-08-02",
   "reality_path": "../sources/nba-2022-25-standings-playoffs.json",
   "reality_sha256": "56662a08763405ada0acc79cc1c155eec7bf8fd585c62e751019cb540278a0e8",
   "reference_path": "../sources/nba-2022-25-quick-sim-reference.json",
@@ -29,24 +29,22 @@
     20260817,
     20260818,
     20260819,
-    20260820
+    20260820,
+    20260901,
+    20260902,
+    20260903,
+    20260904,
+    20260905
   ],
-  "batch_id_prefix": "formal-nba-reality-",
-  "required_executor_version": "nba-quick-sim-executor-v5",
-  "required_runner_version": "nba-quick-sim-runner-v1",
+  "batch_id_prefix": "formal-nba-aggregate-",
+  "required_executor_version": "nba-aggregate-quick-sim-v1",
+  "required_runner_version": "nba-aggregate-quick-sim-runner-v1",
   "required_game_config": {
-    "regulation_periods": 4,
-    "period_seconds": 720,
-    "possession_seconds": 24,
-    "overtime_seconds": 300,
-    "max_overtimes": 8,
-    "overtime_enabled": true
+    "mode": "aggregate",
+    "parameters_version": "nba-aggregate-quick-sim-parameters-v1"
   },
   "required_input_sha256": {
-    "schema": "a51ce2b630c215bc04e8d413620dcbb6213d9fb39ee50e2e90f78357df92c54f",
-    "parameters": "c113afcf3ed94a34734e0b6f8e5ac4c784946ac0a5afee88d849dfbf7020da82",
-    "lineup": "4cee166e79e82eb6c60614d156011eb5028e79be2e57590f330c21da4be4763c",
-    "shot_profiles": "bc336297dde3c6be85957c0e9003f21dc969312d23d69fe01b535c1417ca42fb",
+    "aggregate_parameters": "3eeb6c1785f31fd154fecd04e6794cb8749dde67f76689ef03f2929446546244",
     "team_strength": "cddc066912465ce101208f166fab4579e8da73f23ccf55d18aa1534680656605"
   }
 }

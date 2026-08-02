@@ -29,8 +29,8 @@ team-strength and clock hashes. Team strength is a white-box additive ability of
 2024-25 point differential, not a hidden fitted policy.
 The same source file explicitly assigns the 15 Eastern and 15 Western teams; alphabetical profile
 order is never used as a conference shortcut.
-The calibrated shot-profile file is intentionally tracked as the sole frozen exception under
-`work/`; ordinary run outputs and checkpoints remain ignored.
+The calibrated shot-profile file and explicitly frozen formal result bundles are narrow tracked
+exceptions under `work/`; ordinary run outputs and checkpoints remain ignored.
 
 ```powershell
 .\tools.cmd nba-quick-sim-run `
@@ -51,3 +51,7 @@ The calibrated shot-profile file is intentionally tracked as the sole frozen exc
 
 Freezing the gate is not a passing result. A promotion claim requires a separately generated,
 complete checkpoint on an eligible unseen master seed and a gate report with `passed: true`.
+
+The separate aggregate execution path, its strict feature boundary, and its first 30-season
+five-of-six gate result are documented in
+[`nba-aggregate-quick-sim-v1.md`](nba-aggregate-quick-sim-v1.md).

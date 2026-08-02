@@ -39,7 +39,7 @@ def evaluate_quick_sim_formal_gate(
     checkpoint_file = Path(checkpoint_path).resolve()
     batch = quick_sim_batch_from_json(checkpoint_file.read_text(encoding="utf-8"))
     run_manifest = _load_object(Path(run_manifest_path).resolve(), "quick-sim run manifest")
-    run_configuration = _run_configuration(run_manifest, checkpoint_file)
+    run_version, run_configuration = _run_configuration(run_manifest, checkpoint_file)
     required_inputs = cast(dict[str, str], gate["required_input_sha256"])
     observed_inputs = cast(dict[str, dict[str, object]], run_configuration["inputs"])
     eligible = {
@@ -51,6 +51,7 @@ def evaluate_quick_sim_formal_gate(
         "batch_id": batch.spec.batch_id.startswith(cast(str, gate["batch_id_prefix"])),
         "executor_version": run_configuration.get("executor_version")
         == gate["required_executor_version"],
+        "runner_version": run_version == gate["required_runner_version"],
         "game_config": run_configuration.get("game_config") == gate["required_game_config"],
         "inputs": set(observed_inputs) == set(required_inputs)
         and all(
@@ -100,6 +101,7 @@ def _validate_gate(raw: dict[str, Any]) -> None:
         "forbidden_master_seeds",
         "batch_id_prefix",
         "required_executor_version",
+        "required_runner_version",
         "required_game_config",
         "required_input_sha256",
     }
@@ -112,6 +114,8 @@ def _validate_gate(raw: dict[str, Any]) -> None:
         "reference_path",
         "reference_id",
         "batch_id_prefix",
+        "required_executor_version",
+        "required_runner_version",
     ):
         if not isinstance(raw[field], str) or not cast(str, raw[field]).strip():
             raise QuickSimFormalGateError(f"formal gate {field} must be non-empty text")
@@ -147,9 +151,12 @@ def _validate_gate(raw: dict[str, Any]) -> None:
         raise QuickSimFormalGateError("formal gate required input hashes are invalid")
 
 
-def _run_configuration(manifest: dict[str, Any], checkpoint_path: Path) -> dict[str, Any]:
-    if manifest.get("version") != "nba-quick-sim-runner-v1":
-        raise QuickSimFormalGateError("formal gate requires a v1 quick-sim run manifest")
+def _run_configuration(
+    manifest: dict[str, Any], checkpoint_path: Path
+) -> tuple[str, dict[str, Any]]:
+    version = manifest.get("version")
+    if not isinstance(version, str) or not version.strip():
+        raise QuickSimFormalGateError("formal gate run manifest version is invalid")
     checkpoint = manifest.get("checkpoint")
     configuration = manifest.get("configuration")
     if not isinstance(checkpoint, dict) or not isinstance(configuration, dict):
@@ -161,7 +168,7 @@ def _run_configuration(manifest: dict[str, Any], checkpoint_path: Path) -> dict[
         not isinstance(value, dict) for value in inputs.values()
     ):
         raise QuickSimFormalGateError("quick-sim run manifest inputs differ")
-    return cast(dict[str, Any], configuration)
+    return version, cast(dict[str, Any], configuration)
 
 
 def _resolve_input(gate_path: Path, relative: str) -> Path:

@@ -84,3 +84,11 @@ def test_team_strength_applies_source_derived_offsets() -> None:
     assert "Boston Celtics" in alignment.east_team_ids
     assert "Los Angeles Lakers" in alignment.west_team_ids
     assert len(alignment.east_team_ids) == len(alignment.west_team_ids) == 15
+    assert any(
+        {"Boston Celtics", "Brooklyn Nets"}.issubset(division)
+        for division in alignment.east_divisions
+    )
+    assert any(
+        {"LA Clippers", "Los Angeles Lakers"}.issubset(division)
+        for division in alignment.west_divisions
+    )

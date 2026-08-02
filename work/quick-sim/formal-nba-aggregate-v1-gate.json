@@ -1,0 +1,78 @@
+{
+  "checkpoint": {
+    "batch_id": "formal-nba-aggregate-v1",
+    "batch_sha256": "9e3c6c9d3a57f7980f4073c08c392ae33f63b6eb0354d5245aed749c39c57bd7",
+    "master_seed": 20260906,
+    "seasons": 30
+  },
+  "comparison": {
+    "comparisons": [
+      {
+        "metric": "win-rate-stddev",
+        "observed": 0.13145794812517597,
+        "passed": true,
+        "target_maximum": 0.1808030610091202,
+        "target_minimum": 0.1001905420941415
+      },
+      {
+        "metric": "pace-possessions-per-team",
+        "observed": 96.70302814686814,
+        "passed": false,
+        "target_maximum": 104.65008130081301,
+        "target_minimum": 97.80577235772357
+      },
+      {
+        "metric": "offensive-rating",
+        "observed": 116.95346486815366,
+        "passed": true,
+        "target_maximum": 118.29845448584616,
+        "target_minimum": 107.53286847129719
+      },
+      {
+        "metric": "point-differential-stddev",
+        "observed": 6.566485550938321,
+        "passed": true,
+        "target_maximum": 7.393381480158248,
+        "target_minimum": 2.446501750390316
+      },
+      {
+        "metric": "playoff-upset-rate",
+        "observed": 0.34444444444444444,
+        "passed": true,
+        "target_maximum": 0.6166666666666667,
+        "target_minimum": 0.25
+      },
+      {
+        "metric": "champion-seed-mean",
+        "observed": 1.6,
+        "passed": true,
+        "target_maximum": 3.0,
+        "target_minimum": 1.0
+      }
+    ],
+    "passed": false,
+    "reference_id": "real-nba-2022-25-quick-sim-v1",
+    "seasons": 30,
+    "team_count": 30,
+    "version": "quick-sim-comparison-v1"
+  },
+  "eligibility": {
+    "batch_id": true,
+    "complete": true,
+    "executor_version": true,
+    "game_config": true,
+    "inputs": true,
+    "minimum_seasons": true,
+    "runner_version": true,
+    "team_count": true,
+    "unseen_master_seed": true
+  },
+  "gate_id": "nba-2022-25-formal-aggregate-quick-sim-v1",
+  "integrity": {
+    "reality": true,
+    "reference": true
+  },
+  "passed": false,
+  "reference_id": "real-nba-2022-25-quick-sim-v1",
+  "version": "quick-sim-formal-gate-v1"
+}
