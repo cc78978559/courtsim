@@ -192,6 +192,7 @@ def execute_three_team_contract_negotiation(
     *,
     cap_ledger: CapLedger | None = None,
     cap_rules: CapMechanicsRules | None = None,
+    frozen_pick_ids: frozenset[int] = frozenset(),
 ) -> ThreeTeamTradeResult:
     """Revalidate accepted terms and the native atomic trade immediately before execution."""
     if (
@@ -221,6 +222,7 @@ def execute_three_team_contract_negotiation(
         trade_rules,
         cap_ledger=cap_ledger,
         cap_rules=cap_rules,
+        frozen_pick_ids=frozen_pick_ids,
     )
 
 

@@ -95,13 +95,20 @@ def test_three_team_market_discovers_and_replays_positive_cycle() -> None:
     )
     assert first == second
     assert first.plan.offers
+    assert {tree.trade_id for tree in first.negotiations} == {
+        offer.trade_id for offer in first.plan.offers
+    }
+    assert all(tree.nodes[0].status == "accepted" for tree in first.negotiations)
     execution = apply_three_team_market_plan(
         state(),
         (),
         first.plan,
         rules(),
+        negotiations=first.negotiations,
     )
     assert execution.audits
+    assert execution.negotiations == first.negotiations
+    assert len(execution.accepted_node_ids) == len(first.plan.offers)
     assert all(audit.replay_verified for audit in execution.audits)
 
 

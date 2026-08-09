@@ -234,6 +234,7 @@ def execute_nba_franchise_season(
         cap_ledger=bilateral_execution.final_cap_ledger,
         cap_rules=cap_rules,
         frozen_pick_ids=frozen_pick_ids,
+        negotiations=three_team_shadow.negotiations if choose_three_team else (),
     )
     traded_management = three_team_execution.final_management
     traded_assets = replace(

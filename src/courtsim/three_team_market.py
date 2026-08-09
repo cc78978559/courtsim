@@ -21,6 +21,13 @@ from courtsim.manager_trade import (
     DEFAULT_MANAGER_TRADE_RULES,
     ManagerTradeRules,
 )
+from courtsim.three_team_market_v2 import (
+    ContractConditionKind,
+    ThreeTeamContractCondition,
+    ThreeTeamContractNegotiationTree,
+    build_three_team_contract_negotiation_tree,
+    execute_three_team_contract_negotiation,
+)
 from courtsim.three_team_trades import (
     THREE_TEAM_TRADE_VERSION,
     PickTradeRoute,
@@ -28,13 +35,12 @@ from courtsim.three_team_trades import (
     ThreeTeamTradeAudit,
     ThreeTeamTradeOffer,
     ThreeTeamTradeShadowResult,
-    apply_three_team_trade,
     audit_three_team_trade,
     evaluate_three_team_trade_shadow,
 )
 from courtsim.trades import DEFAULT_TRADE_RULES, TradeRules
 
-THREE_TEAM_MARKET_VERSION = "three-team-market-v1"
+THREE_TEAM_MARKET_VERSION = "three-team-market-v2"
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +52,7 @@ class ThreeTeamMarketRules:
     search_pick_compensation: bool = True
     maximum_compensation_picks: int = 2
     salary_aware_hub_ordering: bool = True
+    maximum_contract_negotiation_rounds: int = 4
     version: str = THREE_TEAM_MARKET_VERSION
 
     def __post_init__(self) -> None:
@@ -54,6 +61,7 @@ class ThreeTeamMarketRules:
             self.maximum_cyclic_candidates_per_trio,
             self.maximum_hub_candidates_per_trio,
             self.maximum_compensation_picks,
+            self.maximum_contract_negotiation_rounds,
         )
         if any(
             not isinstance(value, int) or isinstance(value, bool) or value < 1 for value in limits
@@ -65,7 +73,9 @@ class ThreeTeamMarketRules:
         ):
             raise ValueError("three-team candidate family budgets exceed the trio limit")
         if self.maximum_compensation_picks > 2:
-            raise ValueError("three-team-market-v1 supports at most two compensation picks")
+            raise ValueError("three-team-market-v2 supports at most two compensation picks")
+        if not 4 <= self.maximum_contract_negotiation_rounds <= 8:
+            raise ValueError("three-team-market-v2 requires four through eight contract rounds")
         if self.minimum_combined_rational_gain <= 0:
             raise ValueError("three-team minimum combined gain must be positive")
         if self.version != THREE_TEAM_MARKET_VERSION:
@@ -134,6 +144,7 @@ class ThreeTeamMarketShadowResult:
     plan: ThreeTeamMarketPlan
     evaluations: tuple[ThreeTeamMarketEvaluation, ...]
     ledger: ManagerDecisionLedger
+    negotiations: tuple[ThreeTeamContractNegotiationTree, ...] = ()
     mode: ManagerPolicyMode = ManagerPolicyMode.SHADOW
     version: str = THREE_TEAM_MARKET_VERSION
 
@@ -146,6 +157,8 @@ class ThreeTeamMarketExecution:
     final_management: LeagueManagementState
     final_picks: tuple[TradableDraftPick, ...]
     audits: tuple[ThreeTeamTradeAudit, ...]
+    negotiations: tuple[ThreeTeamContractNegotiationTree, ...] = ()
+    accepted_node_ids: tuple[int, ...] = ()
     initial_cap_ledger: CapLedger | None = None
     final_cap_ledger: CapLedger | None = None
     three_team_trade_version: str = THREE_TEAM_TRADE_VERSION
@@ -302,10 +315,20 @@ def generate_three_team_market_shadow(
         selected.append(offer)
         locked_teams.update(offer.team_ids)
     selected.sort(key=lambda offer: offer.trade_id)
+    negotiations = tuple(
+        build_three_team_contract_negotiation_tree(
+            offer,
+            management,
+            _contract_conditions(offer, management),
+            maximum_rounds=market_rules.maximum_contract_negotiation_rounds,
+        )
+        for offer in selected
+    )
     return ThreeTeamMarketShadowResult(
         ThreeTeamMarketPlan(tuple(selected)),
         tuple(evaluations),
         ManagerDecisionLedger(tuple(ledger_records)),
+        negotiations,
     )
 
 
@@ -319,13 +342,33 @@ def apply_three_team_market_plan(
     cap_ledger: CapLedger | None = None,
     cap_rules: CapMechanicsRules | None = None,
     frozen_pick_ids: frozenset[int] = frozenset(),
+    negotiations: tuple[ThreeTeamContractNegotiationTree, ...] = (),
 ) -> ThreeTeamMarketExecution:
+    if plan.offers and not negotiations:
+        negotiations = tuple(
+            build_three_team_contract_negotiation_tree(
+                offer,
+                management,
+                _contract_conditions(offer, management),
+            )
+            for offer in plan.offers
+        )
+    trees = {tree.trade_id: tree for tree in negotiations}
+    if set(trees) != {offer.trade_id for offer in plan.offers} and (plan.offers or negotiations):
+        raise ValueError("three-team market negotiations must exactly cover the plan")
     final_management = management
     final_picks = picks
     final_cap_ledger = cap_ledger
     audits: list[ThreeTeamTradeAudit] = []
+    accepted_node_ids: list[int] = []
     for offer in plan.offers:
-        result = apply_three_team_trade(
+        tree = trees[offer.trade_id]
+        accepted = next((node for node in tree.nodes if node.status == "accepted"), None)
+        if accepted is None:
+            raise ValueError("three-team market negotiation has no accepted terms")
+        result = execute_three_team_contract_negotiation(
+            tree,
+            accepted.node_id,
             final_management,
             final_picks,
             offer,
@@ -335,6 +378,7 @@ def apply_three_team_market_plan(
             cap_rules=cap_rules,
             frozen_pick_ids=frozen_pick_ids,
         )
+        accepted_node_ids.append(accepted.node_id)
         audits.append(audit_three_team_trade(result))
         final_management = result.final_management
         final_picks = result.final_picks
@@ -346,9 +390,40 @@ def apply_three_team_market_plan(
         final_management,
         final_picks,
         tuple(audits),
+        negotiations,
+        tuple(accepted_node_ids),
         cap_ledger,
         final_cap_ledger,
     )
+
+
+def _contract_conditions(
+    offer: ThreeTeamTradeOffer,
+    management: LeagueManagementState,
+) -> tuple[ThreeTeamContractCondition, ...]:
+    contracts = {contract.player_id: contract for contract in management.contracts}
+    conditions: list[ThreeTeamContractCondition] = []
+    for route in offer.player_routes:
+        contract = contracts[route.player_id]
+        conditions.extend(
+            (
+                ThreeTeamContractCondition(
+                    len(conditions) + 1,
+                    route.player_id,
+                    route.to_team_id,
+                    ContractConditionKind.MAXIMUM_ANNUAL_SALARY,
+                    contract.annual_salary,
+                ),
+                ThreeTeamContractCondition(
+                    len(conditions) + 2,
+                    route.player_id,
+                    route.to_team_id,
+                    ContractConditionKind.MINIMUM_YEARS_REMAINING,
+                    contract.years_remaining,
+                ),
+            )
+        )
+    return tuple(conditions)
 
 
 def three_team_shadow_gain(shadow: ThreeTeamTradeShadowResult) -> float:

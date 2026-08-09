@@ -1,7 +1,7 @@
 from dataclasses import replace
 
 import pytest
-from test_phase19_three_team_trades import circular_offer, rules, state
+from test_phase19_three_team_trades import circular_offer, future_picks, rules, state
 
 from courtsim.three_team_market_v2 import (
     ContractConditionKind,
@@ -194,4 +194,20 @@ def test_v2_execution_rejects_offer_and_post_acceptance_contract_drift() -> None
             (),
             offer,
             rules(),
+        )
+
+
+def test_v2_execution_revalidates_frozen_draft_assets() -> None:
+    offer = circular_offer(with_picks=True)
+    tree = build_three_team_contract_negotiation_tree(offer, state(), _conditions())
+    accepted = next(item for item in tree.nodes if item.status == "accepted")
+    with pytest.raises(ValueError, match="frozen"):
+        execute_three_team_contract_negotiation(
+            tree,
+            accepted.node_id,
+            state(),
+            future_picks(),
+            offer,
+            rules(),
+            frozen_pick_ids=frozenset({101}),
         )
