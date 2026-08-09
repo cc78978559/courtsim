@@ -2,7 +2,8 @@
 
 这是给开发者和外部模型使用的低上下文入口。除非任务涉及历史原因或某个节点的
 详细公式，否则先读本文件，再按下方路由读取少量相关源码或阶段文档。
-跨机器接续使用 `docs/handoff-v0.54.md`，不要继续使用历史 `handoff-v0.52.md`。
+跨机器接续使用 `docs/handoff-v0.55.md`；`handoff-v0.52.md` 和
+`handoff-v0.54.md` 只保留为历史快照。
 
 ## 当前冻结版本
 
@@ -18,8 +19,8 @@
 - NBA 罚球目标：`experiments/nba-2024-25-regular-season-free-throws-v1.json`
 - 30 队快速模拟：`nba-quick-sim-executor-v6`
 - 交易和工资帽完整赛季循环：`nba-franchise-v6`
-- 压缩且可迁移的原子存档：`nba-franchise-artifact-v3`
-- 带保留策略的多赛季恢复运行器：`nba-franchise-runner-v3`
+- 压缩且可迁移的原子存档：`nba-franchise-artifact-v4`
+- 带保留策略的多赛季恢复运行器：`nba-franchise-runner-v4`
 
 独立种子 `20260728` 的 100 场审计通过 10 项核心目标、3 项罚球目标和
 37 项回归门禁。冻结审计 SHA-256：
@@ -175,13 +176,15 @@ OFF_BALL_ACTION
 
 ## 当前边界
 
-当前仍未实现的主要边界包括选秀权冻结与更复杂的多重条件义务、
-三方市场的合同条件谈判、因果战术实验、Shadow 之外的人工批准流程，
+当前仍未闭环的主要边界包括：把只读 draft obligation/freeze ledger v3 接入规范交易
+生成、执行与结算；把已经实现的 three-team-market v2 合同谈判树晋级并接入每赛季
+franchise；从战术可观测性推进到配对种子的因果战术实验；Shadow 之外的人工批准流程；
 以及完整玩法 UI。
 
 已经实现的联盟层包括 30 队 1,230 场赛程、play-in、完整季后赛、疲劳和伤病连续、
 乐透与选秀权结算、球探不确定性、球员成长/衰退/退休、完整休赛期、鸟权/工资匹配/
-交易特例、完整七年 Stepien、条件选秀权、四至八轮双边谈判、白盒经理交易与轮换、
+交易特例、完整七年 Stepien、条件选秀权、四至八轮双边谈判、draft obligation/freeze
+ledger v3 只读审计、three-team-market v2 合同谈判树、白盒经理交易与轮换、
 对手级战术、跨赛季经理学习、2K 快速模拟比较入口、压缩/保留/迁移的原子 franchise
 存档，以及不重放已完成赛季的多赛季恢复运行器。最新进度和测试数
 以 `PROJECT_STATUS.md` 与 `governance/current-release.json` 为准。

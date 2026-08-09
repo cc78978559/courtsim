@@ -1,7 +1,7 @@
-# CourtSim 0.54 cross-machine handoff
+# CourtSim 0.54 cross-machine handoff (archived)
 
-This is the current low-context handoff for the NBA franchise branch. Historical
-`handoff-v0.52.md` remains an archive and must not be used as the current branch map.
+This is a historical snapshot. Use `handoff-v0.55.md` for the current branch map,
+released v6 postseason scheduler, and GitHub transfer instructions.
 
 ## Source boundary
 

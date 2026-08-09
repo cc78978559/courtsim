@@ -50,11 +50,10 @@ to `2.25`, demonstrating high finite-sample sensitivity, but it does not change 
 outcome. The reality source contains only three champion observations (all No. 1 seeds), and its
 frozen guardband already expands their mean from `1.0` to an allowed maximum of `3.0`.
 
-## Promotion decision
+## Historical candidate decision
 
-Do not relax the frozen threshold or add seasons after inspecting this result and then call the
-same batch a clean holdout. The v6 code remains outside `governance/current-release.json`, whose
-released executor is v5. A future promotion needs a predeclared new evaluation design with enough
-championship observations, an eligible unseen seed set, and an explicit rule for low-count
-postseason metrics. Until then, report v6 as a correctness candidate with a passed engine-
-consistency gate and a marginally failed reality gate.
+The failed five-season result was retained without relaxing its threshold or extending that batch
+after inspection. A separate 30-season design was then frozen before execution with a new unseen
+master seed. That long holdout passed both gates and promoted v6. The final evidence and current
+status are recorded in `nba-quick-sim-executor-v6.md` and
+`experiments/promotion/nba-quick-sim-executor-v6.json`.
