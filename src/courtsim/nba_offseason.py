@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from dataclasses import astuple, dataclass, replace
 
 from courtsim.cap_mechanics import CapLedger, CapMechanicsRules
 from courtsim.career import (
@@ -21,7 +21,11 @@ from courtsim.draft_assets import DraftAssetLedger, seed_future_draft_picks
 from courtsim.management import (
     ContractRules,
     LeagueManagementState,
+    MarketAction,
+    MarketActionKind,
+    MarketPlan,
     advance_contract_year,
+    apply_market_plan,
 )
 from courtsim.manager_ai import (
     DraftShadowResult,
@@ -157,6 +161,17 @@ def execute_nba_offseason(
         profiles=profiles,
         contract_rules=contract_rules,
     )
+    market_shadow = replace(
+        market_shadow,
+        plan=_ensure_minimum_rosters(
+            draft_preview.final_management,
+            draft_preview.final_players,
+            contract_rules,
+            market_shadow.plan,
+            cap_ledger=cap_ledger,
+            cap_rules=cap_rules,
+        ),
+    )
     offseason = advance_offseason(
         season_year=management.season_year,
         master_seed=master_seed,
@@ -185,6 +200,74 @@ def execute_nba_offseason(
         offseason,
         final_assets,
     )
+
+
+def _ensure_minimum_rosters(
+    management: LeagueManagementState,
+    players: tuple[CareerPlayer, ...],
+    rules: ContractRules,
+    plan: MarketPlan,
+    *,
+    cap_ledger: CapLedger | None,
+    cap_rules: CapMechanicsRules | None,
+    minimum_players: int = 5,
+) -> MarketPlan:
+    """Append deterministic minimum-salary signings until every team can play."""
+    preview = apply_market_plan(
+        management,
+        plan,
+        rules,
+        cap_ledger=cap_ledger,
+        cap_rules=cap_rules,
+    ).final_state
+    actions = list(plan.actions)
+    player_map = {player.player_id: player for player in players}
+    next_action_id = max((action.action_id for action in actions), default=0) + 1
+    for roster in preview.rosters:
+        current = next(item for item in preview.rosters if item.team_id == roster.team_id)
+        while len(current.player_ids) < minimum_players:
+            candidates = sorted(
+                (
+                    player_map[player_id]
+                    for player_id in preview.free_agent_ids
+                    if player_id in player_map
+                    and player_map[player_id].status is CareerStatus.FREE_AGENT
+                ),
+                key=lambda player: (-sum(astuple(player.profile.abilities)), player.player_id),
+            )
+            selected_action: MarketAction | None = None
+            selected_preview: LeagueManagementState | None = None
+            for candidate in candidates:
+                action = MarketAction(
+                    next_action_id,
+                    MarketActionKind.SIGN,
+                    candidate.player_id,
+                    roster.team_id,
+                    rules.minimum_salary,
+                    1,
+                )
+                try:
+                    trial = apply_market_plan(
+                        preview,
+                        MarketPlan((action,)),
+                        rules,
+                        cap_ledger=cap_ledger,
+                        cap_rules=cap_rules,
+                    ).final_state
+                except ValueError:
+                    continue
+                selected_action = action
+                selected_preview = trial
+                break
+            if selected_action is None or selected_preview is None:
+                raise ValueError(
+                    f"free-agent pool cannot restore a playable NBA roster: {roster.team_id}"
+                )
+            actions.append(selected_action)
+            next_action_id += 1
+            preview = selected_preview
+            current = next(item for item in preview.rosters if item.team_id == roster.team_id)
+    return MarketPlan(tuple(actions))
 
 
 def _sync_statuses(

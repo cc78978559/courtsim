@@ -289,7 +289,7 @@ def test_franchise_season_composes_into_a_second_complete_season(
 def test_nba_franchise_rejects_nonstandard_prospect_class_size() -> None:
     state, profiles, contract_rules = _state()
 
-    with pytest.raises(ValueError, match="thirty-player prospect class"):
+    with pytest.raises(ValueError, match="prospect class must cover every configured draft pick"):
         execute_nba_franchise_season(
             state,
             seed=101,

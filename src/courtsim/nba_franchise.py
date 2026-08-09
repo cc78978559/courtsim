@@ -153,9 +153,10 @@ def execute_nba_franchise_season(
     team_ids = tuple(roster.team_id for roster in state.management.rosters)
     if set(profiles) != set(team_ids):
         raise ValueError("NBA franchise requires one manager profile per team")
-    active_prospect_rules = prospect_rules or ProspectGenerationRules(class_size=30)
-    if active_prospect_rules.class_size != 30:
-        raise ValueError("NBA franchise requires a thirty-player prospect class")
+    expected_prospects = 30 * draft_rules.rounds
+    active_prospect_rules = prospect_rules or ProspectGenerationRules(class_size=expected_prospects)
+    if active_prospect_rules.class_size != expected_prospects:
+        raise ValueError("NBA franchise prospect class must cover every configured draft pick")
     active_trade_rules = replace(
         trade_rules or TradeRules(),
         require_complete_stepien_horizon=True,
@@ -238,8 +239,8 @@ def execute_nba_franchise_season(
     )
     players = state.players
     prospects = tuple(player for player in players if player.status is CareerStatus.PROSPECT)
-    if prospects and len(prospects) != 30:
-        raise ValueError("NBA franchise requires zero or thirty incoming prospects")
+    if prospects and len(prospects) != expected_prospects:
+        raise ValueError("NBA franchise incoming prospects must cover every configured draft pick")
     if not prospects:
         prospect_class = generate_prospect_class(
             draft_year=state.management.season_year + 1,
