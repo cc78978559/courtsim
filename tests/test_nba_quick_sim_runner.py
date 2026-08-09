@@ -121,6 +121,19 @@ def test_serial_runner_resumes_verified_complete_checkpoint(
     assert checkpoint["complete"] is True
 
 
+def test_runner_pins_optional_real_player_roster_input(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    roster = tmp_path / "player-rosters.json"
+    roster.write_text("{}", encoding="utf-8")
+    payload = _run(tmp_path, monkeypatch, player_roster_path=roster)
+    configuration = payload["configuration"]
+    assert isinstance(configuration, dict)
+    inputs = configuration["inputs"]
+    assert isinstance(inputs, dict)
+    assert inputs["player_rosters"]["filename"] == roster.name
+
+
 @pytest.mark.parametrize(
     ("overrides", "message"),
     [

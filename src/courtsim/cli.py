@@ -412,6 +412,11 @@ def _parser() -> argparse.ArgumentParser:
     quick_sim_run.add_argument(
         "--lineup", type=Path, default=Path("examples/calibration_lineup_v1.json")
     )
+    quick_sim_run.add_argument(
+        "--player-rosters",
+        type=Path,
+        help="source-pinned NBA player target set used to build real rosters",
+    )
     quick_sim_run.add_argument("--batch-id", required=True)
     quick_sim_run.add_argument("--master-seed", type=int, required=True)
     quick_sim_run.add_argument("--seasons", type=int, default=30)
@@ -1218,6 +1223,7 @@ def main(argv: list[str] | None = None) -> int:
                 ),
                 workers=arguments.workers,
                 executor_version=arguments.executor_version,
+                player_roster_path=arguments.player_rosters,
             )
             print(
                 json.dumps(

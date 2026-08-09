@@ -9,11 +9,13 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any, cast
 
+from courtsim.analysis.nba_player_targets import load_nba_player_target_set
 from courtsim.analysis.nba_quick_sim_executor import (
     NBA_QUICK_SIM_EXECUTOR_VERSION,
     NBA_QUICK_SIM_EXECUTOR_VERSIONS,
     NBAQuickSimExecutor,
 )
+from courtsim.analysis.nba_real_rosters import build_nba_real_roster_teams
 from courtsim.analysis.nba_shot_profiles import load_nba_shot_profile_set
 from courtsim.analysis.nba_team_strength import (
     apply_nba_team_strengths,
@@ -64,6 +66,7 @@ def run_nba_quick_sim_batch(
     game_config: GameClockConfig,
     workers: int = 1,
     executor_version: str = NBA_QUICK_SIM_EXECUTOR_VERSION,
+    player_roster_path: str | Path | None = None,
 ) -> dict[str, object]:
     """Run or resume a batch, persisting one verified season at a time."""
     files: dict[str, Path] = {
@@ -73,6 +76,8 @@ def run_nba_quick_sim_batch(
         "shot_profiles": Path(profile_path).resolve(),
         "team_strength": Path(strength_path).resolve(),
     }
+    if player_roster_path is not None:
+        files["player_rosters"] = Path(player_roster_path).resolve()
     for role, path in files.items():
         if not path.is_file():
             raise NbaQuickSimRunnerError(f"quick-sim {role} input is missing: {path}")
@@ -218,7 +223,14 @@ def _build_executor(
 ) -> NBAQuickSimExecutor:
     profiles = load_nba_shot_profile_set(files["shot_profiles"])
     templates = player_lineup_from_json(files["lineup"].read_text(encoding="utf-8"))
-    teams = _build_teams(tuple(item.team_id for item in profiles.teams), templates)
+    team_ids = tuple(item.team_id for item in profiles.teams)
+    teams = (
+        build_nba_real_roster_teams(
+            load_nba_player_target_set(files["player_rosters"]), templates, team_ids
+        )
+        if "player_rosters" in files
+        else _build_teams(team_ids, templates)
+    )
     teams = apply_nba_team_strengths(teams, files["team_strength"])
     alignment = load_nba_team_strength_alignment(files["team_strength"])
     return NBAQuickSimExecutor(
