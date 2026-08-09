@@ -6,13 +6,14 @@ import json
 from collections.abc import Mapping
 from typing import Any, NoReturn, cast
 
-from courtsim.domain.enums import GameEndReason, SubstitutionReason
+from courtsim.domain.enums import GameEndReason, ShotZone, SubstitutionReason
 from courtsim.domain.game import (
     GameClockConfig,
     GamePossessionRecord,
     GameResult,
     PlayerFatigueSnapshot,
     PlayerPlayingTime,
+    PlayerShotZoneStat,
     SubstitutionRecord,
     validate_game_result,
 )
@@ -24,7 +25,7 @@ from courtsim.domain.serialization import (
 )
 from courtsim.stats.attribution import PlayerStatDelta, StatCode
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 4
 
 
 def _fail(message: str) -> NoReturn:
@@ -148,6 +149,18 @@ def game_result_to_dict(result: GameResult) -> dict[str, object]:
         ],
         "rotation_version": result.rotation_version,
         "fatigue_version": result.fatigue_version,
+        "player_shot_zones": [
+            {
+                "player_id": item.player_id,
+                "zone": int(item.zone),
+                "attempts": item.attempts,
+                "makes": item.makes,
+            }
+            for item in result.player_shot_zones
+        ],
+        "possessions_omitted": result.possessions_omitted,
+        "home_possessions": result.home_possessions,
+        "away_possessions": result.away_possessions,
     }
 
 
@@ -167,17 +180,29 @@ def game_result_from_dict(
         "player_stats",
         "end_reason",
     }
-    current_keys = legacy_keys | {
+    version_two_keys = legacy_keys | {
         "substitutions",
         "playing_time",
         "final_fatigue",
         "rotation_version",
         "fatigue_version",
     }
+    version_three_keys = version_two_keys | {"player_shot_zones", "possessions_omitted"}
+    current_keys = version_three_keys | {"home_possessions", "away_possessions"}
     schema_version = _int(obj, "schema_version")
-    if schema_version not in {1, SCHEMA_VERSION}:
+    if schema_version not in {1, 2, 3, SCHEMA_VERSION}:
         _fail("unsupported schema_version")
-    _exact(obj, legacy_keys if schema_version == 1 else current_keys, "game result")
+    _exact(
+        obj,
+        legacy_keys
+        if schema_version == 1
+        else version_two_keys
+        if schema_version == 2
+        else version_three_keys
+        if schema_version == 3
+        else current_keys,
+        "game result",
+    )
     raw_possessions = obj["possessions"]
     if not isinstance(raw_possessions, list):
         _fail("possessions must be a list")
@@ -268,7 +293,7 @@ def game_result_from_dict(
     substitutions: list[SubstitutionRecord] = []
     playing_time: list[PlayerPlayingTime] = []
     final_fatigue: tuple[PlayerFatigueSnapshot, ...] = ()
-    if schema_version == SCHEMA_VERSION:
+    if schema_version >= 2:
         raw_substitutions = obj["substitutions"]
         if not isinstance(raw_substitutions, list):
             _fail("substitutions must be a list")
@@ -311,6 +336,38 @@ def game_result_from_dict(
                 )
             )
         final_fatigue = _fatigue_snapshots(obj["final_fatigue"], "final_fatigue")
+    player_shot_zones: list[PlayerShotZoneStat] = []
+    possessions_omitted = False
+    if schema_version >= 3:
+        raw_zones = obj["player_shot_zones"]
+        if not isinstance(raw_zones, list):
+            _fail("player_shot_zones must be a list")
+        for raw in raw_zones:
+            item = _object(raw, "player shot zone")
+            _exact(item, {"player_id", "zone", "attempts", "makes"}, "player shot zone")
+            try:
+                zone = ShotZone(_int(item, "zone"))
+            except ValueError as error:
+                raise SerializationError("invalid shot zone") from error
+            player_shot_zones.append(
+                PlayerShotZoneStat(
+                    _int(item, "player_id"),
+                    zone,
+                    _int(item, "attempts"),
+                    _int(item, "makes"),
+                )
+            )
+        possessions_omitted = obj["possessions_omitted"]
+        if not isinstance(possessions_omitted, bool):
+            _fail("possessions_omitted must be a boolean")
+    if schema_version == SCHEMA_VERSION:
+        home_possessions = _int(obj, "home_possessions")
+        away_possessions = _int(obj, "away_possessions")
+    elif possessions_omitted:
+        home_possessions = away_possessions = 1
+    else:
+        home_possessions = sum(item.offense_team_id == obj["home_team_id"] for item in possessions)
+        away_possessions = len(possessions) - home_possessions
     result = GameResult(
         _string(obj, "home_team_id"),
         _string(obj, "away_team_id"),
@@ -324,6 +381,10 @@ def game_result_from_dict(
         final_fatigue,
         None if schema_version == 1 else _nullable_string(obj, "rotation_version"),
         None if schema_version == 1 else _nullable_string(obj, "fatigue_version"),
+        tuple(player_shot_zones),
+        possessions_omitted,
+        home_possessions,
+        away_possessions,
     )
     try:
         validate_game_result(result, config, allowed_possession_seconds)

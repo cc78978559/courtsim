@@ -133,6 +133,7 @@ def test_runner_pins_optional_real_player_roster_input(
     inputs = configuration["inputs"]
     assert isinstance(inputs, dict)
     assert inputs["player_rosters"]["filename"] == roster.name
+    assert configuration["trace_mode"] == "player-aggregates"
 
 
 @pytest.mark.parametrize(

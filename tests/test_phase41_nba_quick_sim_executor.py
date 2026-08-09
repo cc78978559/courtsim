@@ -90,6 +90,10 @@ def test_executor_runs_complete_nba_path_deterministically() -> None:
     assert first.summary.team_count == 30
     assert first.summary.games == 1_230
     assert first.summary.champion_seed is not None
+    assert len(first.player_aggregates) == 150
+    assert all(item.games_available == 82 for item in first.player_aggregates)
+    assert all(item.rotation_coverage == 1.0 for item in first.player_aggregates)
+    assert sum(item.seconds_played for item in first.player_aggregates) > 0
     career_summaries = build_nba_player_season_summaries(
         first,
         tuple(career_player(player_id) for player_id in range(1, 151)),

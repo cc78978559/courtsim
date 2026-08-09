@@ -126,12 +126,16 @@ Implemented on this WIP branch but not promoted as a release:
   `three-team-market-v2` condition trees with four-to-eight-round bounds;
 - Bird Rights accrue, transfer, clear, and authorize AI over-cap signings through the persisted
   `CapLedger`;
-- the NBA schedule spans 174 days and is gated for back-to-backs, consecutive games, and rest;
-- `--player-rosters` builds 451 source-pinned real-player identities and deterministic rotations;
+- the unchanged 1,230-game NBA matchup matrix spans 174 days/164 game dates and is gated for daily
+  volume, league off days, a separate All-Star break, back-to-backs, consecutive games, and rest;
+- `--player-rosters` loads 451 source-pinned targets, caps team rosters at fifteen, samples
+  low-frequency depth appearances with low-sample shrinkage, and records possession-free player
+  season aggregates;
 - route, creation-mode, and tactical-action vocabularies are observable but do not yet constitute
   a passed causal tactical intervention system; and
-- the real-roster macro holdout gate is frozen but has not yet completed a new 30-season run;
-  player usage, efficiency, shot structure, and minutes still require separate full-trace gates.
+- the real-roster macro holdout gate is frozen but has not yet completed a new 30-season run; the
+  player formal gate is implemented but still requires a multi-seed holdout receipt before the
+  player calibration boundary can be promoted.
 
 ## Minimal reading order
 

@@ -8,6 +8,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, cast
 
+from courtsim.analysis.nba_player_aggregates import NBAPlayerSeasonAggregate
 from courtsim.analysis.nba_player_targets import NBAPlayerTargetSet, load_nba_player_target_set
 from courtsim.artifacts import sha256_file
 from courtsim.domain.enums import ShotZone
@@ -24,6 +25,7 @@ from courtsim.verification import verify_manifest
 
 NBA_PLAYER_AUDIT_VERSION = "nba-player-audit-v1"
 NBA_PLAYER_EVALUATION_VERSION = "nba-player-evaluation-v1"
+NBA_PLAYER_REALITY_GATE_VERSION = "nba-player-reality-gate-v1"
 _ZONES = tuple(ShotZone)
 _METRICS = (
     "minutes_per_game",
@@ -123,7 +125,14 @@ def audit_nba_player_results(
             team_stats[(team_id, delta.stat)] = (
                 team_stats.get((team_id, delta.stat), 0) + delta.amount
             )
-        for possession in game.possessions:
+        for aggregate in game.player_shot_zones:
+            zone_attempts[(aggregate.player_id, aggregate.zone)] = (
+                zone_attempts.get((aggregate.player_id, aggregate.zone), 0) + aggregate.attempts
+            )
+            zone_makes[(aggregate.player_id, aggregate.zone)] = (
+                zone_makes.get((aggregate.player_id, aggregate.zone), 0) + aggregate.makes
+            )
+        for possession in () if game.player_shot_zones else game.possessions:
             for segment in possession.result.segments:
                 if not isinstance(
                     segment,
@@ -209,6 +218,58 @@ def audit_nba_player_results(
     }
 
 
+def audit_nba_player_aggregates(
+    aggregates: tuple[NBAPlayerSeasonAggregate, ...], targets: NBAPlayerTargetSet
+) -> dict[str, object]:
+    """Convert compact season aggregates into the canonical player-audit schema.
+
+    Target players omitted from a capped roster remain explicit zero-minute rows, so
+    coverage failures cannot disappear from the formal gate.
+    """
+    by_player = {item.player_id: item for item in aggregates}
+    if len(by_player) != len(aggregates):
+        raise NbaPlayerEvaluationError("player aggregates contain duplicate player ids")
+    rows: list[dict[str, object]] = []
+    games = max((item.games_available for item in aggregates), default=0)
+    for target in targets.players:
+        observed = by_player.get(target.nba_player_id)
+        shares = observed.shot_zone_shares if observed is not None else (0.0, 0.0, 0.0)
+        percentages = observed.shot_zone_percentages if observed is not None else (0.0, 0.0, 0.0)
+        rows.append(
+            {
+                "nba_player_id": target.nba_player_id,
+                "courtsim_player_id": target.nba_player_id,
+                "player_name": target.player_name,
+                "team_id": observed.team_id if observed is not None else None,
+                "games_played": observed.games_played if observed is not None else 0,
+                "minutes": round(observed.minutes, 12) if observed is not None else 0.0,
+                "minutes_per_game": (
+                    round(observed.minutes_per_game, 12) if observed is not None else 0.0
+                ),
+                "usage_rate": round(observed.usage_rate, 12) if observed is not None else 0.0,
+                "true_shooting_percentage": (
+                    round(observed.true_shooting_percentage, 12) if observed is not None else 0.0
+                ),
+                "field_goal_attempt_share": (
+                    round(observed.field_goal_attempt_share, 12) if observed is not None else 0.0
+                ),
+                "shot_zone_attempts": {},
+                "shot_zone_shares": dict(zip((zone.name for zone in _ZONES), shares, strict=True)),
+                "shot_zone_percentages": dict(
+                    zip((zone.name for zone in _ZONES), percentages, strict=True)
+                ),
+            }
+        )
+    return {
+        "schema_version": 1,
+        "version": NBA_PLAYER_AUDIT_VERSION,
+        "target_id": targets.target_id,
+        "season": targets.season,
+        "games": games,
+        "players": rows,
+    }
+
+
 def evaluate_nba_player_audit(
     audit: Mapping[str, object], targets: NBAPlayerTargetSet
 ) -> dict[str, object]:
@@ -266,6 +327,76 @@ def evaluate_nba_player_audit_files(
     return evaluate_nba_player_audit(
         _load_object_file(Path(audit_path).resolve(), "player audit"),
         load_nba_player_target_set(target_path),
+    )
+
+
+def evaluate_nba_player_reality_gate(
+    evaluation: Mapping[str, object], audit: Mapping[str, object]
+) -> dict[str, object]:
+    """Apply frozen, unit-specific player realism thresholds."""
+    raw_metrics = evaluation.get("metrics")
+    raw_players = audit.get("players")
+    if evaluation.get("version") != NBA_PLAYER_EVALUATION_VERSION or not isinstance(
+        raw_metrics, list
+    ):
+        raise NbaPlayerEvaluationError("player gate evaluation is invalid")
+    if audit.get("version") != NBA_PLAYER_AUDIT_VERSION or not isinstance(raw_players, list):
+        raise NbaPlayerEvaluationError("player gate audit is invalid")
+    if tuple(evaluation.get(key) for key in ("target_id", "season")) != tuple(
+        audit.get(key) for key in ("target_id", "season")
+    ):
+        raise NbaPlayerEvaluationError("player gate inputs differ")
+    metrics = {_metric_name(item): _object(item, "player metric") for item in raw_metrics}
+    thresholds = {
+        "minutes_mae": 6.0,
+        "usage_mae": 0.06,
+        "true_shooting_mae": 0.08,
+        "shot_structure_mae": 0.08,
+        "zero_minute_rate": 0.10,
+    }
+    shot_structure = (
+        math.fsum(
+            _number(metrics[f"shot_zone_share.{zone}"].get("mae"), "mae")
+            for zone in ("RIM", "MIDRANGE", "THREE")
+        )
+        / 3.0
+    )
+    zero_minutes = sum(
+        _number(_object(row, "player audit row").get("minutes"), "minutes") == 0.0
+        for row in raw_players
+    )
+    observed = {
+        "minutes_mae": _number(metrics["minutes_per_game"].get("mae"), "mae"),
+        "usage_mae": _number(metrics["usage_rate"].get("mae"), "mae"),
+        "true_shooting_mae": _number(metrics["true_shooting_percentage"].get("mae"), "mae"),
+        "shot_structure_mae": shot_structure,
+        "zero_minute_rate": _ratio(zero_minutes, len(raw_players)),
+    }
+    checks = [
+        {
+            "metric": metric,
+            "observed": round(value, 12),
+            "maximum": thresholds[metric],
+            "passed": value <= thresholds[metric],
+        }
+        for metric, value in observed.items()
+    ]
+    return {
+        "schema_version": 1,
+        "version": NBA_PLAYER_REALITY_GATE_VERSION,
+        "target_id": evaluation.get("target_id"),
+        "season": evaluation.get("season"),
+        "passed": all(item["passed"] is True for item in checks),
+        "checks": checks,
+    }
+
+
+def evaluate_nba_player_reality_gate_files(
+    evaluation_path: str | Path, audit_path: str | Path
+) -> dict[str, object]:
+    return evaluate_nba_player_reality_gate(
+        _load_object_file(Path(evaluation_path).resolve(), "player evaluation"),
+        _load_object_file(Path(audit_path).resolve(), "player audit"),
     )
 
 

@@ -80,6 +80,7 @@ from courtsim.analysis.nba_player_evaluation import (
     aggregate_nba_player_evaluation_files,
     build_nba_player_audit_from_bundle,
     evaluate_nba_player_audit_files,
+    evaluate_nba_player_reality_gate_files,
 )
 from courtsim.analysis.nba_player_identity import (
     NbaPlayerIdentityError,
@@ -371,6 +372,13 @@ def _parser() -> argparse.ArgumentParser:
     )
     nba_player_evaluate_batch.add_argument("output", type=Path)
     nba_player_evaluate_batch.add_argument("reports", type=Path, nargs="+")
+    nba_player_gate = subparsers.add_parser(
+        "nba-player-formal-gate",
+        help="enforce frozen player realism thresholds with a failing exit status",
+    )
+    nba_player_gate.add_argument("evaluation", type=Path)
+    nba_player_gate.add_argument("audit", type=Path)
+    nba_player_gate.add_argument("output", type=Path)
     pace_clock_audit = subparsers.add_parser(
         "pace-clock-audit",
         help="decompose possession clock use from a verified full-trace model bundle",
@@ -1113,6 +1121,24 @@ def main(argv: list[str] | None = None) -> int:
                 )
             )
             return 0
+
+        if arguments.command == "nba-player-formal-gate":
+            player_gate_report = evaluate_nba_player_reality_gate_files(
+                arguments.evaluation, arguments.audit
+            )
+            write_json(arguments.output, player_gate_report)
+            print(
+                json.dumps(
+                    {
+                        "output": str(arguments.output),
+                        "passed": player_gate_report.get("passed"),
+                        "version": player_gate_report.get("version"),
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0 if player_gate_report["passed"] is True else 16
 
         if arguments.command == "pace-clock-audit":
             pace_report = build_pace_audit_from_bundle(arguments.manifest)

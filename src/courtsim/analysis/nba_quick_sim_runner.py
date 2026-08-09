@@ -113,7 +113,11 @@ def run_nba_quick_sim_batch(
             "overtime_enabled": game_config.overtime_enabled,
         },
         "season_config": "injury-v1-default",
-        "trace_mode": TraceMode.AGGREGATE_ONLY.value,
+        "trace_mode": (
+            TraceMode.PLAYER_AGGREGATES.value
+            if "player_rosters" in files
+            else TraceMode.AGGREGATE_ONLY.value
+        ),
         "inputs": inputs,
     }
     configuration_sha256 = _digest(configuration)
@@ -224,11 +228,12 @@ def _build_executor(
     profiles = load_nba_shot_profile_set(files["shot_profiles"])
     templates = player_lineup_from_json(files["lineup"].read_text(encoding="utf-8"))
     team_ids = tuple(item.team_id for item in profiles.teams)
+    player_targets = (
+        load_nba_player_target_set(files["player_rosters"]) if "player_rosters" in files else None
+    )
     teams = (
-        build_nba_real_roster_teams(
-            load_nba_player_target_set(files["player_rosters"]), templates, team_ids
-        )
-        if "player_rosters" in files
+        build_nba_real_roster_teams(player_targets, templates, team_ids)
+        if player_targets is not None
         else _build_teams(team_ids, templates)
     )
     teams = apply_nba_team_strengths(teams, files["team_strength"])
@@ -238,9 +243,12 @@ def _build_executor(
         game_config,
         teams,
         alignment,
-        trace_mode=TraceMode.AGGREGATE_ONLY,
+        trace_mode=(
+            TraceMode.PLAYER_AGGREGATES if player_targets is not None else TraceMode.AGGREGATE_ONLY
+        ),
         version=executor_version,
         shot_zone_profiles=profiles,
+        player_targets=player_targets,
     )
 
 

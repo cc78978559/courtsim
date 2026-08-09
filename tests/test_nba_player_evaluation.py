@@ -8,14 +8,17 @@ from typing import Any, cast
 import pytest
 
 import courtsim.analysis.nba_player_evaluation as evaluation_module
+from courtsim.analysis.nba_player_aggregates import NBAPlayerSeasonAggregate
 from courtsim.analysis.nba_player_evaluation import (
     NbaPlayerEvaluationError,
     aggregate_nba_player_evaluation_files,
     aggregate_nba_player_evaluations,
+    audit_nba_player_aggregates,
     audit_nba_player_results,
     build_nba_player_audit_from_bundle,
     evaluate_nba_player_audit,
     evaluate_nba_player_audit_files,
+    evaluate_nba_player_reality_gate,
     load_courtsim_identity_map,
 )
 from courtsim.analysis.nba_player_targets import (
@@ -121,6 +124,40 @@ def test_player_evaluation_and_batch_pool_metric_errors() -> None:
     assert batch["runs"] == 2
     pooled = cast(list[dict[str, Any]], batch["metrics"])
     assert {item["metric"] for item in pooled} == set(by_name)
+
+
+def test_compact_player_aggregates_feed_formal_gate() -> None:
+    targets = _targets()
+    aggregate = NBAPlayerSeasonAggregate(
+        team_id="A",
+        player_id=100,
+        games_available=82,
+        games_played=82,
+        seconds_played=82 * 48 * 60,
+        usage_rate=0.2,
+        true_shooting_percentage=0.6,
+        field_goal_attempt_share=0.25,
+        shot_zone_shares=(0.4, 0.2, 0.4),
+        shot_zone_percentages=(0.7, 0.4, 0.38),
+        assists=1,
+        turnovers=1,
+        rebounds=1,
+        steals=1,
+        blocks=1,
+        defensive_proxy_per_36=1.0,
+        rotation_coverage=1.0,
+    )
+    audit = audit_nba_player_aggregates((aggregate,), targets)
+    report = evaluate_nba_player_reality_gate(evaluate_nba_player_audit(audit, targets), audit)
+    assert report["passed"] is True
+
+    zero_audit = audit_nba_player_aggregates((), targets)
+    failed = evaluate_nba_player_reality_gate(
+        evaluate_nba_player_audit(zero_audit, targets), zero_audit
+    )
+    assert failed["passed"] is False
+    checks = cast(list[dict[str, Any]], failed["checks"])
+    assert next(item for item in checks if item["metric"] == "zero_minute_rate")["passed"] is False
 
 
 def test_identity_loader_requires_explicit_courtsim_assignment(tmp_path: Path) -> None:

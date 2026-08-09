@@ -46,6 +46,15 @@ def test_player_and_pace_commands_write_compact_reports(
 
     monkeypatch.setattr(
         cli,
+        "evaluate_nba_player_reality_gate_files",
+        lambda *_args: {"passed": False, "version": "player-gate-v1"},
+    )
+    gate_output = tmp_path / "player-gate.json"
+    assert cli.main(["nba-player-formal-gate", "evaluation", "audit", str(gate_output)]) == 16
+    assert json.loads(gate_output.read_text(encoding="utf-8"))["passed"] is False
+
+    monkeypatch.setattr(
+        cli,
         "build_pace_audit_from_bundle",
         lambda _path: {
             "contexts": [{"name": "all"}],
@@ -56,7 +65,7 @@ def test_player_and_pace_commands_write_compact_reports(
     )
     pace_output = tmp_path / "pace.json"
     assert cli.main(["pace-clock-audit", "manifest", str(pace_output)]) == 0
-    assert len(capsys.readouterr().out.splitlines()) == 4
+    assert len(capsys.readouterr().out.splitlines()) == 5
 
 
 def test_management_and_calibration_commands_preserve_exit_semantics(

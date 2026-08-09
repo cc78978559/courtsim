@@ -7,6 +7,12 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from typing import cast
 
+from courtsim.analysis.nba_player_aggregates import (
+    NBAPlayerSeasonAggregate,
+    build_nba_player_season_aggregates,
+)
+from courtsim.analysis.nba_player_targets import NBAPlayerTargetSet
+from courtsim.analysis.nba_real_rosters import build_nba_real_game_team
 from courtsim.analysis.nba_shot_profiles import (
     NBAShotProfileSet,
     apply_nba_shot_profiles,
@@ -105,6 +111,7 @@ class NBAQuickSimExecution:
     summary: QuickSimSeasonSummary
     matchup_team_count: int = 0
     version: str = NBA_QUICK_SIM_EXECUTOR_VERSION
+    player_aggregates: tuple[NBAPlayerSeasonAggregate, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,6 +131,7 @@ class NBAQuickSimExecutor:
     playoff_round_rest_days: int = 2
     version: str = NBA_QUICK_SIM_EXECUTOR_VERSION
     shot_zone_profiles: NBAShotProfileSet | None = None
+    player_targets: NBAPlayerTargetSet | None = None
 
     def __post_init__(self) -> None:
         team_ids = tuple(team.team_id for team in self.teams)
@@ -171,6 +179,10 @@ class NBAQuickSimExecutor:
                 raise ValueError("NBA shot profile loading differs from model parameters")
             if {item.team_id for item in self.shot_zone_profiles.teams} != set(team_ids):
                 raise ValueError("NBA shot profiles must cover every quick-sim team")
+        if self.player_targets is not None:
+            target_ids = {item.nba_player_id for item in self.player_targets.players}
+            if any(player_id not in target_ids for player_id in player_ids):
+                raise ValueError("NBA player targets must cover every quick-sim roster identity")
 
     def __call__(self, season_id: str, seed: int) -> QuickSimSeasonSummary:
         return self.execute(season_id, seed).summary
@@ -208,10 +220,22 @@ class NBAQuickSimExecutor:
         ) -> tuple[GameTeam, GameTeam]:
             home_team_id = scheduled.home_team_id
             away_team_id = scheduled.away_team_id
-            return (
-                matchup_map.get((home_team_id, away_team_id), team_map[home_team_id]),
-                matchup_map.get((away_team_id, home_team_id), team_map[away_team_id]),
-            )
+            home = matchup_map.get((home_team_id, away_team_id), team_map[home_team_id])
+            away = matchup_map.get((away_team_id, home_team_id), team_map[away_team_id])
+            if self.player_targets is not None:
+                home = build_nba_real_game_team(
+                    home,
+                    self.player_targets,
+                    game_id=scheduled.game_id,
+                    master_seed=seed,
+                )
+                away = build_nba_real_game_team(
+                    away,
+                    self.player_targets,
+                    game_id=scheduled.game_id,
+                    master_seed=seed,
+                )
+            return home, away
 
         season = sample_season(
             parameters=self.parameters,
@@ -223,7 +247,9 @@ class NBAQuickSimExecutor:
             fatigue_config=self.fatigue_config,
             season_config=self.season_config,
             trace_mode=self.trace_mode,
-            team_resolver=resolve_matchup if matchup_map else None,
+            team_resolver=(
+                resolve_matchup if matchup_map or self.player_targets is not None else None
+            ),
         )
         east_regular = _conference_seeds(season, self.alignment.east_team_ids)
         west_regular = _conference_seeds(season, self.alignment.west_team_ids)
@@ -286,14 +312,15 @@ class NBAQuickSimExecutor:
         )
         postseason_state = runtime.result()
         return NBAQuickSimExecution(
-            season,
-            east_play_in,
-            west_play_in,
-            postseason,
-            postseason_state,
-            summarize_quick_sim_season(season_id, season, postseason),
-            len(matchup_map),
-            self.version,
+            season=season,
+            east_play_in=east_play_in,
+            west_play_in=west_play_in,
+            postseason=postseason,
+            postseason_state=postseason_state,
+            summary=summarize_quick_sim_season(season_id, season, postseason),
+            matchup_team_count=len(matchup_map),
+            version=self.version,
+            player_aggregates=build_nba_player_season_aggregates(season),
         )
 
 

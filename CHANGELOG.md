@@ -24,6 +24,11 @@
 - Integrate v2 contract-condition negotiation trees into the three-team franchise market.
 - Add source-pinned real NBA player rosters, target-shaped rotations, and a dedicated formal holdout gate.
 - Correct Git artifact boundaries and add packaging, license, and cross-machine WIP handoff checks.
+- Reallocate the unchanged 1,230-game matchup matrix across 164 game dates in a 174-day season,
+  with a separate seven-day All-Star break and hard daily/team rest-distribution gates.
+- Add possession-free `PLAYER_AGGREGATES` traces, probabilistic 11-15 player rotations with
+  low-sample shrinkage, and a failing player-level formal gate for minutes, usage, efficiency,
+  shot structure, and zero-minute coverage.
 
 ## [0.52.0] - 2026-07-26
 

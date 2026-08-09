@@ -149,6 +149,24 @@ def test_aggregate_only_retains_canonical_game_but_not_decision_samples() -> Non
     assert aggregate.possession_samples == ()
 
 
+def test_player_aggregate_mode_omits_possessions_but_retains_box_and_zone_totals() -> None:
+    full = game(7)
+    aggregate = game(7, trace_mode=TraceMode.PLAYER_AGGREGATES)
+    assert aggregate.result.possessions == ()
+    assert aggregate.result.possessions_omitted
+    assert aggregate.result.player_stats == full.result.player_stats
+    assert aggregate.result.playing_time == full.result.playing_time
+    assert aggregate.result.player_shot_zones == full.result.player_shot_zones
+    assert aggregate.result.home_possessions + aggregate.result.away_possessions == len(
+        full.result.possessions
+    )
+    assert aggregate.possession_samples == ()
+    validate_game_result(aggregate.result, SHORT_GAME)
+    assert (
+        game_result_from_json(game_result_to_json(aggregate.result), SHORT_GAME) == aggregate.result
+    )
+
+
 def test_score_and_player_ledger_equal_the_possession_event_source() -> None:
     result = game(7).result
     expected_score = {"home": 0, "away": 0}

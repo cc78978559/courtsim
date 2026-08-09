@@ -173,7 +173,13 @@ def summarize_quick_sim_season(
         for row, games in zip(season.standings, standings_games, strict=True)
     )
     possessions = sum(
-        len(record.result.possessions) for record in completed if record.result is not None
+        (
+            record.result.home_possessions + record.result.away_possessions
+            if record.result.possessions_omitted
+            else len(record.result.possessions)
+        )
+        for record in completed
+        if record.result is not None
     )
     points = sum(record.home_score + record.away_score for record in completed)
     upset_rate, champion_seed = _postseason_metrics(postseason)
