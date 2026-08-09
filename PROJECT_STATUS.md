@@ -45,14 +45,13 @@ statistics ledger rather than continuous court physics.
 - Compressed, migratable atomic franchise checkpoints: `nba-franchise-artifact-v4`.
 - Retention-aware resumable multi-season orchestration: `nba-franchise-runner-v4`.
 - Native routed three-team transactions: `three-team-trade-v1`.
-- Automatic cyclic/hub three-team discovery and unified clearing: `three-team-market-v1`.
-- Contract-condition negotiation trees for three-team offers: `three-team-market-v2` tooling;
-  not yet the franchise default.
-- Conservative read-only multi-obligation and pick-freeze audit:
-  `draft-obligation-ledger-v3`; not yet a canonical transaction mutator.
+- Automatic cyclic/hub three-team discovery and unified clearing: `three-team-market-v1`, now
+  executing `three-team-market-v2` contract-condition trees in the franchise WIP path.
+- Conservative multi-obligation and pick-freeze derivation: `draft-obligation-ledger-v3`, enforced
+  in bilateral and three-team offer generation and execution, then re-derived after settlement.
 - Team-specific hidden-potential scouting: `scouting-v1`.
 - Bird rights, aprons, salary tiers, and trade exceptions: `cap-mechanics-v1`.
-- Thirty-team schedule, play-in, and full bracket: `nba-league-v1`.
+- 174-day thirty-team schedule, play-in, and full bracket: `nba-league-v1`.
 - Cross-season opponent modeling: `manager-learning-v1`.
 
 The latest mechanics are now the formal baseline after a complete independent
@@ -129,7 +128,7 @@ promotion.
   hidden true potential, and direct integration into Shadow draft decisions.
 - Non-Bird, Early Bird, and Full Bird over-cap signing paths, first/second aprons, three salary
   matching tiers, and immutable expiring trade-exception ledgers.
-- A deterministic 30-team schedule containing exactly 1,230 games and 82 games per team,
+- A deterministic 174-day 30-team schedule containing exactly 1,230 games and 82 games per team,
   conference play-in resolution, and a validated 16-team/15-series postseason path.
 - Division-aware NBA series allocation with four games against every division opponent,
   6/4 four-game/three-game same-conference opponents, two games against every opposite-
@@ -201,8 +200,11 @@ promotion.
 - Local free-data reducers for team/player box scores, player identity crosswalk audits,
   player usage/efficiency/minutes/shot-structure evaluation, and multi-seed aggregation.
 - A source-hash-bound draft obligation/freeze ledger v3 with seven-year Stepien risk auditing.
-- Four-round default three-team contract-condition negotiation trees with stale-offer rejection
-  and canonical legality revalidation before execution.
+- Four-round default three-team contract-condition negotiation trees integrated into franchise
+  clearing, with stale-offer, cap, draft-freeze, and canonical legality revalidation.
+- Source-pinned real-player quick-sim rosters with 451 NBA IDs, real names and team membership,
+  target-shaped usage/shot profiles, deterministic ten-player rotations, and a dedicated formal
+  macro holdout gate. Player-level full-trace calibration remains a separate unpassed boundary.
 - Layered static/unit/slow/franchise quality gates, bounded failure output with full logs,
   execution-policy-safe Windows dispatch, compact governance/Git status JSON, and read-only
   NBA quick-simulation/franchise artifact inspection commands.
@@ -211,8 +213,8 @@ promotion.
 
 - Ruff formatting and lint: passed.
 - mypy strict: passed.
-- pytest: 662 passed on 2026-08-09.
-- Coverage: 85.28%, above the frozen minimum of 85%; the complete `tools.cmd check` passes.
+- Final WIP gate: 677 tests passed on 2026-08-09; formatting, lint, strict mypy, and the unchanged
+  85% branch-coverage threshold passed. The coverage run took about 37 minutes on the audit host.
 - The restored coverage comes from strict reality-data, player calibration, pace/holdout,
   quick-sim resume, draft-obligation, and three-team negotiation tests; the threshold and source
   measurement boundary were not weakened.

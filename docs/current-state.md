@@ -7,7 +7,7 @@
 
 ## 当前冻结版本
 
-- 引擎候选版本：`0.54.0`
+- 引擎候选版本：`0.54.0`；当前 GitHub 分支是未发布 WIP，不改变冻结 release。
 - 模型结构：`data/model_schema_demo_v1_12.json`
 - 模型参数：`data/model_parameters_demo_1.4.0.json`
 - 球员夹具：`examples/calibration_lineup_v1.json`
@@ -187,7 +187,8 @@ franchise；从战术可观测性推进到配对种子的因果战术实验；Sh
 ledger v3 只读审计、three-team-market v2 合同谈判树、白盒经理交易与轮换、
 对手级战术、跨赛季经理学习、2K 快速模拟比较入口、压缩/保留/迁移的原子 franchise
 存档，以及不重放已完成赛季的多赛季恢复运行器。最新进度和测试数
-以 `PROJECT_STATUS.md` 与 `governance/current-release.json` 为准。
+冻结发布以 `governance/current-release.json` 为准；WIP 能力和限制以
+`PROJECT_STATUS.md`、`docs/handoff-v0.55.md` 与 `CHANGELOG.md` 的 Unreleased 段为准。
 
 固定对手和球队分侧审计已落地；球队级 `tempo` 已通过 12/15/18 秒有界分布改变
 回合数。v1.9 进一步在末节最后 120 秒按 6 分分差调整节奏：三个种子上落后球权

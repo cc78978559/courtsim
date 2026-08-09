@@ -7,6 +7,7 @@ import json
 import platform
 import subprocess
 import sys
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any, cast
 
@@ -34,6 +35,12 @@ def build_project_status(root: str | Path) -> dict[str, object]:
     engine_version = release_object.get("engine_version")
     if engine_version != __version__:
         raise ProjectStatusError("current release engine version differs")
+    try:
+        installed_version = version("courtsim")
+    except PackageNotFoundError as error:
+        raise ProjectStatusError("courtsim distribution metadata is missing") from error
+    if installed_version != __version__:
+        raise ProjectStatusError("installed courtsim distribution version differs")
     verified_files = 0
     mismatches: list[str] = []
     for name, value in sorted(release_object.items()):
@@ -53,6 +60,7 @@ def build_project_status(root: str | Path) -> dict[str, object]:
     return {
         "schema_version": PROJECT_STATUS_SCHEMA_VERSION,
         "courtsim_version": __version__,
+        "installed_distribution_version": installed_version,
         "python_version": platform.python_version(),
         "python_executable": sys.executable,
         "release": {
@@ -86,7 +94,9 @@ def build_project_status(root: str | Path) -> dict[str, object]:
             "derived-tactical-action-vocabulary",
             "draft-obligation-freeze-ledger-v3",
             "draft-obligation-read-only-audit",
+            "draft-obligation-transaction-enforcement",
             "three-team-market-v2-contract-tree",
+            "three-team-market-v2-franchise-integration",
             "local-composite-group-reduction",
             "nba-reference-targets",
             "nba-quick-sim-inspection",
@@ -95,6 +105,7 @@ def build_project_status(root: str | Path) -> dict[str, object]:
             "nba-multiseason-standings-playoffs-reality",
             "nba-quick-sim-formal-gate",
             "nba-quick-sim-input-pinned-runner",
+            "nba-source-pinned-real-player-rosters",
             "nba-quick-sim-parallel-checkpoint-waves",
             "nba-source-derived-team-strength",
             "nba-source-pinned-conference-alignment",

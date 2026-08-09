@@ -6,6 +6,8 @@ build-backend = "setuptools.build_meta"
 name = "courtsim"
 version = "0.54.0"
 description = "Offline-first foundation for a discrete-space basketball simulator"
+readme = "README.md"
+license = "MIT"
 requires-python = ">=3.11"
 dependencies = []
 

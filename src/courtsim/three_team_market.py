@@ -40,7 +40,7 @@ from courtsim.three_team_trades import (
 )
 from courtsim.trades import DEFAULT_TRADE_RULES, TradeRules
 
-THREE_TEAM_MARKET_VERSION = "three-team-market-v2"
+THREE_TEAM_MARKET_VERSION = "three-team-market-v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,9 +73,9 @@ class ThreeTeamMarketRules:
         ):
             raise ValueError("three-team candidate family budgets exceed the trio limit")
         if self.maximum_compensation_picks > 2:
-            raise ValueError("three-team-market-v2 supports at most two compensation picks")
+            raise ValueError("three-team-market-v1 supports at most two compensation picks")
         if not 4 <= self.maximum_contract_negotiation_rounds <= 8:
-            raise ValueError("three-team-market-v2 requires four through eight contract rounds")
+            raise ValueError("three-team market requires four through eight contract rounds")
         if self.minimum_combined_rational_gain <= 0:
             raise ValueError("three-team minimum combined gain must be positive")
         if self.version != THREE_TEAM_MARKET_VERSION:

@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- Create a remote WIP backup branch without merging, tagging, or marking a release.
+- Replace the compressed 92-day NBA calendar with a 174-day schedule and calendar realism gates.
+- Guarantee playable post-offseason rosters, two-round 60-player draft classes, and long contract-cliff continuity.
+- Enforce draft-obligation freezes through bilateral and three-team offer generation and execution.
+- Complete Bird-rights accrual, transfer, clearing, signing, and cap-ledger lifecycle, including AI over-cap signings.
+- Make franchise retention crash-safe and bind resumes to a canonical execution-configuration hash.
+- Use one shared regular-season-record rule for NBA Finals home court in both simulation engines.
+- Integrate v2 contract-condition negotiation trees into the three-team franchise market.
+- Add source-pinned real NBA player rosters, target-shaped rotations, and a dedicated formal holdout gate.
+- Correct Git artifact boundaries and add packaging, license, and cross-machine WIP handoff checks.
+
 ## [0.52.0] - 2026-07-26
 
 - Add a resumable automatic multi-season NBA franchise runner.

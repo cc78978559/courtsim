@@ -7,8 +7,8 @@ This is the current low-context handoff for the NBA franchise branch. It superse
 
 - Repository: `cc78978559/courtsim`
 - Local branch: `agent/integrate-trade-cap-season`
-- Current local upstream before publication: `origin/main`
-- Minimum v6 promotion commit: `958b22d`
+- Remote WIP branch: `origin/agent/integrate-trade-cap-season`
+- WIP integration baseline: `7ab7fe0` or newer
 - Engine package: `0.54.0`
 - Frozen release registry format: `55`
 - Quick simulator: `nba-quick-sim-executor-v6`
@@ -16,16 +16,17 @@ This is the current low-context handoff for the NBA franchise branch. It superse
 - Franchise artifact: `nba-franchise-artifact-v4`
 - Franchise runner: `nba-franchise-runner-v4`
 
-The work branch does not become restorable from GitHub until it is pushed explicitly. Generated
+The work branch is restorable from GitHub and intentionally remains unmerged. Generated
 `work/` checkpoints, `.cache`, `.venv`, coverage files, downloaded data, and event ledgers are
 outside the Git boundary and must not be committed.
 
 ## Publish the prepared branch
 
-Current readiness: **local gate passed; publication pending**. On 2026-08-09 all 662 collected
-tests passed and total coverage was `85.28%` against the unchanged frozen `85%` minimum. The
-complete `tools.cmd check` passed. The branch remains local until the explicit push below; do not
-describe it as remotely recoverable before that push succeeds.
+Current readiness: **remote WIP backup, not a release**. The branch contains the post-v6 calendar,
+offseason, obligation, Bird-rights, retention, Finals, three-team negotiation, and real-roster
+integration work. It has not been merged, tagged, or promoted in `governance/current-release.json`.
+The final WIP gate collected and passed 677 tests; formatting, lint, strict mypy, and the unchanged
+85% coverage threshold also passed. The coverage-instrumented full gate took about 37 minutes.
 
 Run from a clean source tree after the complete local gate passes:
 
@@ -36,9 +37,8 @@ git status --short --branch
 git push -u origin agent/integrate-trade-cap-season
 ```
 
-The first push intentionally creates the remote work branch and changes its upstream from
-`origin/main` to `origin/agent/integrate-trade-cap-season`. It does not merge into `main` and does
-not create a release tag. Review the pushed branch or open a pull request before merging.
+Subsequent pushes update only `origin/agent/integrate-trade-cap-season`. Do not merge into `main`,
+create a release tag, or rewrite the frozen release registry as part of WIP backup maintenance.
 
 ## Restore on another Windows machine
 
@@ -98,18 +98,26 @@ Copy the complete franchise run directory outside Git, including `manifest.json`
 
 Artifact v4 reads artifact v1-v3 envelopes and migrates franchise v3-v5 state identities to v6.
 Runner v4 migrates v2/v3 manifests and preserves each checkpoint's recorded seed version. Pruned
-checkpoint metadata remains valid and does not require an already-pruned file.
+checkpoint metadata remains valid and does not require an already-pruned file. Runner schema 3
+also binds the canonical execution configuration hash. Retention stages replacement files, commits
+the new manifest, and only then garbage-collects paths referenced by the old manifest.
 
 ## Capability boundary
 
-Implemented but not yet the canonical franchise default:
+Implemented on this WIP branch but not promoted as a release:
 
-- `draft-obligation-ledger-v3` is a read-only conservative freeze/Stepien audit layer;
-- `three-team-market-v2` provides contract-condition negotiation trees; franchise v6 still binds
-  the released `three-team-market-v1` market;
+- `draft-obligation-ledger-v3` freezes assets in bilateral and three-team generation/execution and
+  is re-derived after settlement to release resolved obligations;
+- the released `three-team-market-v1` outer clearing contract now carries and executes
+  `three-team-market-v2` condition trees with four-to-eight-round bounds;
+- Bird Rights accrue, transfer, clear, and authorize AI over-cap signings through the persisted
+  `CapLedger`;
+- the NBA schedule spans 174 days and is gated for back-to-backs, consecutive games, and rest;
+- `--player-rosters` builds 451 source-pinned real-player identities and deterministic rotations;
 - route, creation-mode, and tactical-action vocabularies are observable but do not yet constitute
   a passed causal tactical intervention system; and
-- player-level calibration tooling exists, but identity coverage is below its promotion gate.
+- the real-roster macro holdout gate is frozen but has not yet completed a new 30-season run;
+  player usage, efficiency, shot structure, and minutes still require separate full-trace gates.
 
 ## Minimal reading order
 
