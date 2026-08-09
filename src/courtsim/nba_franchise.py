@@ -341,7 +341,7 @@ def execute_nba_franchise_season(
         teams=next_teams,
         alignment=state.alignment,
         cap_ledger=expire_cap_ledger(
-            traded_cap_ledger,
+            offseason.final_cap_ledger,
             season_year=offseason.offseason.final_management.season_year,
         ),
         completed_seasons=state.completed_seasons + 1,

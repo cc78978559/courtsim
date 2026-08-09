@@ -5,7 +5,13 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import astuple, dataclass, replace
 
-from courtsim.cap_mechanics import CapLedger, CapMechanicsRules
+from courtsim.cap_mechanics import (
+    CapLedger,
+    CapMechanicsRules,
+    accrue_bird_rights,
+    cap_rules_for_salary_cap,
+    remove_bird_rights,
+)
 from courtsim.career import (
     CareerPlayer,
     CareerRules,
@@ -48,6 +54,7 @@ class NBAOffseasonExecution:
     market_shadow: MarketShadowResult
     offseason: OffseasonResult
     final_draft_assets: DraftAssetLedger
+    final_cap_ledger: CapLedger
     version: str = NBA_OFFSEASON_VERSION
 
     def __post_init__(self) -> None:
@@ -105,6 +112,17 @@ def execute_nba_offseason(
         rules=active_career_rules,
     )
     retired = set(transition.retired_player_ids)
+    active_cap_rules = cap_rules or cap_rules_for_salary_cap(contract_rules.salary_cap)
+    active_cap_ledger = remove_bird_rights(
+        accrue_bird_rights(
+            cap_ledger or CapLedger(),
+            tuple(
+                (contract.player_id, contract.team_id, contract.annual_salary)
+                for contract in management.contracts
+            ),
+        ),
+        frozenset(retired),
+    )
     after_retirement = LeagueManagementState(
         management.season_year,
         tuple(
@@ -117,7 +135,7 @@ def execute_nba_offseason(
         tuple(player_id for player_id in management.free_agent_ids if player_id not in retired),
         tuple(contract for contract in management.contracts if contract.player_id not in retired),
     )
-    maximum_payroll = cap_rules.second_apron if cap_rules is not None else None
+    maximum_payroll = active_cap_rules.second_apron
     contract_year = advance_contract_year(
         after_retirement,
         contract_rules,
@@ -160,6 +178,8 @@ def execute_nba_offseason(
         players=draft_preview.final_players,
         profiles=profiles,
         contract_rules=contract_rules,
+        cap_ledger=active_cap_ledger,
+        cap_rules=active_cap_rules,
     )
     market_shadow = replace(
         market_shadow,
@@ -168,9 +188,16 @@ def execute_nba_offseason(
             draft_preview.final_players,
             contract_rules,
             market_shadow.plan,
-            cap_ledger=cap_ledger,
-            cap_rules=cap_rules,
+            cap_ledger=active_cap_ledger,
+            cap_rules=active_cap_rules,
         ),
+    )
+    market_preview = apply_market_plan(
+        draft_preview.final_management,
+        market_shadow.plan,
+        contract_rules,
+        cap_ledger=active_cap_ledger,
+        cap_rules=active_cap_rules,
     )
     offseason = advance_offseason(
         season_year=management.season_year,
@@ -184,8 +211,8 @@ def execute_nba_offseason(
         career_rules=active_career_rules,
         contract_rules=contract_rules,
         draft_rules=draft_rules,
-        cap_ledger=cap_ledger,
-        cap_rules=cap_rules,
+        cap_ledger=active_cap_ledger,
+        cap_rules=active_cap_rules,
     )
     final_assets = seed_future_draft_picks(
         asset_settlement.assets.final_ledger,
@@ -199,6 +226,7 @@ def execute_nba_offseason(
         market_shadow,
         offseason,
         final_assets,
+        market_preview.final_cap_ledger or active_cap_ledger,
     )
 
 

@@ -10,6 +10,7 @@ from courtsim.cap_mechanics import (
     CapLedger,
     CapMechanicsRules,
     evaluate_trade_salary,
+    transfer_bird_rights,
 )
 from courtsim.draft_assets import FutureDraftPickAsset, TradableDraftPick
 from courtsim.management import (
@@ -472,6 +473,14 @@ def apply_trade(
                 rules=cap_rules,
             )
             final_cap_ledger = cap_result.final_ledger
+        assert final_cap_ledger is not None
+        final_cap_ledger = transfer_bird_rights(
+            final_cap_ledger,
+            {
+                **{player_id: offer.team_b_id for player_id in a_out},
+                **{player_id: offer.team_a_id for player_id in b_out},
+            },
+        )
     validate_management_state(
         final_management,
         contract_rules,

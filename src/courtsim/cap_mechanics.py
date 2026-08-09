@@ -129,6 +129,83 @@ class TradeSalaryResult:
     consumed_exception_id: int | None = None
 
 
+def accrue_bird_rights(
+    ledger: CapLedger,
+    contracted_players: tuple[tuple[int, str, int], ...],
+) -> CapLedger:
+    """Accrue one completed season of service for every contracted player."""
+    rights = {item.player_id: item for item in ledger.bird_rights}
+    for player_id, team_id, salary in contracted_players:
+        previous = rights.get(player_id)
+        rights[player_id] = BirdRights(
+            team_id,
+            player_id,
+            previous.consecutive_seasons + 1
+            if previous is not None and previous.team_id == team_id
+            else 1,
+            salary,
+        )
+    return replace(
+        ledger,
+        bird_rights=tuple(sorted(rights.values(), key=lambda item: (item.team_id, item.player_id))),
+    )
+
+
+def transfer_bird_rights(
+    ledger: CapLedger,
+    player_destinations: dict[int, str],
+) -> CapLedger:
+    """Transfer accrued service with traded contracts without resetting tenure."""
+    return replace(
+        ledger,
+        bird_rights=tuple(
+            sorted(
+                (
+                    replace(item, team_id=player_destinations[item.player_id])
+                    if item.player_id in player_destinations
+                    else item
+                    for item in ledger.bird_rights
+                ),
+                key=lambda item: (item.team_id, item.player_id),
+            )
+        ),
+    )
+
+
+def remove_bird_rights(ledger: CapLedger, player_ids: frozenset[int]) -> CapLedger:
+    """Clear rights for retired, waived, or otherwise renounced players."""
+    return replace(
+        ledger,
+        bird_rights=tuple(item for item in ledger.bird_rights if item.player_id not in player_ids),
+    )
+
+
+def record_bird_rights_signing(
+    ledger: CapLedger,
+    *,
+    team_id: str,
+    player_id: int,
+    annual_salary: int,
+) -> CapLedger:
+    """Retain same-team service or start a new tenure after a free-agent signing."""
+    previous = next((item for item in ledger.bird_rights if item.player_id == player_id), None)
+    right = BirdRights(
+        team_id,
+        player_id,
+        previous.consecutive_seasons if previous is not None and previous.team_id == team_id else 1,
+        annual_salary,
+    )
+    return replace(
+        ledger,
+        bird_rights=tuple(
+            sorted(
+                (*(item for item in ledger.bird_rights if item.player_id != player_id), right),
+                key=lambda item: (item.team_id, item.player_id),
+            )
+        ),
+    )
+
+
 def cap_rules_for_salary_cap(salary_cap: int) -> CapMechanicsRules:
     """Scale the governed apron model to a league's configured soft cap."""
     if not isinstance(salary_cap, int) or isinstance(salary_cap, bool) or salary_cap < 1:

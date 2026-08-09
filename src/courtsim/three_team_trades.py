@@ -6,7 +6,12 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from typing import cast
 
-from courtsim.cap_mechanics import CapLedger, CapMechanicsRules, evaluate_trade_salary
+from courtsim.cap_mechanics import (
+    CapLedger,
+    CapMechanicsRules,
+    evaluate_trade_salary,
+    transfer_bird_rights,
+)
 from courtsim.career import CareerPlayer
 from courtsim.draft_assets import TradableDraftPick
 from courtsim.management import (
@@ -368,6 +373,8 @@ def apply_three_team_trade(
                 rules=cap_rules,
             )
             final_cap_ledger = cap_result.final_ledger
+        assert final_cap_ledger is not None
+        final_cap_ledger = transfer_bird_rights(final_cap_ledger, player_destinations)
     validate_management_state(
         final_management,
         contract_rules,

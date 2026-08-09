@@ -8,6 +8,11 @@ from enum import IntEnum
 from math import isfinite
 from typing import cast
 
+from courtsim.cap_mechanics import (
+    CapLedger,
+    CapMechanicsRules,
+    evaluate_signing_salary,
+)
 from courtsim.career import (
     CareerPlayer,
     CareerStatus,
@@ -400,6 +405,8 @@ def generate_market_shadow(
     annual_salary: int | None = None,
     years: int = 1,
     incumbent: MarketPlan | None = None,
+    cap_ledger: CapLedger | None = None,
+    cap_rules: CapMechanicsRules | None = None,
 ) -> MarketShadowResult:
     """Recommend at most one free-agent signing per team in deterministic order."""
     _validate_profiles(management, profiles)
@@ -438,12 +445,15 @@ def generate_market_shadow(
                     salary=salary,
                     hard_rejections=_market_rejections(
                         player_id,
+                        team_id,
                         available,
                         roster_sizes[team_id],
                         payrolls[team_id],
                         contract_rules,
                         salary,
                         player_map,
+                        cap_ledger,
+                        cap_rules,
                     ),
                 )
                 for player_id in sorted(available)
@@ -590,12 +600,15 @@ def _draft_rejections(
 
 def _market_rejections(
     player_id: int,
+    team_id: str,
     available: set[int],
     roster_size: int,
     payroll: int,
     rules: ContractRules,
     salary: int,
     player_map: Mapping[int, CareerPlayer],
+    cap_ledger: CapLedger | None,
+    cap_rules: CapMechanicsRules | None,
 ) -> tuple[str, ...]:
     rejected: list[str] = []
     player = player_map.get(player_id)
@@ -605,7 +618,17 @@ def _market_rejections(
         rejected.append("invalid-career-status")
     if roster_size >= rules.maximum_roster_players:
         rejected.append("roster-full")
-    if payroll + salary > rules.salary_cap:
+    if cap_ledger is not None:
+        decision = evaluate_signing_salary(
+            team_id=team_id,
+            player_id=player_id,
+            team_payroll=payroll,
+            annual_salary=salary,
+            ledger=cap_ledger,
+            rules=cap_rules,
+        )
+        rejected.extend(decision.rejections)
+    elif payroll + salary > rules.salary_cap:
         rejected.append("salary-cap")
     return tuple(rejected)
 
