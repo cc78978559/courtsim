@@ -25,6 +25,7 @@ from courtsim.nba_league import (
     NBASeriesResult,
     PlayInGame,
     generate_nba_schedule,
+    nba_series_home_court_order,
     resolve_nba_playoffs,
     resolve_play_in,
 )
@@ -146,7 +147,7 @@ class NBAAggregateQuickSimExecutor:
         west_regular = self._conference_seeds(standings, self.alignment.west_team_ids, 10)
         east = self._play_in("east", east_regular, season_id, seed, offsets)
         west = self._play_in("west", west_regular, season_id, seed, offsets)
-        postseason = self._postseason(east, west, season_id, seed, offsets)
+        postseason = self._postseason(east, west, standings, season_id, seed, offsets)
         seed_by_team = {
             item.team_id: item.seed for item in (*postseason.east_seeds, *postseason.west_seeds)
         }
@@ -262,11 +263,15 @@ class NBAAggregateQuickSimExecutor:
         self,
         east: tuple[PlayoffSeed, ...],
         west: tuple[PlayoffSeed, ...],
+        standings: tuple[NBAAggregateStanding, ...],
         season_id: str,
         seed: int,
         offsets: dict[str, int],
     ) -> NBAPostseasonResult:
         seed_by_team = {item.team_id: item.seed for item in (*east, *west)}
+        regular_season_records = {
+            item.team_id: (item.wins, item.point_differential) for item in standings
+        }
         ledger: list[NBASeriesResult] = []
 
         def series(
@@ -278,8 +283,13 @@ class NBAAggregateQuickSimExecutor:
         ) -> str:
             first_wins = 0
             second_wins = 0
-            higher = first if seed_by_team[first] < seed_by_team[second] else second
-            lower = second if higher == first else first
+            higher, lower = nba_series_home_court_order(
+                first,
+                second,
+                conference=conference,
+                seed_by_team=seed_by_team,
+                regular_season_records=regular_season_records,
+            )
             game_number = 0
             while max(first_wins, second_wins) < 4:
                 game_number += 1

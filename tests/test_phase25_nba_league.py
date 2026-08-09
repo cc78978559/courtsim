@@ -10,6 +10,7 @@ from courtsim.nba_league import (
     generate_nba_schedule,
     nba_alignment_from_dict,
     nba_alignment_to_dict,
+    nba_series_home_court_order,
     resolve_nba_playoffs,
     resolve_play_in,
 )
@@ -18,6 +19,20 @@ from courtsim.playoffs import PlayoffSeed
 
 def team_ids() -> tuple[str, ...]:
     return tuple(f"T{index:02d}" for index in range(1, 31))
+
+
+def test_series_home_court_uses_record_for_finals_and_seed_within_conference() -> None:
+    seeds = {"E1": 1, "W4": 4, "W1": 1, "E2": 2}
+    records = {"E1": (50, 300), "W4": (60, 100), "W1": (50, 200), "E2": (50, 200)}
+    assert nba_series_home_court_order(
+        "E1", "W4", conference="nba", seed_by_team=seeds, regular_season_records=records
+    ) == ("W4", "E1")
+    assert nba_series_home_court_order(
+        "W4", "W1", conference="west", seed_by_team=seeds, regular_season_records=records
+    ) == ("W1", "W4")
+    assert nba_series_home_court_order(
+        "W1", "E2", conference="nba", seed_by_team=seeds, regular_season_records=records
+    ) == ("E2", "W1")
 
 
 def test_thirty_team_schedule_has_1230_games_and_82_per_team() -> None:

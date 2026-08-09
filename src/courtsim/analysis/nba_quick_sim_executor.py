@@ -32,6 +32,7 @@ from courtsim.nba_league import (
     PlayInGame,
     PlayInResult,
     generate_nba_schedule,
+    nba_series_home_court_order,
     resolve_nba_playoffs,
     resolve_play_in,
 )
@@ -275,6 +276,9 @@ class NBAQuickSimExecutor:
         postseason = _sample_postseason(
             east_play_in.playoff_seeds,
             west_play_in.playoff_seeds,
+            regular_season_records={
+                row.team_id: (row.wins, row.point_differential) for row in season.standings
+            },
             runtime=runtime,
             playoff_config=self.playoff_config,
             round_rest_days=self.playoff_round_rest_days,
@@ -677,6 +681,7 @@ def _sample_postseason(
     east_seeds: tuple[PlayoffSeed, ...],
     west_seeds: tuple[PlayoffSeed, ...],
     *,
+    regular_season_records: Mapping[str, tuple[int, int]],
     runtime: _PostseasonRuntime,
     playoff_config: PlayoffConfig,
     round_rest_days: int,
@@ -699,6 +704,7 @@ def _sample_postseason(
             first,
             second,
             seed_numbers=seed_numbers,
+            regular_season_records=regular_season_records,
             runtime=runtime,
             playoff_config=playoff_config,
         )
@@ -800,12 +806,16 @@ def _sample_series(
     second: str,
     *,
     seed_numbers: dict[str, int],
+    regular_season_records: Mapping[str, tuple[int, int]],
     runtime: _PostseasonRuntime,
     playoff_config: PlayoffConfig,
 ) -> NBASeriesResult:
-    higher, lower = sorted(
-        (first, second),
-        key=lambda team_id: (seed_numbers[team_id], team_id),
+    higher, lower = nba_series_home_court_order(
+        first,
+        second,
+        conference=conference,
+        seed_by_team=seed_numbers,
+        regular_season_records=regular_season_records,
     )
     wins = {first: 0, second: 0}
     game_number = 1

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Mapping
 from dataclasses import dataclass
 from itertools import pairwise
 
@@ -202,6 +203,34 @@ class NBAPostseasonResult:
     west_champion_team_id: str
     champion_team_id: str
     version: str = NBA_LEAGUE_VERSION
+
+
+def nba_series_home_court_order(
+    first_team_id: str,
+    second_team_id: str,
+    *,
+    conference: str,
+    seed_by_team: Mapping[str, int],
+    regular_season_records: Mapping[str, tuple[int, int]],
+) -> tuple[str, str]:
+    """Return higher/lower home-court teams under one shared NBA rule."""
+    teams = (first_team_id, second_team_id)
+    if conference == "nba":
+        if any(team_id not in regular_season_records for team_id in teams):
+            raise ValueError("NBA Finals home court requires regular-season records")
+        ordered = sorted(
+            teams,
+            key=lambda team_id: (
+                -regular_season_records[team_id][0],
+                -regular_season_records[team_id][1],
+                team_id,
+            ),
+        )
+        return ordered[0], ordered[1]
+    if conference not in {"east", "west"} or any(team_id not in seed_by_team for team_id in teams):
+        raise ValueError("NBA conference home court requires playoff seeds")
+    ordered = sorted(teams, key=lambda team_id: (seed_by_team[team_id], team_id))
+    return ordered[0], ordered[1]
 
 
 def generate_nba_schedule(
