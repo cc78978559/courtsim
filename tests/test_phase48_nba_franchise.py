@@ -1,5 +1,5 @@
 import json
-from dataclasses import replace
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import cast
 
@@ -30,6 +30,7 @@ from courtsim.nba_franchise_runner import (
     NBAFranchiseRetentionPolicy,
     NBAFranchiseRunSpec,
     inspect_nba_franchise_manifest,
+    nba_franchise_execution_config_sha256,
     run_nba_franchise_checkpoint,
 )
 from courtsim.nba_league import NBAConferenceAlignment
@@ -108,6 +109,22 @@ def test_franchise_season_composes_into_a_second_complete_season(
         rookie_salary=1_000_000,
         rookie_contract_years=2,
     )
+    season_config = SeasonConfig(injury_probability_bps=0)
+    bilateral_rules = TradeMarketRules(
+        maximum_candidates_per_pair=1,
+        generate_pick_counteroffers=False,
+        generate_player_for_pick_offers=False,
+        generate_two_for_one_offers=False,
+        maximum_round_three_candidates=1,
+        generate_round_three_counteroffers=False,
+    )
+    three_team_rules = ThreeTeamMarketRules(
+        maximum_candidates_per_trio=2,
+        maximum_cyclic_candidates_per_trio=1,
+        maximum_hub_candidates_per_trio=1,
+        search_pick_compensation=False,
+        maximum_compensation_picks=1,
+    )
 
     def execute(
         current: NBAFranchiseState,
@@ -121,25 +138,24 @@ def test_franchise_season_composes_into_a_second_complete_season(
             profiles=profiles,
             contract_rules=contract_rules,
             draft_rules=draft_rules,
-            season_config=SeasonConfig(injury_probability_bps=0),
-            trade_market_rules=TradeMarketRules(
-                maximum_candidates_per_pair=1,
-                generate_pick_counteroffers=False,
-                generate_player_for_pick_offers=False,
-                generate_two_for_one_offers=False,
-                maximum_round_three_candidates=1,
-                generate_round_three_counteroffers=False,
-            ),
-            three_team_market_rules=ThreeTeamMarketRules(
-                maximum_candidates_per_trio=2,
-                maximum_cyclic_candidates_per_trio=1,
-                maximum_hub_candidates_per_trio=1,
-                search_pick_compensation=False,
-                maximum_compensation_picks=1,
-            ),
+            season_config=season_config,
+            trade_market_rules=bilateral_rules,
+            three_team_market_rules=three_team_rules,
         )
 
-    spec = NBAFranchiseRunSpec("league-run", 101, 2)
+    config_sha256 = nba_franchise_execution_config_sha256(
+        {
+            "parameter_hash": PARAMETERS.parameter_hash,
+            "game_config": asdict(game_config),
+            "profiles": {team_id: asdict(profile) for team_id, profile in profiles.items()},
+            "contract_rules": asdict(contract_rules),
+            "draft_rules": asdict(draft_rules),
+            "season_config": asdict(season_config),
+            "trade_market_rules": asdict(bilateral_rules),
+            "three_team_market_rules": asdict(three_team_rules),
+        }
+    )
+    spec = NBAFranchiseRunSpec("league-run", 101, 2, config_sha256)
     retention = NBAFranchiseRetentionPolicy(keep_last=1, keep_every=5, compress_after=1)
     first_run = run_nba_franchise_checkpoint(
         spec,

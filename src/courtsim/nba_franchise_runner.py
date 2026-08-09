@@ -24,7 +24,8 @@ from courtsim.nba_franchise_artifacts import (
 from courtsim.randomness import derive_seed
 
 NBA_FRANCHISE_RUNNER_VERSION = "nba-franchise-runner-v4"
-NBA_FRANCHISE_RUNNER_SCHEMA_VERSION = 2
+NBA_FRANCHISE_RUNNER_SCHEMA_VERSION = 3
+LEGACY_UNBOUND_EXECUTION_CONFIG_SHA256 = "0" * 64
 _LEGACY_RUNNER_VERSIONS = {
     "nba-franchise-runner-v2",
     "nba-franchise-runner-v3",
@@ -60,6 +61,7 @@ class NBAFranchiseRunSpec:
     run_id: str
     master_seed: int
     seasons: int
+    execution_config_sha256: str
     version: str = NBA_FRANCHISE_RUNNER_VERSION
 
     def __post_init__(self) -> None:
@@ -70,6 +72,8 @@ class NBAFranchiseRunSpec:
             or not isinstance(self.seasons, int)
             or isinstance(self.seasons, bool)
             or self.seasons < 1
+            or len(self.execution_config_sha256) != 64
+            or any(value not in "0123456789abcdef" for value in self.execution_config_sha256)
             or self.version != NBA_FRANCHISE_RUNNER_VERSION
         ):
             raise ValueError("NBA franchise run spec is invalid")
@@ -198,8 +202,9 @@ def run_nba_franchise_checkpoint(
                 seed_version=NBA_FRANCHISE_RUNNER_VERSION,
             )
         )
+        retention_garbage: tuple[Path, ...] = ()
         if retention_policy is not None:
-            _apply_retention(
+            retention_garbage = _stage_retention(
                 directory,
                 checkpoints,
                 initial_completed_seasons=initial_state.completed_seasons,
@@ -207,6 +212,7 @@ def run_nba_franchise_checkpoint(
                 policy=retention_policy,
             )
         write_json(manifest_path, manifest)
+        _remove_retention_garbage(retention_garbage)
         executions.append(execution)
         state = execution.final_state
     completed_after = state.completed_seasons - initial_state.completed_seasons
@@ -525,13 +531,27 @@ def _migrate_manifest(manifest: dict[str, Any]) -> dict[str, object]:
     version = _string(manifest, "version")
     if schema == NBA_FRANCHISE_RUNNER_SCHEMA_VERSION and version == NBA_FRANCHISE_RUNNER_VERSION:
         return manifest
+    if schema == 2 and version == NBA_FRANCHISE_RUNNER_VERSION:
+        migrated = dict(manifest)
+        migrated["schema_version"] = NBA_FRANCHISE_RUNNER_SCHEMA_VERSION
+        spec = _object(migrated["spec"], "NBA franchise run spec")
+        migrated["spec"] = {
+            **spec,
+            "execution_config_sha256": LEGACY_UNBOUND_EXECUTION_CONFIG_SHA256,
+        }
+        return migrated
     if version not in _LEGACY_RUNNER_VERSIONS:
         raise NBAFranchiseRunnerError("unsupported NBA franchise run manifest")
-    if schema == NBA_FRANCHISE_RUNNER_SCHEMA_VERSION and version == "nba-franchise-runner-v3":
+    if schema == 2 and version == "nba-franchise-runner-v3":
         migrated = dict(manifest)
+        migrated["schema_version"] = NBA_FRANCHISE_RUNNER_SCHEMA_VERSION
         migrated["version"] = NBA_FRANCHISE_RUNNER_VERSION
         spec = _object(migrated["spec"], "NBA franchise run spec")
-        migrated["spec"] = {**spec, "version": NBA_FRANCHISE_RUNNER_VERSION}
+        migrated["spec"] = {
+            **spec,
+            "version": NBA_FRANCHISE_RUNNER_VERSION,
+            "execution_config_sha256": LEGACY_UNBOUND_EXECUTION_CONFIG_SHA256,
+        }
         return migrated
     if schema != 1 or version != "nba-franchise-runner-v2":
         raise NBAFranchiseRunnerError("unsupported NBA franchise run manifest")
@@ -540,7 +560,11 @@ def _migrate_manifest(manifest: dict[str, Any]) -> dict[str, object]:
     migrated["version"] = NBA_FRANCHISE_RUNNER_VERSION
     migrated["retention"] = None
     spec = _object(migrated["spec"], "NBA franchise run spec")
-    migrated["spec"] = {**spec, "version": NBA_FRANCHISE_RUNNER_VERSION}
+    migrated["spec"] = {
+        **spec,
+        "version": NBA_FRANCHISE_RUNNER_VERSION,
+        "execution_config_sha256": LEGACY_UNBOUND_EXECUTION_CONFIG_SHA256,
+    }
     migrated["checkpoints"] = [
         {
             **_object(item, "franchise checkpoint entry"),
@@ -571,14 +595,15 @@ def _retention_from_value(value: object) -> NBAFranchiseRetentionPolicy | None:
         raise NBAFranchiseRunnerError(str(error)) from error
 
 
-def _apply_retention(
+def _stage_retention(
     directory: Path,
     checkpoints: list[object],
     *,
     initial_completed_seasons: int,
     latest_completed_seasons: int,
     policy: NBAFranchiseRetentionPolicy,
-) -> None:
+) -> tuple[Path, ...]:
+    garbage: list[Path] = []
     for value in checkpoints:
         checkpoint = _object(value, "franchise checkpoint entry")
         completed = _integer(checkpoint, "completed_seasons")
@@ -591,8 +616,8 @@ def _apply_retention(
         path = directory / _string(checkpoint, "path")
         storage = _string(checkpoint, "storage")
         if not retain:
-            path.unlink(missing_ok=True)
             checkpoint["storage"] = "pruned"
+            garbage.append(path)
             continue
         if age < policy.compress_after or storage != "json":
             continue
@@ -607,10 +632,36 @@ def _apply_retention(
             directory / compressed_name,
             compress=True,
         )
-        path.unlink(missing_ok=True)
+        garbage.append(path)
         checkpoint["path"] = compressed_name
         checkpoint["file_sha256"] = receipt.file_sha256
         checkpoint["storage"] = "gzip"
+    return tuple(garbage)
+
+
+def _remove_retention_garbage(paths: tuple[Path, ...]) -> None:
+    """Best-effort GC after the replacement manifest is durable."""
+    for path in paths:
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            continue
+
+
+def nba_franchise_execution_config_sha256(config: object) -> str:
+    """Hash a complete JSON-compatible executor configuration package."""
+    try:
+        canonical = json.dumps(
+            config,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+    except (TypeError, ValueError) as error:
+        raise NBAFranchiseRunnerError(
+            "franchise execution config must be JSON-compatible"
+        ) from error
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _spec_to_dict(spec: NBAFranchiseRunSpec) -> dict[str, object]:
@@ -618,17 +669,23 @@ def _spec_to_dict(spec: NBAFranchiseRunSpec) -> dict[str, object]:
         "run_id": spec.run_id,
         "master_seed": spec.master_seed,
         "seasons": spec.seasons,
+        "execution_config_sha256": spec.execution_config_sha256,
         "version": spec.version,
     }
 
 
 def _spec_from_dict(value: object) -> NBAFranchiseRunSpec:
     raw = _object(value, "NBA franchise run spec")
-    _exact(raw, {"run_id", "master_seed", "seasons", "version"}, "NBA franchise run spec")
+    _exact(
+        raw,
+        {"run_id", "master_seed", "seasons", "execution_config_sha256", "version"},
+        "NBA franchise run spec",
+    )
     return NBAFranchiseRunSpec(
         _string(raw, "run_id"),
         _integer(raw, "master_seed"),
         _integer(raw, "seasons"),
+        _string(raw, "execution_config_sha256"),
         _string(raw, "version"),
     )
 
