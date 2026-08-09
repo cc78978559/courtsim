@@ -109,6 +109,38 @@ def test_market_generates_pick_counteroffers_with_parent_links() -> None:
     assert all(item.negotiation_id == item.parent_trade_id for item in counters)
 
 
+def test_market_generation_and_execution_share_frozen_pick_gate() -> None:
+    initial = management(salary_a=5_000_000, salary_b=5_000_000)
+    result = generate_trade_market_shadow(
+        management=initial,
+        players=league_players(home_value=80, away_value=70),
+        picks=picks(),
+        profiles={
+            "home": ManagerProfile("home-manager", "home"),
+            "away": ManagerProfile("away-manager", "away"),
+        },
+        contract_rules=contract_rules(),
+        frozen_pick_ids=frozenset({1}),
+    )
+    frozen_evaluations = [
+        item
+        for item in result.evaluations
+        if 1 in (*item.shadow.offer.picks_from_a, *item.shadow.offer.picks_from_b)
+    ]
+    assert frozen_evaluations
+    assert all(
+        "draft-obligation-frozen:1" in item.shadow.hard_rejections for item in frozen_evaluations
+    )
+    with pytest.raises(ValueError, match="draft-obligation-frozen:1"):
+        apply_trade_market_plan(
+            initial,
+            picks(),
+            TradeMarketPlan((TradeOffer(99, "home", "away", (), (), (1,), (2,)),)),
+            contract_rules(),
+            frozen_pick_ids=frozenset({1}),
+        )
+
+
 def test_market_records_bounded_three_round_negotiations() -> None:
     result = generate_trade_market_shadow(
         management=management(salary_a=5_000_000, salary_b=5_000_000),

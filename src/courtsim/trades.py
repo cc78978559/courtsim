@@ -151,6 +151,7 @@ class TradeResult:
     final_cap_ledger: CapLedger | None = None
     cap_rules: CapMechanicsRules | None = None
     exception_ids: tuple[tuple[str, int], ...] = ()
+    frozen_pick_ids: tuple[int, ...] = ()
     version: str = TRADE_VERSION
 
     def __post_init__(self) -> None:
@@ -178,6 +179,7 @@ def trade_rejections(
     cap_ledger: CapLedger | None = None,
     cap_rules: CapMechanicsRules | None = None,
     exception_ids: Mapping[str, int] | None = None,
+    frozen_pick_ids: frozenset[int] = frozenset(),
 ) -> tuple[str, ...]:
     """Return deterministic legality failures without mutating league state."""
     rejected: list[str] = []
@@ -211,10 +213,14 @@ def trade_rejections(
     if len(pick_map) != len(picks):
         rejected.append("duplicate-pick-selection")
     for selection_number in offer.picks_from_a:
+        if selection_number in frozen_pick_ids:
+            rejected.append(f"draft-obligation-frozen:{selection_number}")
         pick = pick_map.get(selection_number)
         if pick is None or pick.owner_team_id != offer.team_a_id:
             rejected.append(f"pick-not-owned:{offer.team_a_id}:{selection_number}")
     for selection_number in offer.picks_from_b:
+        if selection_number in frozen_pick_ids:
+            rejected.append(f"draft-obligation-frozen:{selection_number}")
         pick = pick_map.get(selection_number)
         if pick is None or pick.owner_team_id != offer.team_b_id:
             rejected.append(f"pick-not-owned:{offer.team_b_id}:{selection_number}")
@@ -379,6 +385,7 @@ def apply_trade(
     cap_ledger: CapLedger | None = None,
     cap_rules: CapMechanicsRules | None = None,
     exception_ids: Mapping[str, int] | None = None,
+    frozen_pick_ids: frozenset[int] = frozenset(),
 ) -> TradeResult:
     """Apply a legal bilateral trade as one atomic state transition."""
     if cap_ledger is not None and cap_rules is None:
@@ -392,6 +399,7 @@ def apply_trade(
         cap_ledger=cap_ledger,
         cap_rules=cap_rules,
         exception_ids=exception_ids,
+        frozen_pick_ids=frozen_pick_ids,
     )
     if rejected:
         raise ValueError("illegal trade: " + ", ".join(rejected))
@@ -481,6 +489,7 @@ def apply_trade(
         final_cap_ledger,
         cap_rules,
         tuple(sorted((exception_ids or {}).items())),
+        tuple(sorted(frozen_pick_ids)),
     )
 
 
@@ -494,6 +503,7 @@ def audit_trade(result: TradeResult) -> TradeAudit:
         cap_ledger=result.initial_cap_ledger,
         cap_rules=result.cap_rules,
         exception_ids=dict(result.exception_ids),
+        frozen_pick_ids=frozenset(result.frozen_pick_ids),
     )
     if (
         replayed.final_management != result.final_management

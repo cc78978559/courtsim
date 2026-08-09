@@ -140,6 +140,27 @@ def test_trade_rejects_unowned_assets_and_preserves_state() -> None:
     assert initial == management()
 
 
+def test_trade_rejects_draft_obligation_frozen_pick() -> None:
+    offer = TradeOffer(20, "home", "away", (), (), (1,), (2,))
+    rejected = trade_rejections(
+        management(),
+        picks(),
+        offer,
+        contract_rules(),
+        TradeRules(),
+        frozen_pick_ids=frozenset({1}),
+    )
+    assert "draft-obligation-frozen:1" in rejected
+    with pytest.raises(ValueError, match="draft-obligation-frozen:1"):
+        apply_trade(
+            management(),
+            picks(),
+            offer,
+            contract_rules(),
+            frozen_pick_ids=frozenset({1}),
+        )
+
+
 def test_trade_rejects_roster_and_salary_matching_failures() -> None:
     initial = management(salary_a=40_000_000, salary_b=2_000_000)
     roster_offer = TradeOffer(3, "home", "away", (1, 2), (11,))

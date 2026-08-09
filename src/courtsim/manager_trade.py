@@ -86,6 +86,7 @@ def evaluate_trade_shadow(
     manager_rules: ManagerTradeRules = DEFAULT_MANAGER_TRADE_RULES,
     cap_ledger: CapLedger | None = None,
     cap_rules: CapMechanicsRules | None = None,
+    frozen_pick_ids: frozenset[int] = frozenset(),
 ) -> TradeShadowResult:
     """Evaluate both managers independently; this function never executes the trade."""
     if set(profiles) != {offer.team_a_id, offer.team_b_id}:
@@ -103,6 +104,7 @@ def evaluate_trade_shadow(
         trade_rules,
         cap_ledger=cap_ledger,
         cap_rules=cap_rules,
+        frozen_pick_ids=frozen_pick_ids,
     )
     approvals: list[TradeManagerApproval] = []
     ledger = ManagerDecisionLedger()

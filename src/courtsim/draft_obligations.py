@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
 from courtsim.artifacts import sha256_file
-from courtsim.draft_assets import DraftAssetLedger, draft_asset_ledger_from_dict
+from courtsim.draft_assets import (
+    DraftAssetLedger,
+    draft_asset_ledger_from_dict,
+    draft_asset_ledger_to_dict,
+)
 
 DRAFT_OBLIGATION_LEDGER_VERSION = "draft-obligation-ledger-v3"
 DRAFT_OBLIGATION_SCHEMA_VERSION = 3
@@ -166,6 +171,25 @@ def build_draft_obligation_ledger_v3(
         source_asset_sha256,
         tuple(obligations),
         freezes,
+    )
+
+
+def derive_draft_obligation_ledger_v3(
+    assets: DraftAssetLedger,
+    *,
+    as_of_year: int,
+) -> DraftObligationLedgerV3:
+    """Build a source-bound runtime ledger from canonical in-memory draft assets."""
+    canonical = json.dumps(
+        draft_asset_ledger_to_dict(assets),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    return build_draft_obligation_ledger_v3(
+        assets,
+        as_of_year=as_of_year,
+        source_asset_sha256=hashlib.sha256(canonical).hexdigest(),
     )
 
 

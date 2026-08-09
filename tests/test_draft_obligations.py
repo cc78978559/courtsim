@@ -13,6 +13,7 @@ from courtsim.draft_obligations import (
     DraftObligationError,
     DraftPickFreeze,
     build_draft_obligation_ledger_v3,
+    derive_draft_obligation_ledger_v3,
     draft_obligation_ledger_v3_from_dict,
     draft_obligation_ledger_v3_to_dict,
     inspect_draft_obligation_ledger_v3,
@@ -49,6 +50,21 @@ def test_v3_derives_conservative_freezes_and_round_trips() -> None:
     assert (
         draft_obligation_ledger_v3_from_dict(draft_obligation_ledger_v3_to_dict(ledger)) == ledger
     )
+
+
+def test_runtime_v3_refreshes_source_hash_and_unfreezes_after_settlement() -> None:
+    assets = _assets()
+    first = derive_draft_obligation_ledger_v3(assets, as_of_year=2029)
+    assert tuple(item.asset_id for item in first.freezes) == (3, 5, 7)
+    assert first == derive_draft_obligation_ledger_v3(assets, as_of_year=2029)
+    settled = replace(
+        assets,
+        picks=tuple(pick for pick in assets.picks if pick.owner_team_id == pick.original_team_id),
+    )
+    refreshed = derive_draft_obligation_ledger_v3(settled, as_of_year=2030)
+    assert refreshed.source_asset_sha256 != first.source_asset_sha256
+    assert refreshed.obligations == ()
+    assert refreshed.freezes == ()
 
 
 def test_v3_audit_requires_hash_and_complete_seven_year_horizon() -> None:

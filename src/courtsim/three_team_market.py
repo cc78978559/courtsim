@@ -164,6 +164,7 @@ def generate_three_team_market_shadow(
     market_rules: ThreeTeamMarketRules = DEFAULT_THREE_TEAM_MARKET_RULES,
     cap_ledger: CapLedger | None = None,
     cap_rules: CapMechanicsRules | None = None,
+    frozen_pick_ids: frozenset[int] = frozenset(),
 ) -> ThreeTeamMarketShadowResult:
     team_ids = tuple(roster.team_id for roster in management.rosters)
     if set(profiles) != set(team_ids):
@@ -218,6 +219,7 @@ def generate_three_team_market_shadow(
                     manager_rules=manager_rules,
                     cap_ledger=cap_ledger,
                     cap_rules=cap_rules,
+                    frozen_pick_ids=frozen_pick_ids,
                 )
                 salary_imbalance = _salary_imbalance(routes, salaries)
                 evaluations.append(
@@ -262,6 +264,7 @@ def generate_three_team_market_shadow(
                         manager_rules=manager_rules,
                         cap_ledger=cap_ledger,
                         cap_rules=cap_rules,
+                        frozen_pick_ids=frozen_pick_ids,
                     )
                     evaluations.append(
                         ThreeTeamMarketEvaluation(
@@ -315,6 +318,7 @@ def apply_three_team_market_plan(
     *,
     cap_ledger: CapLedger | None = None,
     cap_rules: CapMechanicsRules | None = None,
+    frozen_pick_ids: frozenset[int] = frozenset(),
 ) -> ThreeTeamMarketExecution:
     final_management = management
     final_picks = picks
@@ -329,6 +333,7 @@ def apply_three_team_market_plan(
             trade_rules,
             cap_ledger=final_cap_ledger,
             cap_rules=cap_rules,
+            frozen_pick_ids=frozen_pick_ids,
         )
         audits.append(audit_three_team_trade(result))
         final_management = result.final_management

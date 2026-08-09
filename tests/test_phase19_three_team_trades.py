@@ -138,6 +138,26 @@ def test_three_team_trade_rejects_wrong_route_owner_without_partial_state() -> N
         apply_three_team_trade(state(), (), offer, rules())
 
 
+def test_three_team_trade_rejects_draft_obligation_frozen_pick() -> None:
+    offer = circular_offer(with_picks=True)
+    rejected = three_team_trade_rejections(
+        state(),
+        future_picks(),
+        offer,
+        rules(),
+        frozen_pick_ids=frozenset({101}),
+    )
+    assert "draft-obligation-frozen:101" in rejected
+    with pytest.raises(ValueError, match="draft-obligation-frozen:101"):
+        apply_three_team_trade(
+            state(),
+            future_picks(),
+            offer,
+            rules(),
+            frozen_pick_ids=frozenset({101}),
+        )
+
+
 def test_three_team_offer_requires_every_team_to_send_and_receive() -> None:
     with pytest.raises(ValueError, match="send and receive"):
         ThreeTeamTradeOffer(

@@ -201,6 +201,7 @@ def generate_trade_market_shadow(
     market_rules: TradeMarketRules = DEFAULT_TRADE_MARKET_RULES,
     cap_ledger: CapLedger | None = None,
     cap_rules: CapMechanicsRules | None = None,
+    frozen_pick_ids: frozenset[int] = frozenset(),
 ) -> TradeMarketShadowResult:
     """Generate and independently approve a bounded, deterministic offer market."""
     team_ids = tuple(roster.team_id for roster in management.rosters)
@@ -251,6 +252,7 @@ def generate_trade_market_shadow(
             manager_rules=manager_rules,
             cap_ledger=cap_ledger,
             cap_rules=cap_rules,
+            frozen_pick_ids=frozen_pick_ids,
         )
         negotiation_id = offer.trade_id if parent_trade_id is None else parent_trade_id
         evaluations.append(
@@ -286,6 +288,7 @@ def generate_trade_market_shadow(
             manager_rules=manager_rules,
             cap_ledger=cap_ledger,
             cap_rules=cap_rules,
+            frozen_pick_ids=frozen_pick_ids,
         )
         evaluations.append(
             TradeMarketEvaluation(
@@ -326,6 +329,7 @@ def generate_trade_market_shadow(
             manager_rules=manager_rules,
             cap_ledger=cap_ledger,
             cap_rules=cap_rules,
+            frozen_pick_ids=frozen_pick_ids,
         )
         evaluations.append(
             TradeMarketEvaluation(
@@ -385,6 +389,7 @@ def apply_trade_market_plan(
     cap_ledger: CapLedger | None = None,
     cap_rules: CapMechanicsRules | None = None,
     exception_ids: Mapping[int, Mapping[str, int]] | None = None,
+    frozen_pick_ids: frozenset[int] = frozenset(),
 ) -> TradeMarketExecution:
     """Replay a conflict-free approved plan through the canonical trade engine."""
     final_management = management
@@ -401,6 +406,7 @@ def apply_trade_market_plan(
             cap_ledger=final_cap_ledger,
             cap_rules=cap_rules,
             exception_ids=(exception_ids or {}).get(offer.trade_id),
+            frozen_pick_ids=frozen_pick_ids,
         )
         audits.append(audit_trade(result))
         final_management = result.final_management

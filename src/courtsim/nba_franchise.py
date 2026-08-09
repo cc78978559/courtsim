@@ -20,6 +20,7 @@ from courtsim.draft_assets import (
     FutureDraftPickAsset,
     seed_future_draft_picks,
 )
+from courtsim.draft_obligations import derive_draft_obligation_ledger_v3
 from courtsim.management import ContractRules, LeagueManagementState
 from courtsim.manager_ai import ManagerProfile
 from courtsim.manager_learning import (
@@ -178,6 +179,11 @@ def execute_nba_franchise_season(
         ),
         rounds=draft_rules.rounds,
     )
+    obligation_ledger = derive_draft_obligation_ledger_v3(
+        seeded_trade_assets,
+        as_of_year=state.management.season_year,
+    )
+    frozen_pick_ids = frozenset(freeze.asset_id for freeze in obligation_ledger.freezes)
     bilateral_shadow = generate_trade_market_shadow(
         management=state.management,
         players=state.players,
@@ -189,6 +195,7 @@ def execute_nba_franchise_season(
         market_rules=trade_market_rules or TradeMarketRules(),
         cap_ledger=initial_cap_ledger,
         cap_rules=cap_rules,
+        frozen_pick_ids=frozen_pick_ids,
     )
     three_team_shadow = generate_three_team_market_shadow(
         management=state.management,
@@ -201,6 +208,7 @@ def execute_nba_franchise_season(
         market_rules=three_team_market_rules or ThreeTeamMarketRules(),
         cap_ledger=initial_cap_ledger,
         cap_rules=cap_rules,
+        frozen_pick_ids=frozen_pick_ids,
     )
     bilateral_gain = _selected_bilateral_gain(bilateral_shadow)
     three_team_gain = _selected_three_team_gain(three_team_shadow)
@@ -215,6 +223,7 @@ def execute_nba_franchise_season(
         active_trade_rules,
         cap_ledger=initial_cap_ledger,
         cap_rules=cap_rules,
+        frozen_pick_ids=frozen_pick_ids,
     )
     three_team_execution = apply_three_team_market_plan(
         bilateral_execution.final_management,
@@ -224,6 +233,7 @@ def execute_nba_franchise_season(
         active_trade_rules,
         cap_ledger=bilateral_execution.final_cap_ledger,
         cap_rules=cap_rules,
+        frozen_pick_ids=frozen_pick_ids,
     )
     traded_management = three_team_execution.final_management
     traded_assets = replace(
