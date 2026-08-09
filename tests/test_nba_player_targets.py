@@ -1,8 +1,12 @@
 import json
+import math
+from copy import deepcopy
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
+import courtsim.analysis.nba_player_targets as target_module
 from courtsim.analysis.nba_player_targets import (
     NBAPlayerSourceReceipt,
     NBAPlayerTarget,
@@ -127,3 +131,97 @@ def test_build_player_targets_from_pinned_local_summaries(tmp_path: Path) -> Non
     assert len(players) == 1
     assert players[0]["minutes_per_game"] == 30.0
     assert players[0]["shot_zone_shares"] == {"RIM": 0.4, "MIDRANGE": 0.2, "THREE": 0.4}
+
+
+@pytest.mark.parametrize(
+    ("role", "path", "sha256", "message"),
+    [
+        ("", "box.json", "a" * 64, "identity"),
+        ("box", "../box.json", "a" * 64, "portable"),
+        ("box", "box.json", "A" * 64, "sha256"),
+    ],
+)
+def test_source_receipt_rejects_nonportable_identity(
+    role: str, path: str, sha256: str, message: str
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        NBAPlayerSourceReceipt(role, path, sha256)
+
+
+@pytest.mark.parametrize(
+    ("changes", "message"),
+    [
+        ({"nba_player_id": 0}, "identity"),
+        ({"player_name": " "}, "identity"),
+        ({"games_played": True}, "identity"),
+        ({"minutes_per_game": math.nan}, "minutes"),
+        ({"minutes_per_game": 61.0}, "minutes"),
+        ({"usage_rate": 1.1}, "usage_rate"),
+        ({"true_shooting_percentage": math.inf}, "true_shooting_percentage"),
+        ({"field_goal_attempt_share": -0.1}, "field_goal_attempt_share"),
+        ({"shot_zone_shares": (0.5, 0.5)}, "incomplete"),
+        ({"shot_zone_shares": (-0.1, 0.5, 0.6)}, "shares are invalid"),
+        ({"shot_zone_shares": (0.2, 0.2, 0.2)}, "sum to one"),
+        ({"shot_zone_percentages": (0.2, 0.3, 1.1)}, "percentages are invalid"),
+    ],
+)
+def test_player_target_strict_scalar_and_zone_validation(
+    changes: dict[str, object], message: str
+) -> None:
+    player = _targets().players[0]
+    with pytest.raises(ValueError, match=message):
+        replace(player, **changes)  # type: ignore[arg-type]
+
+
+def test_target_set_rejects_duplicate_sources_order_and_eligibility() -> None:
+    targets = _targets()
+    source = targets.sources[0]
+    player = targets.players[0]
+    with pytest.raises(ValueError, match="source roles"):
+        replace(targets, sources=(source, replace(source, path="other.json")))
+    with pytest.raises(ValueError, match="ordered unique"):
+        replace(targets, players=(replace(player, nba_player_id=11), player))
+    with pytest.raises(ValueError, match="eligibility"):
+        replace(targets, minimum_games=71)
+    with pytest.raises(ValueError, match="unsupported"):
+        replace(targets, version="future-v2")
+    with pytest.raises(ValueError, match="contain sources and players"):
+        replace(targets, sources=())
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        (lambda payload: payload.pop("provider"), "root is invalid"),
+        (lambda payload: payload.__setitem__("schema_version", 2), "schema version differs"),
+        (
+            lambda payload: payload["eligibility"].__setitem__("extra", 1),
+            "eligibility is invalid",
+        ),
+        (lambda payload: payload.__setitem__("sources", {}), "collections are invalid"),
+        (lambda payload: payload["sources"][0].__setitem__("extra", 1), "source is invalid"),
+        (lambda payload: payload["players"][0].__setitem__("extra", 1), "row is invalid"),
+        (
+            lambda payload: payload["players"][0].__setitem__("nba_player_id", True),
+            "must be an integer",
+        ),
+        (
+            lambda payload: payload["players"][0].__setitem__("usage_rate", "high"),
+            "must be numeric",
+        ),
+    ],
+)
+def test_target_payload_rejects_schema_and_type_drift(mutation: object, message: str) -> None:
+    payload = deepcopy(nba_player_target_set_to_dict(_targets()))
+    assert callable(mutation)
+    mutation(payload)
+    with pytest.raises(NbaPlayerTargetError, match=message):
+        target_module._target_set_from_object(payload)
+
+
+def test_target_loader_wraps_invalid_json_and_missing_file(tmp_path: Path) -> None:
+    invalid = tmp_path / "invalid.json"
+    invalid.write_text("not-json", encoding="utf-8")
+    for path in (invalid, tmp_path / "missing.json"):
+        with pytest.raises(NbaPlayerTargetError, match="cannot read"):
+            load_nba_player_target_set(path)

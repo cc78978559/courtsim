@@ -211,9 +211,11 @@ promotion.
 
 - Ruff formatting and lint: passed.
 - mypy strict: passed.
-- pytest: 575 passed on 2026-08-09.
-- Coverage: 82%, below the frozen minimum of 85%; the complete `tools.cmd check` therefore fails
-  after the passing test suite. Do not describe the branch as push-ready until this is restored.
+- pytest: 662 passed on 2026-08-09.
+- Coverage: 85.28%, above the frozen minimum of 85%; the complete `tools.cmd check` passes.
+- The restored coverage comes from strict reality-data, player calibration, pace/holdout,
+  quick-sim resume, draft-obligation, and three-team negotiation tests; the threshold and source
+  measurement boundary were not weakened.
 - Runtime dependencies: Python standard library only.
 - Frozen `demo-1.4.0` audit: 10 core realism targets, 3 free-throw targets, and
   37 regression gates passed.

@@ -4,6 +4,7 @@ import json
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
+import pytest
 from pytest import MonkeyPatch
 
 from courtsim.analysis import nba_quick_sim_runner as runner
@@ -79,3 +80,105 @@ def test_parallel_runner_writes_canonical_checkpoint_waves(
     configuration = payload["configuration"]
     assert isinstance(configuration, dict)
     assert configuration["executor_version"] == NBA_QUICK_SIM_EXECUTOR_VERSION
+
+
+def _run(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+    **overrides: object,
+) -> dict[str, object]:
+    monkeypatch.setattr(
+        runner, "_build_executor", lambda _files, _config, _version: _FakeExecutor()
+    )
+    options: dict[str, object] = {
+        "schema_path": ROOT / "data" / "model_schema_demo_v1_12.json",
+        "parameters_path": ROOT / "data" / "model_parameters_demo_1.4.0.json",
+        "lineup_path": ROOT / "examples" / "calibration_lineup_v1.json",
+        "profile_path": ROOT / "work" / "nba-2024-25-team-shot-profiles-calibrated.json",
+        "strength_path": ROOT / "experiments" / "sources" / "nba-2024-25-team-strength-v1.json",
+        "checkpoint_path": tmp_path / "serial.json",
+        "manifest_path": tmp_path / "serial.manifest.json",
+        "batch_id": "serial-test",
+        "master_seed": 71,
+        "seasons": 1,
+        "maximum_new_seasons": 1,
+        "game_config": GameClockConfig(4, 720, 24, 300, 8, True),
+        "workers": 1,
+        "executor_version": NBA_QUICK_SIM_EXECUTOR_VERSION,
+    }
+    options.update(overrides)
+    return runner.run_nba_quick_sim_batch(**options)  # type: ignore[arg-type]
+
+
+def test_serial_runner_resumes_verified_complete_checkpoint(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    first = _run(tmp_path, monkeypatch)
+    second = _run(tmp_path, monkeypatch)
+    assert first["checkpoint"] == second["checkpoint"]
+    checkpoint = first["checkpoint"]
+    assert isinstance(checkpoint, dict)
+    assert checkpoint["complete"] is True
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"workers": 0}, "workers"),
+        ({"workers": True}, "workers"),
+        ({"executor_version": "future-v99"}, "unsupported"),
+        ({"maximum_new_seasons": 0}, "positive"),
+        ({"maximum_new_seasons": True}, "positive"),
+        ({"schema_path": "missing-schema.json"}, "input is missing"),
+    ],
+)
+def test_runner_rejects_invalid_execution_configuration(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+    overrides: dict[str, object],
+    message: str,
+) -> None:
+    with pytest.raises(runner.NbaQuickSimRunnerError, match=message):
+        _run(tmp_path, monkeypatch, **overrides)
+
+
+def test_runner_rejects_resume_configuration_change(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    _run(tmp_path, monkeypatch)
+    with pytest.raises(runner.NbaQuickSimRunnerError, match="configuration differs"):
+        _run(tmp_path, monkeypatch, master_seed=72)
+
+
+@pytest.mark.parametrize(
+    ("manifest_text", "checkpoint_text", "message"),
+    [
+        (None, "{}", "without its run manifest"),
+        ("not-json", None, "cannot read"),
+        ("[]", None, "must be an object"),
+        ('{"version":"old"}', None, "version differs"),
+    ],
+)
+def test_resume_manifest_rejects_broken_state(
+    tmp_path: Path,
+    manifest_text: str | None,
+    checkpoint_text: str | None,
+    message: str,
+) -> None:
+    manifest = tmp_path / "manifest.json"
+    checkpoint = tmp_path / "checkpoint.json"
+    if manifest_text is not None:
+        manifest.write_text(manifest_text, encoding="utf-8")
+    if checkpoint_text is not None:
+        checkpoint.write_text(checkpoint_text, encoding="utf-8")
+    with pytest.raises(runner.NbaQuickSimRunnerError, match=message):
+        runner._verify_resume_manifest(manifest, checkpoint, "digest")
+
+
+def test_worker_and_team_builders_enforce_initialization_and_shape() -> None:
+    runner._WORKER_EXECUTOR = None
+    with pytest.raises(runner.NbaQuickSimRunnerError, match="not initialized"):
+        runner._execute_worker_task(("season", 1))
+    with pytest.raises(runner.NbaQuickSimRunnerError, match="30 teams"):
+        runner._build_teams(("A",), ())
+    assert runner._digest({"b": 2, "a": 1}) == runner._digest({"a": 1, "b": 2})

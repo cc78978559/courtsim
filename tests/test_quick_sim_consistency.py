@@ -1,11 +1,20 @@
 import hashlib
 import json
+from copy import deepcopy
+from dataclasses import dataclass
 from pathlib import Path
+from types import SimpleNamespace
 
-from courtsim.analysis.quick_sim_comparison import QuickSimSeasonSummary
+import pytest
+
+import courtsim.analysis.quick_sim_consistency as consistency_module
+from courtsim.analysis.quick_sim_comparison import QUICK_SIM_METRICS, QuickSimSeasonSummary
 from courtsim.analysis.quick_sim_consistency import (
+    QuickSimConsistencyError,
     build_aggregate_sensitivity_report,
     compare_quick_sim_engines,
+    load_quick_sim_consistency_gate,
+    run_aggregate_sensitivity,
     verify_quick_sim_consistency_manifests,
 )
 
@@ -19,6 +28,24 @@ def _summary(
     return QuickSimSeasonSummary(
         season, 30, 1230, 0.14, pace, 115.0, 4.5, 0.35, champion, rank_order
     )
+
+
+def _gate() -> dict[str, object]:
+    return {
+        "version": "quick-sim-consistency-gate-v2",
+        "gate_id": "strict-test-gate",
+        "frozen_at": "2026-08-02",
+        "minimum_paired_seasons": 3,
+        "forbidden_master_seeds": [],
+        "required_input_sha256": {
+            "aggregate": {"parameters": "0" * 64},
+            "full_engine": {"parameters": "1" * 64},
+        },
+        "maximum_mae": {metric: 1.0 for metric in QUICK_SIM_METRICS[:4]},
+        "maximum_absolute_mean_error": {metric: 1.0 for metric in QUICK_SIM_METRICS[4:]},
+        "minimum_mean_team_rank_spearman": 0.75,
+        "methodology": "test",
+    }
 
 
 def test_consistency_report_requires_a_frozen_accuracy_gate_for_promotion() -> None:
@@ -212,3 +239,119 @@ def test_sensitivity_report_is_paired_and_single_factor() -> None:
     variants = report["variants"]
     assert isinstance(variants, list)
     assert len(variants) == 2
+
+
+def test_consistency_public_guards_reject_unpaired_or_incomplete_inputs() -> None:
+    with pytest.raises(QuickSimConsistencyError, match="no paired seeds"):
+        compare_quick_sim_engines({1: _summary("1", 99.0)}, {2: _summary("2", 99.0)})
+    with pytest.raises(QuickSimConsistencyError, match="master seed"):
+        compare_quick_sim_engines({1: _summary("1", 99.0)}, {1: _summary("1", 99.0)}, gate=_gate())
+    left_order = tuple(f"team-{index}" for index in range(30))
+    right_order = (*left_order[:-1], "different-team")
+    with pytest.raises(QuickSimConsistencyError, match="rank orders differ"):
+        consistency_module._rank_correlation(
+            _summary("1", 99.0, rank_order=left_order),
+            _summary("1", 99.0, rank_order=right_order),
+        )
+    with pytest.raises(QuickSimConsistencyError, match="variants and factors differ"):
+        build_aggregate_sensitivity_report({}, {}, changed_factors={})
+    with pytest.raises(QuickSimConsistencyError, match="paired complete seeds"):
+        build_aggregate_sensitivity_report(
+            {1: _summary("1", 99.0)},
+            {"pace": {2: _summary("2", 99.0)}},
+            changed_factors={"pace": ("pace_standard_deviation", 5.0)},
+        )
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        (lambda gate: gate.__setitem__("version", "future-v9"), "schema differs"),
+        (lambda gate: gate.__setitem__("maximum_mae", []), "metric set differs"),
+        (
+            lambda gate: gate["maximum_mae"].__setitem__("unexpected", 1.0),
+            "metric set differs",
+        ),
+        (
+            lambda gate: gate["maximum_mae"].__setitem__("win-rate-stddev", -1.0),
+            "MAE limits are invalid",
+        ),
+        (lambda gate: gate.__setitem__("required_input_sha256", {}), "requirements differ"),
+        (
+            lambda gate: gate["required_input_sha256"]["aggregate"].__setitem__(
+                "parameters", "bad"
+            ),
+            "input hashes are invalid",
+        ),
+        (lambda gate: gate.__setitem__("minimum_paired_seasons", 2), "minimum seasons"),
+        (lambda gate: gate.__setitem__("forbidden_master_seeds", [2, 1]), "forbidden seeds"),
+        (
+            lambda gate: gate.__setitem__("minimum_mean_team_rank_spearman", 2.0),
+            "rank threshold",
+        ),
+    ],
+)
+def test_consistency_gate_strict_validation(mutation: object, message: str) -> None:
+    gate = deepcopy(_gate())
+    assert callable(mutation)
+    mutation(gate)
+    with pytest.raises(QuickSimConsistencyError, match=message):
+        consistency_module._validated_consistency_gate(gate)
+
+
+def test_consistency_gate_loader_wraps_file_and_root_errors(tmp_path: Path) -> None:
+    valid = tmp_path / "valid.json"
+    valid.write_text(json.dumps(_gate()), encoding="utf-8")
+    assert load_quick_sim_consistency_gate(valid)["gate_id"] == "strict-test-gate"
+    invalid = tmp_path / "invalid.json"
+    invalid.write_text("[]", encoding="utf-8")
+    with pytest.raises(QuickSimConsistencyError, match="must be an object"):
+        load_quick_sim_consistency_gate(invalid)
+    invalid.write_text("not-json", encoding="utf-8")
+    with pytest.raises(QuickSimConsistencyError, match="cannot read"):
+        load_quick_sim_consistency_gate(invalid)
+
+
+@dataclass(frozen=True)
+class _Parameters:
+    home_advantage_points: float = 2.0
+    pace_standard_deviation: float = 4.0
+
+
+@dataclass(frozen=True)
+class _Executor:
+    parameters: _Parameters
+
+    def __call__(self, season_id: str, _seed: int) -> QuickSimSeasonSummary:
+        return _summary(season_id, 99.0 + self.parameters.pace_standard_deviation / 10)
+
+
+def test_run_aggregate_sensitivity_executes_each_single_factor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    checkpoint = tmp_path / "checkpoint.json"
+    checkpoint.write_text("{}", encoding="utf-8")
+    batch = SimpleNamespace(
+        complete=True,
+        cells=(SimpleNamespace(seed=7, season_id="season-1", summary=_summary("season-1", 99.0)),),
+        batch_sha256="b" * 64,
+    )
+    monkeypatch.setattr(consistency_module, "quick_sim_batch_from_json", lambda _raw: batch)
+    monkeypatch.setattr(
+        consistency_module,
+        "build_nba_aggregate_quick_sim_executor",
+        lambda *_args: _Executor(_Parameters()),
+    )
+    report = run_aggregate_sensitivity("parameters.json", "strength.json", checkpoint)
+    assert report["baseline_batch_sha256"] == "b" * 64
+    variants = report["variants"]
+    assert isinstance(variants, list)
+    assert len(variants) == 4
+
+    monkeypatch.setattr(
+        consistency_module,
+        "quick_sim_batch_from_json",
+        lambda _raw: SimpleNamespace(complete=False),
+    )
+    with pytest.raises(QuickSimConsistencyError, match="complete checkpoint"):
+        run_aggregate_sensitivity("parameters.json", "strength.json", checkpoint)

@@ -22,9 +22,10 @@ outside the Git boundary and must not be committed.
 
 ## Publish the prepared branch
 
-Current readiness: **blocked by coverage**. On 2026-08-09 all 575 tests passed, but total coverage
-was `82%` against the frozen `85%` minimum. Do not lower the threshold or push/merge while calling
-the branch release-ready. Restore coverage, rerun the complete gate, and only then publish.
+Current readiness: **local gate passed; publication pending**. On 2026-08-09 all 662 collected
+tests passed and total coverage was `85.28%` against the unchanged frozen `85%` minimum. The
+complete `tools.cmd check` passed. The branch remains local until the explicit push below; do not
+describe it as remotely recoverable before that push succeeds.
 
 Run from a clean source tree after the complete local gate passes:
 
