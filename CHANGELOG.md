@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Separate the `0.55.0.dev0` WIP candidate from the frozen `0.54.0` release registry, promote the
+  franchise runner to v5/schema 3, verify all 40 frozen artifact hashes, and track the exact v6
+  long-holdout inputs.
+- Remove clean-checkout test dependence on ignored `work/` artifacts and run CI for `agent/**`
+  backup branches.
+
 - Create a remote WIP backup branch without merging, tagging, or marking a release.
 - Replace the compressed 92-day NBA calendar with a 174-day schedule and calendar realism gates.
 - Guarantee playable post-offseason rosters, two-round 60-player draft classes, and long contract-cliff continuity.

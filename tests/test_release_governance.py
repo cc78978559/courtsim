@@ -2,7 +2,6 @@ import hashlib
 import json
 from pathlib import Path
 
-from courtsim import __version__
 from courtsim.analysis import (
     evaluate_audit_gates,
     load_audit_gates,
@@ -59,7 +58,6 @@ from courtsim.nba_draft_lottery import (
 from courtsim.nba_draft_offseason import NBA_DRAFT_OFFSEASON_VERSION
 from courtsim.nba_franchise import NBA_FRANCHISE_VERSION
 from courtsim.nba_franchise_artifacts import NBA_FRANCHISE_ARTIFACT_VERSION
-from courtsim.nba_franchise_runner import NBA_FRANCHISE_RUNNER_VERSION
 from courtsim.nba_league import NBA_LEAGUE_VERSION, NBARegularSeasonRules
 from courtsim.nba_offseason import NBA_OFFSEASON_VERSION
 from courtsim.parameters import load_model_parameters
@@ -141,7 +139,7 @@ def test_current_release_registry_is_complete_and_verified() -> None:
     }
     assert release["format_version"] == 55
     assert release["status"] == "frozen"
-    assert release["engine_version"] == __version__
+    assert release["engine_version"] == "0.54.0"
     rules_registry = release["rules"]
     assert set(rules_registry) == {
         "version",
@@ -1351,13 +1349,12 @@ def test_current_release_registry_is_complete_and_verified() -> None:
     nba_franchise_runner_path = ROOT / nba_franchise_runner_registry["path"]
     nba_franchise_runner_config = json.loads(nba_franchise_runner_path.read_text(encoding="utf-8"))
     assert _sha256(nba_franchise_runner_path) == nba_franchise_runner_registry["file_sha256"]
-    assert (
-        nba_franchise_runner_registry["nba_franchise_runner_version"]
-        == NBA_FRANCHISE_RUNNER_VERSION
+    assert nba_franchise_runner_registry["nba_franchise_runner_version"] == (
+        "nba-franchise-runner-v4"
     )
     assert nba_franchise_runner_config == {
         "format_version": 1,
-        "nba_franchise_runner_version": NBA_FRANCHISE_RUNNER_VERSION,
+        "nba_franchise_runner_version": "nba-franchise-runner-v4",
         "nba_franchise_artifact_version": NBA_FRANCHISE_ARTIFACT_VERSION,
         "nba_franchise_version": NBA_FRANCHISE_VERSION,
         "manifest_schema": 2,

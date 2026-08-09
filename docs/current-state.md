@@ -7,7 +7,8 @@
 
 ## 当前冻结版本
 
-- 引擎候选版本：`0.54.0`；当前 GitHub 分支是未发布 WIP，不改变冻结 release。
+- 冻结引擎版本：`0.54.0`；当前 GitHub 分支使用 `0.55.0.dev0` WIP candidate，
+  不改变冻结 release。
 - 模型结构：`data/model_schema_demo_v1_12.json`
 - 模型参数：`data/model_parameters_demo_1.4.0.json`
 - 球员夹具：`examples/calibration_lineup_v1.json`
@@ -20,7 +21,8 @@
 - 30 队快速模拟：`nba-quick-sim-executor-v6`
 - 交易和工资帽完整赛季循环：`nba-franchise-v6`
 - 压缩且可迁移的原子存档：`nba-franchise-artifact-v4`
-- 带保留策略的多赛季恢复运行器：`nba-franchise-runner-v4`
+- 带保留策略的多赛季恢复运行器：WIP 为 `nba-franchise-runner-v5` / schema 3；
+  冻结 0.54 合同仍为 runner v4 / schema 2
 
 独立种子 `20260728` 的 100 场审计通过 10 项核心目标、3 项罚球目标和
 37 项回归门禁。冻结审计 SHA-256：

@@ -15,7 +15,7 @@ Run the real-roster holdout with:
 
 ```powershell
 .\tools.cmd nba-quick-sim-run `
-  work/nba-2024-25-team-shot-profiles-calibrated.json `
+  experiments/inputs/nba-2024-25-team-shot-profiles-calibrated.json `
   experiments/sources/nba-2024-25-team-strength-035-v1.json `
   work/quick-sim/real-player-v1.json `
   --player-rosters work/nba-player-targets-2024-25.json `

@@ -9,12 +9,14 @@ This is the current low-context handoff for the NBA franchise branch. It superse
 - Local branch: `agent/integrate-trade-cap-season`
 - Remote WIP branch: `origin/agent/integrate-trade-cap-season`
 - WIP integration baseline: `7ab7fe0` or newer
-- Engine package: `0.54.0`
+- Frozen engine package: `0.54.0`
+- WIP candidate package: `0.55.0.dev0`
 - Frozen release registry format: `55`
 - Quick simulator: `nba-quick-sim-executor-v6`
 - Franchise: `nba-franchise-v6`
 - Franchise artifact: `nba-franchise-artifact-v4`
-- Franchise runner: `nba-franchise-runner-v4`
+- WIP franchise runner: `nba-franchise-runner-v5` / manifest schema 3
+- Frozen franchise runner: `nba-franchise-runner-v4` / manifest schema 2
 
 The work branch is restorable from GitHub and intentionally remains unmerged. Generated
 `work/` checkpoints, `.cache`, `.venv`, coverage files, downloaded data, and event ledgers are
@@ -85,7 +87,14 @@ work/quick-sim/long-holdout-v6-strength035-v1-consistency.json
 ```
 
 Do not transfer a checkpoint without its adjacent manifest. If the large files are unavailable,
-rerun the frozen commands; the tracked receipt remains the release decision record.
+rerun the frozen commands. Their exact inputs are tracked and verified by:
+
+```powershell
+.\tools.cmd hydrate-long-test
+```
+
+The tracked receipt remains the historical release decision record and does not promote later WIP
+schedule, Finals, or real-roster semantics.
 
 ## Franchise checkpoint transfer and migration
 

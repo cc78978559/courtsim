@@ -16,6 +16,7 @@ from courtsim.analysis.quick_sim_comparison import QuickSimSeasonSummary
 from courtsim.domain.game import GameClockConfig
 
 ROOT = Path(__file__).resolve().parents[1]
+SHOT_PROFILE_FIXTURE = ROOT / "tests" / "fixtures" / "nba-team-shot-profiles-minimal.json"
 
 
 class _FakeExecutor:
@@ -61,7 +62,7 @@ def test_parallel_runner_writes_canonical_checkpoint_waves(
         schema_path=ROOT / "data" / "model_schema_demo_v1_12.json",
         parameters_path=ROOT / "data" / "model_parameters_demo_1.4.0.json",
         lineup_path=ROOT / "examples" / "calibration_lineup_v1.json",
-        profile_path=ROOT / "work" / "nba-2024-25-team-shot-profiles-calibrated.json",
+        profile_path=SHOT_PROFILE_FIXTURE,
         strength_path=ROOT / "experiments" / "sources" / "nba-2024-25-team-strength-v1.json",
         checkpoint_path=checkpoint,
         manifest_path=manifest,
@@ -94,7 +95,7 @@ def _run(
         "schema_path": ROOT / "data" / "model_schema_demo_v1_12.json",
         "parameters_path": ROOT / "data" / "model_parameters_demo_1.4.0.json",
         "lineup_path": ROOT / "examples" / "calibration_lineup_v1.json",
-        "profile_path": ROOT / "work" / "nba-2024-25-team-shot-profiles-calibrated.json",
+        "profile_path": SHOT_PROFILE_FIXTURE,
         "strength_path": ROOT / "experiments" / "sources" / "nba-2024-25-team-strength-v1.json",
         "checkpoint_path": tmp_path / "serial.json",
         "manifest_path": tmp_path / "serial.manifest.json",

@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from courtsim import tool_status
 from courtsim.analysis.quick_sim_batch import (
     QuickSimBatchSpec,
     quick_sim_batch_to_json,
@@ -41,7 +42,16 @@ def test_project_status_is_compact_and_verifies_governance(
     release = report["release"]
     assert isinstance(release, dict)
     assert release["hashes_ok"] is True
-    assert release["verified_files"] > 30
+    assert release["verified_files"] == 40
+    assert release["engine_version"] == "0.54.0"
+    assert release["matches_workspace"] is False
+    candidate = report["candidate"]
+    assert isinstance(candidate, dict)
+    assert candidate["hashes_ok"] is True
+    assert candidate["verified_files"] == 8
+    assert candidate["status"] == "wip"
+    assert candidate["engine_version"] == report["courtsim_version"]
+    assert candidate["capability_scope"] == "workspace-wip"
 
     assert main(["project-status", "--root", str(ROOT)]) == 0
     captured = capsys.readouterr()
@@ -49,6 +59,36 @@ def test_project_status_is_compact_and_verifies_governance(
     cli_report = json.loads(captured.out)
     assert cli_report["courtsim_version"] == report["courtsim_version"]
     assert "nba-quick-sim-comparison" in cli_report["capabilities"]
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "mismatch"),
+    [
+        ("data/model_schema_demo_v1_12.json", "model.schema"),
+        ("data/model_parameters_demo_1.4.0.json", "model.parameters"),
+        ("data/baselines/model-audit-demo-1.4.0.json", "audit.baseline"),
+    ],
+)
+def test_project_status_cannot_report_false_green_for_special_release_artifacts(
+    monkeypatch: pytest.MonkeyPatch,
+    relative_path: str,
+    mismatch: str,
+) -> None:
+    target = (ROOT / relative_path).resolve()
+    original_sha256 = tool_status._sha256
+
+    def mismatched_sha256(path: Path) -> str:
+        if path.resolve() == target:
+            return "0" * 64
+        return original_sha256(path)
+
+    monkeypatch.setattr(tool_status, "_sha256", mismatched_sha256)
+    report = tool_status.build_project_status(ROOT)
+    release = report["release"]
+    assert isinstance(release, dict)
+    assert release["hashes_ok"] is False
+    assert release["verified_files"] == 39
+    assert release["mismatches"] == [mismatch]
 
 
 def test_quick_sim_status_and_comparison_cli(

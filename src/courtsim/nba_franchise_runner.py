@@ -23,12 +23,13 @@ from courtsim.nba_franchise_artifacts import (
 )
 from courtsim.randomness import derive_seed
 
-NBA_FRANCHISE_RUNNER_VERSION = "nba-franchise-runner-v4"
+NBA_FRANCHISE_RUNNER_VERSION = "nba-franchise-runner-v5"
 NBA_FRANCHISE_RUNNER_SCHEMA_VERSION = 3
 LEGACY_UNBOUND_EXECUTION_CONFIG_SHA256 = "0" * 64
 _LEGACY_RUNNER_VERSIONS = {
     "nba-franchise-runner-v2",
     "nba-franchise-runner-v3",
+    "nba-franchise-runner-v4",
 }
 NBAFranchiseSeasonExecutor = Callable[
     [NBAFranchiseState, int],
@@ -531,14 +532,21 @@ def _migrate_manifest(manifest: dict[str, Any]) -> dict[str, object]:
     version = _string(manifest, "version")
     if schema == NBA_FRANCHISE_RUNNER_SCHEMA_VERSION and version == NBA_FRANCHISE_RUNNER_VERSION:
         return manifest
-    if schema == 2 and version == NBA_FRANCHISE_RUNNER_VERSION:
+    if schema in {2, 3} and version == "nba-franchise-runner-v4":
         migrated = dict(manifest)
         migrated["schema_version"] = NBA_FRANCHISE_RUNNER_SCHEMA_VERSION
+        migrated["version"] = NBA_FRANCHISE_RUNNER_VERSION
         spec = _object(migrated["spec"], "NBA franchise run spec")
         migrated["spec"] = {
             **spec,
-            "execution_config_sha256": LEGACY_UNBOUND_EXECUTION_CONFIG_SHA256,
+            "version": NBA_FRANCHISE_RUNNER_VERSION,
         }
+        if schema == 2:
+            migrated_spec = _object(migrated["spec"], "NBA franchise run spec")
+            migrated["spec"] = {
+                **migrated_spec,
+                "execution_config_sha256": LEGACY_UNBOUND_EXECUTION_CONFIG_SHA256,
+            }
         return migrated
     if version not in _LEGACY_RUNNER_VERSIONS:
         raise NBAFranchiseRunnerError("unsupported NBA franchise run manifest")

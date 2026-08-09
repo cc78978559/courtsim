@@ -153,6 +153,40 @@ def test_runner_v3_manifest_migration_preserves_checkpoint_seed_versions() -> No
     assert migrated["checkpoints"] == legacy["checkpoints"]
 
 
+@pytest.mark.parametrize("schema_version", [2, 3])
+def test_runner_v4_manifest_migrates_to_distinct_v5_identity(schema_version: int) -> None:
+    spec: dict[str, object] = {
+        "run_id": "legacy-v4-run",
+        "master_seed": 88,
+        "seasons": 2,
+        "version": "nba-franchise-runner-v4",
+    }
+    if schema_version == 3:
+        spec["execution_config_sha256"] = "a" * 64
+    legacy = {
+        "schema_version": schema_version,
+        "version": "nba-franchise-runner-v4",
+        "spec": spec,
+        "checkpoints": [
+            {
+                "completed_seasons": 1,
+                "seed_version": "nba-franchise-runner-v4",
+            }
+        ],
+    }
+
+    migrated = _migrate_manifest(legacy)
+
+    assert migrated["schema_version"] == 3
+    assert migrated["version"] == NBA_FRANCHISE_RUNNER_VERSION
+    migrated_spec = migrated["spec"]
+    assert isinstance(migrated_spec, dict)
+    assert migrated_spec["version"] == NBA_FRANCHISE_RUNNER_VERSION
+    expected_hash = "a" * 64 if schema_version == 3 else "0" * 64
+    assert migrated_spec["execution_config_sha256"] == expected_hash
+    assert migrated["checkpoints"] == legacy["checkpoints"]
+
+
 def test_execution_config_hash_is_canonical_and_rejects_non_json_values() -> None:
     first = nba_franchise_execution_config_sha256({"b": [2, 3], "a": 1})
     second = nba_franchise_execution_config_sha256({"a": 1, "b": [2, 3]})

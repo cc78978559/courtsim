@@ -176,6 +176,15 @@ switch ($Command) {
     "check-franchise" {
         Invoke-QuietPython "franchise-tests" @("-m", "pytest", "-q", "-m", "franchise")
     }
+    "hydrate-long-test" {
+        Invoke-Python @(
+            "-m",
+            "courtsim",
+            "verify",
+            "experiments\manifests\nba-v6-long-holdout-inputs-v1.json"
+        )
+        Write-Output "long-test inputs are present and hash-verified"
+    }
     default {
         $CourtSimArguments = @("-m", "courtsim", $Command) + $RemainingArguments
         Invoke-Python $CourtSimArguments

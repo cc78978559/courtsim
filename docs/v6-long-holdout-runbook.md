@@ -1,8 +1,16 @@
 # v6 30-season long holdout runbook
 
-Status: completed and promoted on 2026-08-02. Both frozen gates passed. The tracked compact
+Status: completed and promoted on 2026-08-02 for the historical v6 semantics. Both frozen gates
+passed. This receipt predates the current WIP schedule, Finals, and real-roster changes and must not
+be used to promote those changes. The tracked compact
 receipt is `experiments/promotion/nba-quick-sim-executor-v6.json`; the large checkpoints and gate
 reports remain local under `work/quick-sim`.
+
+Verify the exact tracked inputs before running or resuming:
+
+```powershell
+.\tools.cmd hydrate-long-test
+```
 
 The frozen design is `experiments/gates/postseason-schedule-v6-long-holdout-v1.json`.
 It requires 30 paired aggregate and full-engine seasons under batch id
@@ -13,12 +21,12 @@ for process health only; do not change the sample size, inputs, thresholds, or s
 
 ```powershell
 .\tools.cmd nba-quick-sim-run `
-  work/nba-2024-25-team-shot-profiles-calibrated.json `
+  experiments/inputs/nba-2024-25-team-shot-profiles-calibrated.json `
   experiments/sources/nba-2024-25-team-strength-035-v1.json `
   work/quick-sim/long-holdout-v6-strength035-v1.json `
   --manifest work/quick-sim/long-holdout-v6-strength035-v1.manifest.json `
   --schema data/model_schema_demo_v1_12.json `
-  --parameters work/pace-dev-short11-parameters.json `
+  --parameters experiments/parameters/pace-dev-short11-parameters.json `
   --lineup examples/calibration_lineup_v1.json `
   --batch-id long-holdout-v6-strength035-v1 `
   --master-seed 20261210 --seasons 30 --maximum-new-seasons 30 --workers 3 `

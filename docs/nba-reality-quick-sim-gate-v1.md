@@ -34,7 +34,7 @@ exceptions under `work/`; ordinary run outputs and checkpoints remain ignored.
 
 ```powershell
 .\tools.cmd nba-quick-sim-run `
-  work/nba-2024-25-team-shot-profiles-calibrated.json `
+  experiments/inputs/nba-2024-25-team-shot-profiles-calibrated.json `
   experiments/sources/nba-2024-25-team-strength-v1.json `
   work/quick-sim/formal-nba-reality-v1.json `
   --batch-id formal-nba-reality-v1 --master-seed 20260902 --seasons 30 `

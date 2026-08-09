@@ -13,7 +13,13 @@ from typing import Any, cast
 
 from courtsim import __version__
 
-PROJECT_STATUS_SCHEMA_VERSION = 1
+PROJECT_STATUS_SCHEMA_VERSION = 2
+
+_SPECIAL_ARTIFACT_FIELDS = (
+    ("model.schema", "model", "schema_path", "schema_file_sha256"),
+    ("model.parameters", "model", "parameter_path", "parameter_file_sha256"),
+    ("audit.baseline", "audit", "baseline_path", "baseline_sha256"),
+)
 
 
 class ProjectStatusError(ValueError):
@@ -23,39 +29,25 @@ class ProjectStatusError(ValueError):
 def build_project_status(root: str | Path) -> dict[str, object]:
     workspace = Path(root).resolve()
     release_path = workspace / "governance" / "current-release.json"
-    if not release_path.is_file():
-        raise ProjectStatusError("governance/current-release.json is missing")
-    try:
-        release = json.loads(release_path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError) as error:
-        raise ProjectStatusError(f"current release cannot be read: {error}") from error
-    if not isinstance(release, dict):
-        raise ProjectStatusError("current release must be an object")
-    release_object = cast(dict[str, Any], release)
-    engine_version = release_object.get("engine_version")
-    if engine_version != __version__:
-        raise ProjectStatusError("current release engine version differs")
+    candidate_path = workspace / "governance" / "current-candidate.json"
+    release_object = _load_registry(release_path, "current release")
+    candidate_object = _load_registry(candidate_path, "current candidate")
+    release_engine_version = release_object.get("engine_version")
+    candidate_engine_version = candidate_object.get("engine_version")
+    if not isinstance(release_engine_version, str):
+        raise ProjectStatusError("current release engine version is missing")
+    if candidate_engine_version != __version__:
+        raise ProjectStatusError("current candidate engine version differs")
+    if candidate_object.get("base_release_engine_version") != release_engine_version:
+        raise ProjectStatusError("current candidate base release differs")
     try:
         installed_version = version("courtsim")
     except PackageNotFoundError as error:
         raise ProjectStatusError("courtsim distribution metadata is missing") from error
     if installed_version != __version__:
         raise ProjectStatusError("installed courtsim distribution version differs")
-    verified_files = 0
-    mismatches: list[str] = []
-    for name, value in sorted(release_object.items()):
-        if not isinstance(value, dict) or "path" not in value or "file_sha256" not in value:
-            continue
-        path_value = value["path"]
-        digest_value = value["file_sha256"]
-        if not isinstance(path_value, str) or not isinstance(digest_value, str):
-            mismatches.append(name)
-            continue
-        governed_path = workspace / path_value
-        if not governed_path.is_file() or _sha256(governed_path) != digest_value:
-            mismatches.append(name)
-            continue
-        verified_files += 1
+    release_verified, release_mismatches = _verify_registry(workspace, release_object)
+    candidate_verified, candidate_mismatches = _verify_registry(workspace, candidate_object)
     git = _git_status(workspace)
     return {
         "schema_version": PROJECT_STATUS_SCHEMA_VERSION,
@@ -66,10 +58,24 @@ def build_project_status(root: str | Path) -> dict[str, object]:
         "release": {
             "format_version": release_object.get("format_version"),
             "status": release_object.get("status"),
+            "engine_version": release_engine_version,
+            "matches_workspace": release_engine_version == __version__,
             "registry_sha256": _sha256(release_path),
-            "verified_files": verified_files,
-            "hashes_ok": not mismatches,
-            "mismatches": mismatches,
+            "verified_files": release_verified,
+            "hashes_ok": not release_mismatches,
+            "mismatches": release_mismatches,
+        },
+        "candidate": {
+            "format_version": candidate_object.get("format_version"),
+            "status": candidate_object.get("status"),
+            "engine_version": candidate_engine_version,
+            "base_release_engine_version": candidate_object.get("base_release_engine_version"),
+            "capability_scope": candidate_object.get("capability_scope"),
+            "capabilities": candidate_object.get("capabilities"),
+            "registry_sha256": _sha256(candidate_path),
+            "verified_files": candidate_verified,
+            "hashes_ok": not candidate_mismatches,
+            "mismatches": candidate_mismatches,
         },
         "workspace": git,
         "capabilities": [
@@ -124,6 +130,44 @@ def build_project_status(root: str | Path) -> dict[str, object]:
             "full": ".\\tools.cmd check",
         },
     }
+
+
+def _load_registry(path: Path, label: str) -> dict[str, Any]:
+    if not path.is_file():
+        raise ProjectStatusError(f"{path.as_posix()} is missing")
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as error:
+        raise ProjectStatusError(f"{label} cannot be read: {error}") from error
+    if not isinstance(value, dict):
+        raise ProjectStatusError(f"{label} must be an object")
+    return cast(dict[str, Any], value)
+
+
+def _verify_registry(
+    workspace: Path,
+    registry: dict[str, Any],
+) -> tuple[int, list[str]]:
+    references: list[tuple[str, object, object]] = []
+    for name, value in sorted(registry.items()):
+        if isinstance(value, dict) and ("path" in value or "file_sha256" in value):
+            references.append((name, value.get("path"), value.get("file_sha256")))
+    for label, section, path_field, digest_field in _SPECIAL_ARTIFACT_FIELDS:
+        value = registry.get(section)
+        if isinstance(value, dict) and (path_field in value or digest_field in value):
+            references.append((label, value.get(path_field), value.get(digest_field)))
+    verified = 0
+    mismatches: list[str] = []
+    for label, path_value, digest_value in references:
+        if not isinstance(path_value, str) or not isinstance(digest_value, str):
+            mismatches.append(label)
+            continue
+        governed_path = workspace / path_value
+        if not governed_path.is_file() or _sha256(governed_path) != digest_value:
+            mismatches.append(label)
+            continue
+        verified += 1
+    return verified, mismatches
 
 
 def _git_status(root: Path) -> dict[str, object]:

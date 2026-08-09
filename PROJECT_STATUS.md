@@ -8,7 +8,8 @@ statistics ledger rather than continuous court physics.
 
 ## Current versions
 
-- Engine release candidate: `0.54.0`.
+- Frozen release engine: `0.54.0`.
+- Current WIP candidate package: `0.55.0.dev0`.
 - Latest mechanics: schema `demo-v1.12`, parameters `demo-1.4.0`.
 - Frozen realism baseline: `demo-1.4.0`.
 - Game rules: `nba-v1`.
@@ -43,7 +44,8 @@ statistics ledger rather than continuous court physics.
 - Complete thirty-team career and management offseason: `nba-offseason-v1`.
 - Trade- and cap-aware thirty-team franchise loop: `nba-franchise-v6`.
 - Compressed, migratable atomic franchise checkpoints: `nba-franchise-artifact-v4`.
-- Retention-aware resumable multi-season orchestration: `nba-franchise-runner-v4`.
+- Retention-aware resumable multi-season orchestration: `nba-franchise-runner-v5`
+  with manifest schema 3; frozen 0.54 remains on runner v4/schema 2.
 - Native routed three-team transactions: `three-team-trade-v1`.
 - Automatic cyclic/hub three-team discovery and unified clearing: `three-team-market-v1`, now
   executing `three-team-market-v2` contract-condition trees in the franchise WIP path.
