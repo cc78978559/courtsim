@@ -8,10 +8,12 @@ from courtsim.manager_ai import ManagerProfile
 from courtsim.manager_learning import (
     ManagerLearningState,
     OpponentObservation,
+    advance_manager_learning_from_season,
     opponent_rotation_adjustment,
     update_manager_learning,
 )
 from courtsim.manager_rotation import generate_manager_rotation
+from courtsim.season import SeasonResult, SeasonSchedule
 
 
 def test_manager_learning_accumulates_weighted_cross_season_memory() -> None:
@@ -28,10 +30,34 @@ def test_manager_learning_accumulates_weighted_cross_season_memory() -> None:
     )
     memory = second.opponents[0]
     assert second.seasons_observed == 2
+    assert second.tenure_start_season == 2029
     assert memory.games_observed == 3
     assert memory.offense_strength == 70
     assert memory.defense_strength == 70
     assert memory.pace == 60
+
+
+def test_manager_replacement_starts_a_new_tenure_without_breaking_team_history() -> None:
+    season = SeasonResult(SeasonSchedule(("A", "B"), ()), (), (), (), ())
+    prior = (
+        ManagerLearningState("old-A", "A", 2030, 2),
+        ManagerLearningState("manager-B", "B", 2030, 2),
+    )
+    advanced = advance_manager_learning_from_season(
+        season,
+        prior,
+        {
+            "A": ManagerProfile("new-A", "A"),
+            "B": ManagerProfile("manager-B", "B"),
+        },
+        GameClockConfig(1, 120, 15),
+        completed_season=2031,
+    )
+    by_team = {item.team_id: item for item in advanced}
+    assert by_team["A"].seasons_observed == 1
+    assert by_team["A"].tenure_start_season == 2031
+    assert by_team["B"].seasons_observed == 3
+    assert by_team["B"].tenure_start_season == 2029
 
 
 def test_opponent_model_produces_bounded_white_box_rotation_emphasis() -> None:

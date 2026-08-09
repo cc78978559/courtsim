@@ -145,6 +145,11 @@ class ManagerLearningState:
         if self.version != MANAGER_LEARNING_VERSION:
             raise ValueError("unsupported manager learning version")
 
+    @property
+    def tenure_start_season(self) -> int:
+        """First completed season observed by this manager in the current tenure."""
+        return self.last_completed_season - self.seasons_observed + 1
+
 
 @dataclass(frozen=True, slots=True)
 class OpponentRotationAdjustment:

@@ -7,6 +7,12 @@
   long-holdout inputs.
 - Remove clean-checkout test dependence on ignored `work/` artifacts and run CI for `agent/**`
   backup branches.
+- Treat manager learning as current-manager tenure so replacements start fresh without invalidating
+  an otherwise continuous franchise checkpoint.
+- Clear approved bilateral and three-team offers together with deterministic team/player/pick locks,
+  allowing non-conflicting markets to execute in the same season.
+- Derive contract demands from destination-manager risk and development preferences, retain complete
+  counter/reject trees, and execute only negotiations that reach accepted terms.
 
 - Create a remote WIP backup branch without merging, tagging, or marking a release.
 - Replace the compressed 92-day NBA calendar with a 174-day schedule and calendar realism gates.

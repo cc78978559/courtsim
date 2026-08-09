@@ -307,28 +307,29 @@ def generate_three_team_market_shadow(
         )
     )
     selected: list[ThreeTeamTradeOffer] = []
+    negotiations: list[ThreeTeamContractNegotiationTree] = []
     locked_teams: set[str] = set()
     for evaluation in approved:
         offer = evaluation.shadow.offer
         if set(offer.team_ids) & locked_teams:
             continue
+        negotiation = build_three_team_contract_negotiation_tree(
+            offer,
+            management,
+            build_three_team_market_contract_conditions(offer, management, profiles),
+            maximum_rounds=market_rules.maximum_contract_negotiation_rounds,
+        )
+        negotiations.append(negotiation)
+        if not any(node.status == "accepted" for node in negotiation.nodes):
+            continue
         selected.append(offer)
         locked_teams.update(offer.team_ids)
     selected.sort(key=lambda offer: offer.trade_id)
-    negotiations = tuple(
-        build_three_team_contract_negotiation_tree(
-            offer,
-            management,
-            _contract_conditions(offer, management),
-            maximum_rounds=market_rules.maximum_contract_negotiation_rounds,
-        )
-        for offer in selected
-    )
     return ThreeTeamMarketShadowResult(
         ThreeTeamMarketPlan(tuple(selected)),
         tuple(evaluations),
         ManagerDecisionLedger(tuple(ledger_records)),
-        negotiations,
+        tuple(sorted(negotiations, key=lambda tree: tree.trade_id)),
     )
 
 
@@ -343,19 +344,22 @@ def apply_three_team_market_plan(
     cap_rules: CapMechanicsRules | None = None,
     frozen_pick_ids: frozenset[int] = frozenset(),
     negotiations: tuple[ThreeTeamContractNegotiationTree, ...] = (),
+    profiles: Mapping[str, ManagerProfile] | None = None,
 ) -> ThreeTeamMarketExecution:
     if plan.offers and not negotiations:
         negotiations = tuple(
             build_three_team_contract_negotiation_tree(
                 offer,
                 management,
-                _contract_conditions(offer, management),
+                build_three_team_market_contract_conditions(offer, management, profiles),
             )
             for offer in plan.offers
         )
     trees = {tree.trade_id: tree for tree in negotiations}
-    if set(trees) != {offer.trade_id for offer in plan.offers} and (plan.offers or negotiations):
-        raise ValueError("three-team market negotiations must exactly cover the plan")
+    if len(trees) != len(negotiations):
+        raise ValueError("three-team market negotiations must use unique trade ids")
+    if not {offer.trade_id for offer in plan.offers} <= set(trees):
+        raise ValueError("three-team market negotiations must cover the plan")
     final_management = management
     final_picks = picks
     final_cap_ledger = cap_ledger
@@ -397,14 +401,26 @@ def apply_three_team_market_plan(
     )
 
 
-def _contract_conditions(
+def build_three_team_market_contract_conditions(
     offer: ThreeTeamTradeOffer,
     management: LeagueManagementState,
+    profiles: Mapping[str, ManagerProfile] | None = None,
 ) -> tuple[ThreeTeamContractCondition, ...]:
     contracts = {contract.player_id: contract for contract in management.contracts}
     conditions: list[ThreeTeamContractCondition] = []
     for route in offer.player_routes:
         contract = contracts[route.player_id]
+        profile = (
+            profiles[route.to_team_id]
+            if profiles is not None
+            else ManagerProfile(f"market-{route.to_team_id}", route.to_team_id)
+        )
+        salary_discount_bps = max(0, 50 - profile.risk_tolerance) * 20
+        maximum_salary = max(
+            1,
+            contract.annual_salary * (10_000 - salary_discount_bps) // 10_000,
+        )
+        minimum_years = contract.years_remaining + int(profile.development_bias > 60)
         conditions.extend(
             (
                 ThreeTeamContractCondition(
@@ -412,14 +428,14 @@ def _contract_conditions(
                     route.player_id,
                     route.to_team_id,
                     ContractConditionKind.MAXIMUM_ANNUAL_SALARY,
-                    contract.annual_salary,
+                    maximum_salary,
                 ),
                 ThreeTeamContractCondition(
                     len(conditions) + 2,
                     route.player_id,
                     route.to_team_id,
                     ContractConditionKind.MINIMUM_YEARS_REMAINING,
-                    contract.years_remaining,
+                    minimum_years,
                 ),
             )
         )

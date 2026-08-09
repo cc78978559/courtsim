@@ -42,7 +42,10 @@
   "capabilities": [
     "artifact-retention-two-phase-commit",
     "draft-obligation-transaction-enforcement",
+    "manager-tenure-aware-learning",
+    "mixed-bilateral-three-team-clearing",
     "nba-source-pinned-real-player-rosters",
-    "three-team-market-v2-franchise-integration"
+    "three-team-market-v2-franchise-integration",
+    "three-team-substantive-counter-reject-negotiation"
   ]
 }

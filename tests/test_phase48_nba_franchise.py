@@ -15,6 +15,7 @@ from courtsim.domain.plans import Lineup
 from courtsim.draft_assets import DraftAssetLedger
 from courtsim.management import ContractRules, LeagueManagementState, PlayerContract
 from courtsim.manager_ai import ManagerProfile
+from courtsim.manager_learning import ManagerLearningState
 from courtsim.model.game_runtime import GameTeam
 from courtsim.model.interaction_compiler import ProfileLineup
 from courtsim.nba_franchise import (
@@ -172,7 +173,7 @@ def test_franchise_season_composes_into_a_second_complete_season(
     assert len(first_run.executions) == 1
     assert (tmp_path / "run" / "season-00000.json.gz").is_file()
     first = first_run.executions[0]
-    assert first.trade_clearing_choice in {"none", "bilateral", "three-team"}
+    assert first.trade_clearing_choice in {"none", "bilateral", "three-team", "mixed"}
     assert first.bilateral_trade_market.evaluations
     assert first.three_team_trade_market.evaluations
     assert first.bilateral_trade_execution.initial_cap_ledger == state.cap_ledger
@@ -316,3 +317,25 @@ def test_nba_franchise_rejects_nonstandard_prospect_class_size() -> None:
             draft_rules=DraftRules(rounds=1),
             prospect_rules=ProspectGenerationRules(class_size=29),
         )
+
+
+def test_nba_franchise_accepts_replacement_manager_with_shorter_tenure() -> None:
+    state, _, _ = _state()
+    management = replace(state.management, season_year=2032)
+    learning = tuple(
+        ManagerLearningState(
+            "replacement-T01" if roster.team_id == "T01" else f"manager-{roster.team_id}",
+            roster.team_id,
+            2031,
+            1 if roster.team_id == "T01" else 3,
+        )
+        for roster in management.rosters
+    )
+    resumed = replace(
+        state,
+        management=management,
+        completed_seasons=3,
+        manager_learning=learning,
+    )
+    assert resumed.manager_learning[0].tenure_start_season == 2031
+    assert resumed.manager_learning[1].tenure_start_season == 2029

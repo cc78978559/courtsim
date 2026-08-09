@@ -36,6 +36,7 @@ from courtsim.manager_rotation import (
     generate_manager_rotation,
 )
 from courtsim.manager_trade import ManagerTradeRules
+from courtsim.mixed_trade_market import clear_mixed_trade_markets
 from courtsim.model.action_setup import TeamDefenseStrategy, TeamOffenseStrategy
 from courtsim.model.game_runtime import GameTeam, TeamTempoStrategy
 from courtsim.model.interaction_compiler import ProfileLineup
@@ -55,16 +56,13 @@ from courtsim.randomness import derive_seed
 from courtsim.season import SeasonConfig
 from courtsim.three_team_market import (
     ThreeTeamMarketExecution,
-    ThreeTeamMarketPlan,
     ThreeTeamMarketRules,
     ThreeTeamMarketShadowResult,
     apply_three_team_market_plan,
     generate_three_team_market_shadow,
-    three_team_shadow_gain,
 )
 from courtsim.trade_market import (
     TradeMarketExecution,
-    TradeMarketPlan,
     TradeMarketRules,
     TradeMarketShadowResult,
     apply_trade_market_plan,
@@ -107,7 +105,7 @@ class NBAFranchiseState:
             learning_team_ids != tuple(sorted(team_ids))
             or any(
                 item.last_completed_season != self.management.season_year - 1
-                or item.seasons_observed != self.completed_seasons
+                or not 1 <= item.seasons_observed <= self.completed_seasons
                 for item in self.manager_learning
             )
         ):
@@ -210,11 +208,9 @@ def execute_nba_franchise_season(
         cap_rules=cap_rules,
         frozen_pick_ids=frozen_pick_ids,
     )
-    bilateral_gain = _selected_bilateral_gain(bilateral_shadow)
-    three_team_gain = _selected_three_team_gain(three_team_shadow)
-    choose_three_team = bool(three_team_shadow.plan.offers) and three_team_gain > bilateral_gain
-    bilateral_plan = TradeMarketPlan(()) if choose_three_team else bilateral_shadow.plan
-    three_team_plan = three_team_shadow.plan if choose_three_team else ThreeTeamMarketPlan(())
+    clearing = clear_mixed_trade_markets(bilateral_shadow, three_team_shadow)
+    bilateral_plan = clearing.bilateral_plan
+    three_team_plan = clearing.three_team_plan
     bilateral_execution = apply_trade_market_plan(
         state.management,
         seeded_trade_assets.picks,
@@ -234,7 +230,7 @@ def execute_nba_franchise_season(
         cap_ledger=bilateral_execution.final_cap_ledger,
         cap_rules=cap_rules,
         frozen_pick_ids=frozen_pick_ids,
-        negotiations=three_team_shadow.negotiations if choose_three_team else (),
+        negotiations=three_team_shadow.negotiations,
     )
     traded_management = three_team_execution.final_management
     traded_assets = replace(
@@ -245,9 +241,7 @@ def execute_nba_franchise_season(
         ),
     )
     traded_cap_ledger = three_team_execution.final_cap_ledger or initial_cap_ledger
-    trade_clearing_choice = (
-        "three-team" if choose_three_team else "bilateral" if bilateral_plan.offers else "none"
-    )
+    trade_clearing_choice = clearing.choice
     players = state.players
     prospects = tuple(player for player in players if player.status is CareerStatus.PROSPECT)
     if prospects and len(prospects) != expected_prospects:
@@ -361,24 +355,6 @@ def execute_nba_franchise_season(
         asset_settlement,
         offseason,
         final_state,
-    )
-
-
-def _selected_bilateral_gain(shadow: TradeMarketShadowResult) -> float:
-    selected = {offer.trade_id for offer in shadow.plan.offers}
-    return sum(
-        sum(approval.rational_gain or 0.0 for approval in evaluation.shadow.approvals)
-        for evaluation in shadow.evaluations
-        if evaluation.shadow.offer.trade_id in selected
-    )
-
-
-def _selected_three_team_gain(shadow: ThreeTeamMarketShadowResult) -> float:
-    selected = {offer.trade_id for offer in shadow.plan.offers}
-    return sum(
-        three_team_shadow_gain(evaluation.shadow)
-        for evaluation in shadow.evaluations
-        if evaluation.shadow.offer.trade_id in selected
     )
 
 

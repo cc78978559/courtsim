@@ -22,12 +22,17 @@ The work branch is restorable from GitHub and intentionally remains unmerged. Ge
 `work/` checkpoints, `.cache`, `.venv`, coverage files, downloaded data, and event ledgers are
 outside the Git boundary and must not be committed.
 
+The second long-management repair batch also makes manager learning tenure-aware, clears
+non-conflicting bilateral and three-team trades together, and records substantive three-team
+contract counteroffers and failed negotiations. These remain WIP candidate capabilities and do
+not alter the frozen release registry.
+
 ## Publish the prepared branch
 
 Current readiness: **remote WIP backup, not a release**. The branch contains the post-v6 calendar,
 offseason, obligation, Bird-rights, retention, Finals, three-team negotiation, and real-roster
 integration work. It has not been merged, tagged, or promoted in `governance/current-release.json`.
-The final WIP gate collected and passed 677 tests; formatting, lint, strict mypy, and the unchanged
+The final WIP gate collected and passed 687 tests; formatting, lint, strict mypy, and the unchanged
 85% coverage threshold also passed. The coverage-instrumented full gate took about 37 minutes.
 
 Run from a clean source tree after the complete local gate passes:

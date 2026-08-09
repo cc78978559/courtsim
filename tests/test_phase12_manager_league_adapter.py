@@ -212,7 +212,12 @@ def test_shadow_uses_white_box_draft_and_market_ledgers() -> None:
         evaluation["salary_imbalance"] >= 0
         for evaluation in shadow_audit["three_team_market"]["evaluations"]
     )
-    assert shadow_audit["trade_clearing_choice"] in {"none", "bilateral", "three-team"}
+    assert shadow_audit["trade_clearing_choice"] in {
+        "none",
+        "bilateral",
+        "three-team",
+        "mixed",
+    }
     assert incumbent_audit["season"]["games"] == shadow_audit["season"]["games"]
     assert incumbent_audit["playoffs"] == shadow_audit["playoffs"]
     incumbent_picks = tuple(
