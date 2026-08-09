@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
+from itertools import pairwise
 
 from courtsim.playoffs import PlayoffSeed
 from courtsim.season import ScheduledGame, SeasonSchedule
@@ -15,11 +16,29 @@ NBA_LEAGUE_VERSION = "nba-league-v1"
 class NBARegularSeasonRules:
     team_count: int = 30
     games_per_team: int = 82
+    season_span_days: int = 174
+    back_to_back_windows: int = 15
+    minimum_team_back_to_backs: int = 12
+    maximum_team_back_to_backs: int = 16
+    maximum_consecutive_game_days: int = 2
+    minimum_one_day_rest_intervals: int = 55
+    maximum_one_day_rest_intervals: int = 70
+    minimum_longest_rest_days: int = 7
+    maximum_longest_rest_days: int = 14
     version: str = NBA_LEAGUE_VERSION
 
     def __post_init__(self) -> None:
         if self.team_count != 30 or self.games_per_team != 82:
             raise ValueError("nba-league-v1 requires thirty teams and eighty-two games")
+        if (
+            self.season_span_days < self.games_per_team
+            or self.back_to_back_windows < 1
+            or not 0 <= self.minimum_team_back_to_backs <= self.maximum_team_back_to_backs
+            or self.maximum_consecutive_game_days < 2
+            or not 0 <= self.minimum_one_day_rest_intervals <= self.maximum_one_day_rest_intervals
+            or not 0 <= self.minimum_longest_rest_days <= self.maximum_longest_rest_days
+        ):
+            raise ValueError("NBA calendar gate rules are invalid")
         if self.version != NBA_LEAGUE_VERSION:
             raise ValueError("unsupported NBA league version")
 
@@ -251,8 +270,9 @@ def generate_nba_schedule(
                 break
         else:
             days.append(([(home, away)], {home, away}))
+    calendar_days = _nba_calendar_days(len(days), active_rules)
     scheduled_games: list[ScheduledGame] = []
-    for day, (matchups, _) in enumerate(days, start=1):
+    for day, (matchups, _) in zip(calendar_days, days, strict=True):
         for home, away in sorted(matchups):
             scheduled_games.append(ScheduledGame(len(scheduled_games) + 1, day, home, away))
     schedule = SeasonSchedule(team_ids, tuple(scheduled_games))
@@ -264,7 +284,97 @@ def generate_nba_schedule(
     home_games = Counter(game.home_team_id for game in schedule.games)
     if set(home_games.values()) != {active_rules.games_per_team // 2}:
         raise ValueError("generated NBA schedule does not balance home games")
+    _validate_nba_calendar_gate(schedule, active_rules)
     return schedule
+
+
+def _nba_calendar_days(
+    slot_count: int,
+    rules: NBARegularSeasonRules,
+) -> tuple[int, ...]:
+    """Map conflict-free matchup slots onto a deterministic NBA-style calendar."""
+    if slot_count < 52:
+        raise ValueError("NBA matchup slots cannot support the calendar gate")
+    transition_count = slot_count - 1
+    back_to_back_after = {1 + 5 * index for index in range(rules.back_to_back_windows)}
+    all_star_break_after = 50
+    if (
+        max(back_to_back_after, default=0) > transition_count
+        or all_star_break_after > transition_count
+        or all_star_break_after in back_to_back_after
+    ):
+        raise ValueError("NBA matchup slots cannot support the frozen calendar layout")
+    gaps = {
+        transition: (
+            8
+            if transition == all_star_break_after
+            else 1
+            if transition in back_to_back_after
+            else 2
+        )
+        for transition in range(1, transition_count + 1)
+    }
+    extra_days = rules.season_span_days - 1 - sum(gaps.values())
+    if extra_days < 0:
+        raise ValueError("NBA matchup slots exceed the configured season span")
+    ordinary = tuple(
+        transition
+        for transition in gaps
+        if transition not in back_to_back_after and transition != all_star_break_after
+    )
+    if extra_days > len(ordinary):
+        raise ValueError("NBA season span requires unsupported calendar padding")
+    for extra_index in range(extra_days):
+        ordinary_index = (extra_index + 1) * len(ordinary) // (extra_days + 1)
+        gaps[ordinary[ordinary_index]] += 1
+    calendar = [1]
+    for transition in range(1, transition_count + 1):
+        calendar.append(calendar[-1] + gaps[transition])
+    if calendar[-1] != rules.season_span_days:
+        raise ValueError("NBA calendar does not reach the configured season span")
+    return tuple(calendar)
+
+
+def _validate_nba_calendar_gate(
+    schedule: SeasonSchedule,
+    rules: NBARegularSeasonRules,
+) -> None:
+    if not schedule.games or schedule.games[0].day != 1:
+        raise ValueError("NBA calendar must begin on day one")
+    if schedule.games[-1].day != rules.season_span_days:
+        raise ValueError("NBA calendar span differs")
+    days_by_team = {
+        team_id: tuple(
+            game.day for game in schedule.games if team_id in (game.home_team_id, game.away_team_id)
+        )
+        for team_id in schedule.team_ids
+    }
+    for team_id, days_played in days_by_team.items():
+        gaps = tuple(second - first for first, second in pairwise(days_played))
+        back_to_backs = sum(gap == 1 for gap in gaps)
+        one_day_rest = sum(gap == 2 for gap in gaps)
+        longest_rest = max((gap - 1 for gap in gaps), default=0)
+        consecutive = 1
+        longest_consecutive = 1
+        for gap in gaps:
+            consecutive = consecutive + 1 if gap == 1 else 1
+            longest_consecutive = max(longest_consecutive, consecutive)
+        if (
+            not rules.minimum_team_back_to_backs
+            <= back_to_backs
+            <= rules.maximum_team_back_to_backs
+        ):
+            raise ValueError(f"NBA back-to-back gate differs: {team_id}")
+        if longest_consecutive > rules.maximum_consecutive_game_days:
+            raise ValueError(f"NBA consecutive-game gate differs: {team_id}")
+        if not (
+            rules.minimum_one_day_rest_intervals
+            <= one_day_rest
+            <= rules.maximum_one_day_rest_intervals
+        ):
+            raise ValueError(f"NBA one-day-rest gate differs: {team_id}")
+        if not rules.minimum_longest_rest_days <= longest_rest <= rules.maximum_longest_rest_days:
+            raise ValueError(f"NBA long-rest gate differs: {team_id}")
 
 
 def _default_divisions(team_ids: tuple[str, ...]) -> tuple[tuple[str, ...], ...]:

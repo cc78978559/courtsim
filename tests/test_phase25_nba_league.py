@@ -1,4 +1,5 @@
 from collections import Counter
+from itertools import pairwise
 
 import pytest
 
@@ -37,6 +38,21 @@ def test_thirty_team_schedule_has_1230_games_and_82_per_team() -> None:
         }
         assert len(games) <= 15
         assert len(participants) == len(games) * 2
+
+
+def test_thirty_team_schedule_passes_calendar_distribution_gates() -> None:
+    schedule = generate_nba_schedule(team_ids())
+    assert schedule.games[0].day == 1
+    assert schedule.games[-1].day == 174
+    for team_id in team_ids():
+        days = tuple(
+            game.day for game in schedule.games if team_id in (game.home_team_id, game.away_team_id)
+        )
+        gaps = tuple(second - first for first, second in pairwise(days))
+        assert 12 <= sum(gap == 1 for gap in gaps) <= 16
+        assert 55 <= sum(gap == 2 for gap in gaps) <= 70
+        assert 7 <= max(gap - 1 for gap in gaps) <= 14
+        assert all(not (first == second == 1) for first, second in pairwise(gaps))
 
 
 def test_schedule_uses_division_conference_and_interconference_series_weights() -> None:
