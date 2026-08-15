@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add a WIP-only thirty-team focal-policy manager experiment with a frozen observable reality
+  baseline, per-team policy injection, source-level paired evidence, resumable gzip cells, keyless
+  real-state construction, strict hashes and candidate-only governance.
+
 - Separate the `0.55.0.dev0` WIP candidate from the frozen `0.54.0` release registry, promote the
   franchise runner to v5/schema 3, verify all 40 frozen artifact hashes, and track the exact v6
   long-holdout inputs.

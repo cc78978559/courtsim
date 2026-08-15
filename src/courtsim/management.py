@@ -321,6 +321,7 @@ def _apply_action(
                 annual_salary=action.annual_salary,
                 ledger=cap_ledger,
                 rules=active_cap_rules,
+                minimum_salary=rules.minimum_salary,
             )
             if not decision.allowed:
                 raise ValueError("illegal signing: " + ", ".join(decision.rejections))
@@ -344,7 +345,9 @@ def _apply_action(
         updated,
         rules,
         maximum_payroll=(
-            cap_rules.second_apron if cap_ledger is not None and cap_rules else maximum_payroll
+            max(cap_rules.second_apron, maximum_payroll or 0)
+            if cap_ledger is not None and cap_rules
+            else maximum_payroll
         ),
     )
     return updated
@@ -361,7 +364,11 @@ def apply_market_plan(
 ) -> MarketResult:
     if cap_ledger is not None and cap_rules is None:
         cap_rules = CapMechanicsRules()
-    payroll_ceiling = cap_rules.second_apron if cap_rules is not None else maximum_payroll
+    payroll_ceiling = (
+        max(cap_rules.second_apron, maximum_payroll or 0)
+        if cap_rules is not None
+        else maximum_payroll
+    )
     validate_management_state(
         state,
         rules,

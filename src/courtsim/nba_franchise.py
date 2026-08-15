@@ -13,7 +13,7 @@ from courtsim.analysis.nba_quick_sim_executor import (
 )
 from courtsim.analysis.nba_shot_profiles import NBAShotProfileSet
 from courtsim.cap_mechanics import CapLedger, cap_rules_for_salary_cap, expire_cap_ledger
-from courtsim.career import CareerPlayer, CareerStatus, DraftRules
+from courtsim.career import CareerPlayer, CareerRules, CareerStatus, DraftRules
 from courtsim.domain.game import GameClockConfig
 from courtsim.draft_assets import (
     DraftAssetLedger,
@@ -22,7 +22,12 @@ from courtsim.draft_assets import (
 )
 from courtsim.draft_obligations import derive_draft_obligation_ledger_v3
 from courtsim.management import ContractRules, LeagueManagementState
-from courtsim.manager_ai import ManagerProfile
+from courtsim.manager_ai import (
+    WHITE_BOX_CANDIDATE_POLICY,
+    FrontOfficePolicySpec,
+    ManagerProfile,
+    front_office_profiles,
+)
 from courtsim.manager_learning import (
     ManagerLearningState,
     OpponentTacticalAdjustment,
@@ -40,6 +45,7 @@ from courtsim.mixed_trade_market import clear_mixed_trade_markets
 from courtsim.model.action_setup import TeamDefenseStrategy, TeamOffenseStrategy
 from courtsim.model.game_runtime import GameTeam, TeamTempoStrategy
 from courtsim.model.interaction_compiler import ProfileLineup
+from courtsim.model.trace_mode import TraceMode
 from courtsim.nba_draft_lottery import (
     NBADraftAssetSettlement,
     resolve_nba_draft_lottery_from_results,
@@ -53,6 +59,7 @@ from courtsim.prospects import (
     generate_prospect_class,
 )
 from courtsim.randomness import derive_seed
+from courtsim.scouting import ScoutingRules
 from courtsim.season import SeasonConfig
 from courtsim.three_team_market import (
     ThreeTeamMarketExecution,
@@ -128,6 +135,7 @@ class NBAFranchiseSeasonExecution:
     asset_settlement: NBADraftAssetSettlement
     offseason: NBAOffseasonExecution
     final_state: NBAFranchiseState
+    front_office_policies: tuple[tuple[str, FrontOfficePolicySpec], ...] = ()
     version: str = NBA_FRANCHISE_VERSION
 
 
@@ -140,6 +148,8 @@ def execute_nba_franchise_season(
     profiles: dict[str, ManagerProfile],
     contract_rules: ContractRules,
     draft_rules: DraftRules,
+    career_rules: CareerRules | None = None,
+    scouting_rules: ScoutingRules | None = None,
     season_config: SeasonConfig | None = None,
     rotation_rules: ManagerRotationRules | None = None,
     prospect_rules: ProspectGenerationRules | None = None,
@@ -148,10 +158,21 @@ def execute_nba_franchise_season(
     trade_market_rules: TradeMarketRules | None = None,
     three_team_market_rules: ThreeTeamMarketRules | None = None,
     shot_zone_profiles: NBAShotProfileSet | None = None,
+    front_office_policies: dict[str, FrontOfficePolicySpec] | None = None,
+    minimum_offseason_roster_players: int | None = None,
+    trace_mode: TraceMode = TraceMode.AGGREGATE_ONLY,
 ) -> NBAFranchiseSeasonExecution:
     team_ids = tuple(roster.team_id for roster in state.management.rosters)
     if set(profiles) != set(team_ids):
         raise ValueError("NBA franchise requires one manager profile per team")
+    active_front_office_policies = (
+        {team_id: WHITE_BOX_CANDIDATE_POLICY for team_id in team_ids}
+        if front_office_policies is None
+        else dict(front_office_policies)
+    )
+    if set(active_front_office_policies) != set(team_ids):
+        raise ValueError("NBA franchise requires one front-office policy per team")
+    transaction_profiles = front_office_profiles(profiles, active_front_office_policies)
     expected_prospects = 30 * draft_rules.rounds
     active_prospect_rules = prospect_rules or ProspectGenerationRules(class_size=expected_prospects)
     if active_prospect_rules.class_size != expected_prospects:
@@ -186,7 +207,7 @@ def execute_nba_franchise_season(
         management=state.management,
         players=state.players,
         picks=seeded_trade_assets.picks,
-        profiles=profiles,
+        profiles=transaction_profiles,
         contract_rules=contract_rules,
         trade_rules=active_trade_rules,
         manager_rules=active_manager_trade_rules,
@@ -199,7 +220,7 @@ def execute_nba_franchise_season(
         management=state.management,
         players=state.players,
         picks=seeded_trade_assets.picks,
-        profiles=profiles,
+        profiles=transaction_profiles,
         contract_rules=contract_rules,
         trade_rules=active_trade_rules,
         manager_rules=active_manager_trade_rules,
@@ -285,6 +306,7 @@ def execute_nba_franchise_season(
         matchup_teams=matchup_teams,
         season_config=season_config or SeasonConfig(),
         shot_zone_profiles=shot_zone_profiles,
+        trace_mode=trace_mode,
     ).execute(season_id, seed)
     next_learning = advance_manager_learning_from_season(
         simulation.season,
@@ -316,9 +338,15 @@ def execute_nba_franchise_season(
         profiles=profiles,
         contract_rules=contract_rules,
         draft_rules=draft_rules,
+        career_rules=career_rules,
+        scouting_rules=scouting_rules,
         master_seed=derive_seed(seed, NBA_FRANCHISE_VERSION, "offseason"),
         cap_ledger=traded_cap_ledger,
         cap_rules=cap_rules,
+        front_office_policies=(
+            active_front_office_policies if front_office_policies is not None else None
+        ),
+        minimum_roster_players=minimum_offseason_roster_players,
     )
     next_teams = _rebuild_teams(
         offseason.offseason.final_management,
@@ -355,6 +383,7 @@ def execute_nba_franchise_season(
         asset_settlement,
         offseason,
         final_state,
+        tuple(sorted(active_front_office_policies.items())),
     )
 
 

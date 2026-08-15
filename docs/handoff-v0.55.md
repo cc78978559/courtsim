@@ -8,6 +8,7 @@ This is the current low-context handoff for the NBA franchise branch. It superse
 - Repository: `cc78978559/courtsim`
 - Local branch: `agent/integrate-trade-cap-season`
 - Remote WIP branch: `origin/agent/integrate-trade-cap-season`
+- Stacked local manager-promotion branch: `agent/nba-manager-promotion-v1`
 - WIP integration baseline: v7 freeze commit `4081f97` or newer
 - Frozen engine package: `0.54.0`
 - WIP candidate package: `0.55.0.dev0`
@@ -22,6 +23,11 @@ This is the current low-context handoff for the NBA franchise branch. It superse
 The work branch is restorable from GitHub and intentionally remains unmerged. Generated
 `work/` checkpoints, `.cache`, `.venv`, coverage files, downloaded data, and event ledgers are
 outside the Git boundary and must not be committed.
+
+The stacked `agent/nba-manager-promotion-v1` branch adds the thirty-team focal-policy experiment
+described in `docs/nba-manager-promotion-v1.md`. Publish it only as a WIP branch and Draft PR stacked
+on PR #45. Until that push and remote CI complete, its ignored `work/manager-promotion/` cells are
+not remotely backed up. The policy remains Shadow even if a future candidate receipt passes.
 
 The second long-management repair batch also makes manager learning tenure-aware, clears
 non-conflicting bilateral and three-team trades together, and records substantive three-team

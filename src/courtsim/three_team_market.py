@@ -21,6 +21,7 @@ from courtsim.manager_trade import (
     DEFAULT_MANAGER_TRADE_RULES,
     ManagerTradeRules,
 )
+from courtsim.randomness import derive_seed
 from courtsim.three_team_market_v2 import (
     ContractConditionKind,
     ThreeTeamContractCondition,
@@ -46,6 +47,7 @@ THREE_TEAM_MARKET_VERSION = "three-team-market-v1"
 @dataclass(frozen=True, slots=True)
 class ThreeTeamMarketRules:
     maximum_candidates_per_trio: int = 64
+    maximum_trios: int = 10_000
     maximum_cyclic_candidates_per_trio: int = 32
     maximum_hub_candidates_per_trio: int = 32
     minimum_combined_rational_gain: float = 0.001
@@ -58,6 +60,7 @@ class ThreeTeamMarketRules:
     def __post_init__(self) -> None:
         limits = (
             self.maximum_candidates_per_trio,
+            self.maximum_trios,
             self.maximum_cyclic_candidates_per_trio,
             self.maximum_hub_candidates_per_trio,
             self.maximum_compensation_picks,
@@ -187,7 +190,21 @@ def generate_three_team_market_shadow(
     evaluations: list[ThreeTeamMarketEvaluation] = []
     ledger_records: list[ManagerDecisionRecord] = []
     next_trade_id = 1
-    for trio in combinations(tuple(sorted(team_ids)), 3):
+    all_trios = combinations(tuple(sorted(team_ids)), 3)
+    selected_trios = nsmallest(
+        market_rules.maximum_trios,
+        all_trios,
+        key=lambda trio: (
+            derive_seed(
+                management.season_year,
+                THREE_TEAM_MARKET_VERSION,
+                "trio-pool",
+                *trio,
+            ),
+            trio,
+        ),
+    )
+    for trio in sorted(selected_trios):
         trio_evaluations = 0
         families = (
             (

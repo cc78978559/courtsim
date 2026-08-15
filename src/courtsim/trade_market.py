@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
-from itertools import combinations
+from itertools import combinations, islice, product
 
 from courtsim.cap_mechanics import CapLedger, CapMechanicsRules
 from courtsim.career import CareerPlayer
@@ -438,6 +438,25 @@ def _candidate_offers(
     team_ids = tuple(sorted(rosters))
     for first_index, team_a_id in enumerate(team_ids):
         for team_b_id in team_ids[first_index + 1 :]:
+            direct_total = len(rosters[team_a_id]) * len(rosters[team_b_id])
+            if direct_total >= rules.maximum_candidates_per_pair:
+                result.extend(
+                    _RawOffer(
+                        team_a_id,
+                        team_b_id,
+                        (player_a,),
+                        (player_b,),
+                        (),
+                        (),
+                        "direct",
+                        None,
+                    )
+                    for player_a, player_b in islice(
+                        product(rosters[team_a_id], rosters[team_b_id]),
+                        rules.maximum_candidates_per_pair,
+                    )
+                )
+                continue
             pair: list[_RawOffer] = []
             direct_indices: dict[tuple[int, int], int] = {}
             for player_a in rosters[team_a_id]:

@@ -37,6 +37,19 @@ def test_bird_rights_levels_and_over_cap_signing_limits() -> None:
     ).allowed
 
 
+def test_minimum_salary_exception_allows_over_cap_roster_completion() -> None:
+    decision = evaluate_signing_salary(
+        team_id="A",
+        player_id=9,
+        team_payroll=150_000_000,
+        annual_salary=1_000_000,
+        ledger=CapLedger(),
+        minimum_salary=1_000_000,
+    )
+    assert decision.allowed
+    assert decision.mechanism == "minimum-exception"
+
+
 def test_tiered_salary_matching_and_second_apron() -> None:
     ledger = CapLedger()
     small = evaluate_trade_salary(

@@ -9,6 +9,7 @@ coverage.xml
 htmlcov/
 .venv/
 .cache/nba-data/
+.cache/nba-manager-source*/
 dist/
 build/
 work/

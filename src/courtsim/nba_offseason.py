@@ -22,6 +22,7 @@ from courtsim.career import (
     advance_careers,
     advance_offseason,
     apply_draft,
+    open_draft_roster_slots,
 )
 from courtsim.draft_assets import DraftAssetLedger, seed_future_draft_picks
 from courtsim.management import (
@@ -35,6 +36,7 @@ from courtsim.management import (
 )
 from courtsim.manager_ai import (
     DraftShadowResult,
+    FrontOfficePolicySpec,
     ManagerProfile,
     MarketShadowResult,
     generate_draft_shadow,
@@ -55,6 +57,7 @@ class NBAOffseasonExecution:
     offseason: OffseasonResult
     final_draft_assets: DraftAssetLedger
     final_cap_ledger: CapLedger
+    pre_draft_waived_player_ids: tuple[int, ...] = ()
     version: str = NBA_OFFSEASON_VERSION
 
     def __post_init__(self) -> None:
@@ -87,6 +90,8 @@ def execute_nba_offseason(
     future_pick_horizon: int = 3,
     cap_ledger: CapLedger | None = None,
     cap_rules: CapMechanicsRules | None = None,
+    front_office_policies: Mapping[str, FrontOfficePolicySpec] | None = None,
+    minimum_roster_players: int | None = None,
 ) -> NBAOffseasonExecution:
     active_career_rules = career_rules or CareerRules()
     team_ids = tuple(roster.team_id for roster in management.rosters)
@@ -135,13 +140,36 @@ def execute_nba_offseason(
         tuple(player_id for player_id in management.free_agent_ids if player_id not in retired),
         tuple(contract for contract in management.contracts if contract.player_id not in retired),
     )
-    maximum_payroll = active_cap_rules.second_apron
+    initial_payrolls = {
+        team_id: sum(
+            contract.annual_salary
+            for contract in management.contracts
+            if contract.team_id == team_id
+        )
+        for team_id in team_ids
+    }
+    maximum_payroll = max(
+        active_cap_rules.second_apron,
+        max(initial_payrolls.values(), default=0)
+        + len(asset_settlement.assets.picks) * draft_rules.rookie_salary,
+    )
     contract_year = advance_contract_year(
         after_retirement,
         contract_rules,
         maximum_payroll=maximum_payroll,
     )
-    preview_players = _sync_statuses(transition.final_players, contract_year.final_state)
+    prepared_management, pre_draft_waived_player_ids = open_draft_roster_slots(
+        contract_year.final_state,
+        transition.final_players,
+        asset_settlement.assets.picks,
+        contract_rules,
+        maximum_payroll=maximum_payroll,
+    )
+    active_cap_ledger = remove_bird_rights(
+        active_cap_ledger,
+        frozenset(pre_draft_waived_player_ids),
+    )
+    preview_players = _sync_statuses(transition.final_players, prepared_management)
     prospects = tuple(
         player for player in preview_players if player.status is CareerStatus.PROSPECT
     )
@@ -153,7 +181,7 @@ def execute_nba_offseason(
         rules=scouting_rules,
     )
     draft_shadow = generate_draft_shadow(
-        management=contract_year.final_state,
+        management=prepared_management,
         players=preview_players,
         picks=asset_settlement.assets.picks,
         profiles=profiles,
@@ -162,9 +190,11 @@ def execute_nba_offseason(
         scouted_potential={
             (report.team_id, report.player_id): report.estimated_potential for report in reports
         },
+        front_office_policies=front_office_policies,
+        maximum_payroll=maximum_payroll,
     )
     draft_preview = apply_draft(
-        contract_year.final_state,
+        prepared_management,
         preview_players,
         asset_settlement.assets.picks,
         draft_shadow.plan,
@@ -180,6 +210,7 @@ def execute_nba_offseason(
         contract_rules=contract_rules,
         cap_ledger=active_cap_ledger,
         cap_rules=active_cap_rules,
+        front_office_policies=front_office_policies,
     )
     market_shadow = replace(
         market_shadow,
@@ -190,6 +221,12 @@ def execute_nba_offseason(
             market_shadow.plan,
             cap_ledger=active_cap_ledger,
             cap_rules=active_cap_rules,
+            minimum_players=(
+                minimum_roster_players
+                if minimum_roster_players is not None
+                else (12 if front_office_policies is not None else 5)
+            ),
+            maximum_payroll=maximum_payroll,
         ),
     )
     market_preview = apply_market_plan(
@@ -198,6 +235,7 @@ def execute_nba_offseason(
         contract_rules,
         cap_ledger=active_cap_ledger,
         cap_rules=active_cap_rules,
+        maximum_payroll=maximum_payroll,
     )
     offseason = advance_offseason(
         season_year=management.season_year,
@@ -213,6 +251,7 @@ def execute_nba_offseason(
         draft_rules=draft_rules,
         cap_ledger=active_cap_ledger,
         cap_rules=active_cap_rules,
+        maximum_payroll=maximum_payroll,
     )
     final_assets = seed_future_draft_picks(
         asset_settlement.assets.final_ledger,
@@ -227,6 +266,7 @@ def execute_nba_offseason(
         offseason,
         final_assets,
         market_preview.final_cap_ledger or active_cap_ledger,
+        pre_draft_waived_player_ids,
     )
 
 
@@ -239,6 +279,7 @@ def _ensure_minimum_rosters(
     cap_ledger: CapLedger | None,
     cap_rules: CapMechanicsRules | None,
     minimum_players: int = 5,
+    maximum_payroll: int | None = None,
 ) -> MarketPlan:
     """Append deterministic minimum-salary signings until every team can play."""
     preview = apply_market_plan(
@@ -247,6 +288,7 @@ def _ensure_minimum_rosters(
         rules,
         cap_ledger=cap_ledger,
         cap_rules=cap_rules,
+        maximum_payroll=maximum_payroll,
     ).final_state
     actions = list(plan.actions)
     player_map = {player.player_id: player for player in players}
@@ -281,6 +323,7 @@ def _ensure_minimum_rosters(
                         rules,
                         cap_ledger=cap_ledger,
                         cap_rules=cap_rules,
+                        maximum_payroll=maximum_payroll,
                     ).final_state
                 except ValueError:
                     continue

@@ -40,6 +40,45 @@ class ManagerPolicyMode(IntEnum):
     ACTIVE = 2
 
 
+class FrontOfficePolicyKind(IntEnum):
+    """Versioned front-office behavior used by governed NBA experiments."""
+
+    REALITY_BASELINE = 0
+    WHITE_BOX_CANDIDATE = 1
+
+
+FRONT_OFFICE_POLICY_VERSION = "nba-front-office-policy-v1"
+REALITY_BASELINE_POLICY_ID = "nba-front-office-reality-baseline-v1"
+WHITE_BOX_CANDIDATE_POLICY_ID = "nba-front-office-whitebox-v1"
+
+
+@dataclass(frozen=True, slots=True)
+class FrontOfficePolicySpec:
+    policy_id: str
+    kind: FrontOfficePolicyKind
+    version: str = FRONT_OFFICE_POLICY_VERSION
+
+    def __post_init__(self) -> None:
+        if not self.policy_id.strip() or not isinstance(self.kind, FrontOfficePolicyKind):
+            raise ValueError("front-office policy identity is invalid")
+        expected = {
+            FrontOfficePolicyKind.REALITY_BASELINE: REALITY_BASELINE_POLICY_ID,
+            FrontOfficePolicyKind.WHITE_BOX_CANDIDATE: WHITE_BOX_CANDIDATE_POLICY_ID,
+        }[self.kind]
+        if self.policy_id != expected or self.version != FRONT_OFFICE_POLICY_VERSION:
+            raise ValueError("front-office policy version or identifier is unsupported")
+
+
+REALITY_BASELINE_POLICY = FrontOfficePolicySpec(
+    REALITY_BASELINE_POLICY_ID,
+    FrontOfficePolicyKind.REALITY_BASELINE,
+)
+WHITE_BOX_CANDIDATE_POLICY = FrontOfficePolicySpec(
+    WHITE_BOX_CANDIDATE_POLICY_ID,
+    FrontOfficePolicyKind.WHITE_BOX_CANDIDATE,
+)
+
+
 @dataclass(frozen=True, slots=True)
 class ManagerProfile:
     manager_id: str
@@ -332,11 +371,14 @@ def generate_draft_shadow(
     rookie_salary: int,
     incumbent: DraftPlan | None = None,
     scouted_potential: Mapping[tuple[str, int], AbilityRatings] | None = None,
+    front_office_policies: Mapping[str, FrontOfficePolicySpec] | None = None,
+    maximum_payroll: int | None = None,
 ) -> DraftShadowResult:
     """Create a deterministic draft plan and audit trail without executing it."""
     if rookie_salary < 1:
         raise ValueError("rookie_salary must be positive")
     _validate_profiles(management, profiles)
+    policies = _front_office_policies(management, front_office_policies)
     player_map = {player.player_id: player for player in players}
     available = {player.player_id for player in players if player.status is CareerStatus.PROSPECT}
     roster_sizes = {roster.team_id: len(roster.player_ids) for roster in management.rosters}
@@ -353,9 +395,10 @@ def generate_draft_shadow(
     for pick in sorted(picks, key=lambda item: item.selection_number):
         profile = profiles[pick.owner_team_id]
         candidates = tuple(
-            _player_candidate(
+            _draft_candidate_for_policy(
                 player_map[player_id],
                 profile,
+                policies[pick.owner_team_id],
                 team_player_ids=provisional_rosters[pick.owner_team_id],
                 player_map=player_map,
                 salary=rookie_salary,
@@ -371,6 +414,7 @@ def generate_draft_shadow(
                     payrolls[pick.owner_team_id],
                     contract_rules,
                     rookie_salary,
+                    maximum_payroll=maximum_payroll,
                 ),
             )
             for player_id in sorted(available)
@@ -407,9 +451,16 @@ def generate_market_shadow(
     incumbent: MarketPlan | None = None,
     cap_ledger: CapLedger | None = None,
     cap_rules: CapMechanicsRules | None = None,
+    front_office_policies: Mapping[str, FrontOfficePolicySpec] | None = None,
+    baseline_target_roster_size: int = 14,
 ) -> MarketShadowResult:
     """Recommend at most one free-agent signing per team in deterministic order."""
     _validate_profiles(management, profiles)
+    policies = _front_office_policies(management, front_office_policies)
+    if front_office_policies is not None and not (
+        5 <= baseline_target_roster_size <= contract_rules.maximum_roster_players
+    ):
+        raise ValueError("baseline target roster size is outside configured bounds")
     salary = contract_rules.minimum_salary if annual_salary is None else annual_salary
     if not contract_rules.minimum_salary <= salary <= contract_rules.maximum_salary:
         raise ValueError("shadow signing salary is outside configured bounds")
@@ -434,40 +485,50 @@ def generate_market_shadow(
     action_id = 1
     for team_id in sorted(profiles):
         profile = profiles[team_id]
-        candidates = [
-            _pass_candidate(profile),
-            *(
-                _player_candidate(
-                    player_map[player_id],
-                    profile,
-                    team_player_ids=_team_player_ids(management, team_id),
-                    player_map=player_map,
-                    salary=salary,
-                    hard_rejections=_market_rejections(
-                        player_id,
-                        team_id,
-                        available,
-                        roster_sizes[team_id],
-                        payrolls[team_id],
-                        contract_rules,
-                        salary,
-                        player_map,
-                        cap_ledger,
-                        cap_rules,
-                    ),
-                )
-                for player_id in sorted(available)
-                if player_id in player_map
-            ),
-        ]
-        trace = evaluate_manager_decision(
-            decision_id=f"market:{management.season_year}:{team_id}",
-            candidates=tuple(candidates),
-            incumbent=incumbent_by_team.get(team_id, "pass"),
-        )
-        traces.append(trace)
-        ledger = ledger.add(trace=trace, stage="market", profile=profile)
-        if trace.selected is not None and trace.selected != "pass":
+        baseline = policies[team_id].kind is FrontOfficePolicyKind.REALITY_BASELINE
+        decision_number = 1
+        while True:
+            must_sign = baseline and roster_sizes[team_id] < baseline_target_roster_size
+            candidates = [
+                *(() if must_sign else (_pass_candidate(profile),)),
+                *(
+                    _market_candidate_for_policy(
+                        player_map[player_id],
+                        profile,
+                        policies[team_id],
+                        team_player_ids=_team_player_ids(management, team_id),
+                        player_map=player_map,
+                        salary=salary,
+                        hard_rejections=_market_rejections(
+                            player_id,
+                            team_id,
+                            available,
+                            roster_sizes[team_id],
+                            payrolls[team_id],
+                            contract_rules,
+                            salary,
+                            player_map,
+                            cap_ledger,
+                            cap_rules,
+                        ),
+                    )
+                    for player_id in sorted(available)
+                    if player_id in player_map
+                ),
+            ]
+            trace = evaluate_manager_decision(
+                decision_id=(
+                    f"market:{management.season_year}:{team_id}"
+                    if not baseline
+                    else f"market:{management.season_year}:{team_id}:{decision_number}"
+                ),
+                candidates=tuple(candidates),
+                incumbent=incumbent_by_team.get(team_id, "pass") if decision_number == 1 else None,
+            )
+            traces.append(trace)
+            ledger = ledger.add(trace=trace, stage="market", profile=profile)
+            if trace.selected is None or trace.selected == "pass":
+                break
             player_id = _candidate_player_id(trace.selected)
             actions.append(
                 MarketAction(
@@ -480,10 +541,122 @@ def generate_market_shadow(
                 )
             )
             action_id += 1
+            decision_number += 1
             available.remove(player_id)
             roster_sizes[team_id] += 1
             payrolls[team_id] += salary
+            if not baseline or roster_sizes[team_id] >= baseline_target_roster_size:
+                break
     return MarketShadowResult(MarketPlan(tuple(actions)), tuple(traces), ledger)
+
+
+def neutral_front_office_profile(profile: ManagerProfile) -> ManagerProfile:
+    """Keep team identity while removing candidate personality and objective effects."""
+    return ManagerProfile(f"baseline-{profile.team_id}", profile.team_id)
+
+
+def front_office_profiles(
+    profiles: Mapping[str, ManagerProfile],
+    policies: Mapping[str, FrontOfficePolicySpec],
+) -> dict[str, ManagerProfile]:
+    if set(profiles) != set(policies):
+        raise ValueError("front-office policies must cover every manager profile")
+    return {
+        team_id: (
+            profile
+            if policies[team_id].kind is FrontOfficePolicyKind.WHITE_BOX_CANDIDATE
+            else neutral_front_office_profile(profile)
+        )
+        for team_id, profile in profiles.items()
+    }
+
+
+def _front_office_policies(
+    management: LeagueManagementState,
+    policies: Mapping[str, FrontOfficePolicySpec] | None,
+) -> dict[str, FrontOfficePolicySpec]:
+    team_ids = {roster.team_id for roster in management.rosters}
+    if policies is None:
+        return {team_id: WHITE_BOX_CANDIDATE_POLICY for team_id in team_ids}
+    if set(policies) != team_ids:
+        raise ValueError("front-office policies must cover every league team exactly")
+    return dict(policies)
+
+
+def _draft_candidate_for_policy(
+    player: CareerPlayer,
+    profile: ManagerProfile,
+    policy: FrontOfficePolicySpec,
+    *,
+    team_player_ids: Sequence[int],
+    player_map: Mapping[int, CareerPlayer],
+    salary: int,
+    hard_rejections: tuple[str, ...],
+    evaluated_potential: AbilityRatings | None,
+) -> ManagerCandidate:
+    if policy.kind is FrontOfficePolicyKind.WHITE_BOX_CANDIDATE:
+        return _player_candidate(
+            player,
+            profile,
+            team_player_ids=team_player_ids,
+            player_map=player_map,
+            salary=salary,
+            hard_rejections=hard_rejections,
+            evaluated_potential=evaluated_potential,
+        )
+    if evaluated_potential is None:
+        return ManagerCandidate(
+            f"player:{player.player_id}",
+            (*hard_rejections, "missing-scouted-potential"),
+            (),
+        )
+    ability = _rating_mean(player.profile.abilities) / 100
+    potential = _rating_mean(evaluated_potential) / 100
+    fit = _size_need(player.profile.size_class, team_player_ids, player_map)
+    return ManagerCandidate(
+        f"player:{player.player_id}",
+        hard_rejections,
+        (
+            _contribution("baseline-scout", "development", potential * 0.55, "scouted potential"),
+            _contribution("baseline-ability", "competence", ability * 0.30, "current ability"),
+            _contribution("baseline-need", "roster", fit * 0.15, "roster need"),
+        ),
+    )
+
+
+def _market_candidate_for_policy(
+    player: CareerPlayer,
+    profile: ManagerProfile,
+    policy: FrontOfficePolicySpec,
+    *,
+    team_player_ids: Sequence[int],
+    player_map: Mapping[int, CareerPlayer],
+    salary: int,
+    hard_rejections: tuple[str, ...],
+) -> ManagerCandidate:
+    if policy.kind is FrontOfficePolicyKind.WHITE_BOX_CANDIDATE:
+        return _player_candidate(
+            player,
+            profile,
+            team_player_ids=team_player_ids,
+            player_map=player_map,
+            salary=salary,
+            hard_rejections=hard_rejections,
+        )
+    ability = _rating_mean(player.profile.abilities) / 100
+    age_projection = max(0.0, min(1.0, ability + (27 - player.age) * 0.015))
+    fit = _size_need(player.profile.size_class, team_player_ids, player_map)
+    salary_value = 1 / (1 + salary / 10_000_000)
+    return ManagerCandidate(
+        f"player:{player.player_id}",
+        hard_rejections,
+        (
+            _contribution("baseline-ability", "competence", ability * 0.45, "current ability"),
+            _contribution("baseline-age", "timeline", age_projection * 0.25, "age projection"),
+            _contribution("baseline-need", "roster", fit * 0.20, "roster need"),
+            _contribution("baseline-contract", "economics", salary_value * 0.10, "contract value"),
+        ),
+    )
 
 
 def _player_candidate(
@@ -587,13 +760,18 @@ def _draft_rejections(
     payroll: int,
     rules: ContractRules,
     salary: int,
+    *,
+    maximum_payroll: int | None = None,
 ) -> tuple[str, ...]:
     rejected: list[str] = []
     if player.status is not CareerStatus.PROSPECT or player.player_id not in available:
         rejected.append("not-available-prospect")
     if roster_size >= rules.maximum_roster_players:
         rejected.append("roster-full")
-    if payroll + salary > rules.salary_cap:
+    payroll_ceiling = rules.salary_cap if maximum_payroll is None else maximum_payroll
+    if payroll_ceiling < rules.salary_cap:
+        raise ValueError("maximum payroll cannot be below the contract salary cap")
+    if payroll + salary > payroll_ceiling:
         rejected.append("salary-cap")
     return tuple(rejected)
 

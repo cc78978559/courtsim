@@ -22,7 +22,10 @@ from courtsim.management import (
     apply_market_plan,
 )
 from courtsim.manager_ai import (
+    REALITY_BASELINE_POLICY,
+    WHITE_BOX_CANDIDATE_POLICY,
     DecisionContribution,
+    DraftShadowResult,
     ManagerCandidate,
     ManagerDecisionLedger,
     ManagerPolicyMode,
@@ -199,6 +202,20 @@ def test_draft_shadow_respects_roster_and_cap_hard_constraints() -> None:
             contract_rules=rules(salary_cap=5_000_000),
             rookie_salary=1_000_000,
         )
+    permitted = generate_draft_shadow(
+        management=management,
+        players=(
+            career_player(1, 55),
+            career_player(11, 55),
+            career_player(100, 80, status=CareerStatus.PROSPECT),
+        ),
+        picks=(DraftPickAsset(1, 1, 1, "home", "home"),),
+        profiles=profiles(),
+        contract_rules=rules(salary_cap=5_000_000),
+        rookie_salary=1_000_000,
+        maximum_payroll=6_000_000,
+    )
+    assert permitted.plan.selections == (DraftSelection(1, "home", 100),)
 
 
 def test_draft_shadow_updates_availability_between_multiple_picks() -> None:
@@ -220,6 +237,87 @@ def test_draft_shadow_updates_availability_between_multiple_picks() -> None:
     )
     assert tuple(item.player_id for item in result.plan.selections) == (100, 101)
     assert len(result.ledger.records) == 2
+
+
+def test_reality_baseline_draft_uses_scouted_not_hidden_potential() -> None:
+    management = state()
+    picks = (DraftPickAsset(1, 1, 1, "home", "home"),)
+    policies = {
+        "away": WHITE_BOX_CANDIDATE_POLICY,
+        "home": REALITY_BASELINE_POLICY,
+    }
+
+    def run(candidate_players: tuple[CareerPlayer, ...]) -> DraftShadowResult:
+        return generate_draft_shadow(
+            management=management,
+            players=candidate_players,
+            picks=picks,
+            profiles=profiles(),
+            contract_rules=rules(),
+            rookie_salary=1_000_000,
+            front_office_policies=policies,
+            scouted_potential={
+                ("home", 100): ratings(80),
+                ("home", 101): ratings(80),
+            },
+        )
+
+    first = run(
+        (
+            career_player(1, 55),
+            career_player(11, 55),
+            career_player(100, 60, status=CareerStatus.PROSPECT, ceiling=100),
+            career_player(101, 70, status=CareerStatus.PROSPECT, ceiling=70),
+        )
+    )
+    second = run(
+        (
+            career_player(1, 55),
+            career_player(11, 55),
+            career_player(100, 60, status=CareerStatus.PROSPECT, ceiling=60),
+            career_player(101, 70, status=CareerStatus.PROSPECT, ceiling=100),
+        )
+    )
+    assert first.plan == second.plan == DraftPlan((DraftSelection(1, "home", 101),))
+    selected = next(candidate for candidate in first.traces[0].candidates if candidate.final_score)
+    assert all(
+        contribution.contribution_id != "potential" for contribution in selected.contributions
+    )
+
+
+def test_default_candidate_policy_preserves_existing_draft_result() -> None:
+    management = state()
+    available = (
+        career_player(1, 55),
+        career_player(11, 55),
+        career_player(100, 60, status=CareerStatus.PROSPECT, ceiling=90),
+        career_player(101, 75, status=CareerStatus.PROSPECT, ceiling=80),
+    )
+    picks = (DraftPickAsset(1, 1, 1, "home", "home"),)
+    manager_profiles = profiles()
+    contract_rules = rules()
+    implicit = generate_draft_shadow(
+        management=management,
+        players=available,
+        picks=picks,
+        profiles=manager_profiles,
+        contract_rules=contract_rules,
+        rookie_salary=1_000_000,
+    )
+    explicit = generate_draft_shadow(
+        management=management,
+        players=available,
+        picks=picks,
+        profiles=manager_profiles,
+        contract_rules=contract_rules,
+        rookie_salary=1_000_000,
+        front_office_policies={
+            "away": WHITE_BOX_CANDIDATE_POLICY,
+            "home": WHITE_BOX_CANDIDATE_POLICY,
+        },
+    )
+    assert implicit.plan == explicit.plan
+    assert implicit.traces == explicit.traces
 
 
 def test_market_shadow_generates_replayable_plan_and_trace() -> None:
@@ -244,6 +342,34 @@ def test_market_shadow_generates_replayable_plan_and_trace() -> None:
     assert result.traces[0].incumbent == "player:21"
     applied = apply_market_plan(management, result.plan, rules())
     assert 20 not in applied.final_state.free_agent_ids
+
+
+def test_mixed_market_policy_allows_baseline_to_fill_multiple_slots() -> None:
+    free_agents = tuple(range(20, 25))
+    result = generate_market_shadow(
+        management=state(free_agents=free_agents),
+        players=(
+            career_player(1, 55),
+            career_player(11, 55),
+            *(
+                career_player(player_id, 80 - player_id, status=CareerStatus.FREE_AGENT)
+                for player_id in free_agents
+            ),
+        ),
+        profiles=profiles(),
+        contract_rules=rules(),
+        front_office_policies={
+            "away": WHITE_BOX_CANDIDATE_POLICY,
+            "home": REALITY_BASELINE_POLICY,
+        },
+        baseline_target_roster_size=5,
+    )
+    by_team = {
+        team_id: [action for action in result.plan.actions if action.team_id == team_id]
+        for team_id in profiles()
+    }
+    assert len(by_team["away"]) <= 1
+    assert len(by_team["home"]) == 4
 
 
 def test_market_shadow_passes_when_team_has_no_legal_slot() -> None:
