@@ -6,6 +6,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, fields
 from typing import cast
 
+from courtsim.cap_mechanics import CapLedger, CapMechanicsRules
 from courtsim.career import CareerPlayer
 from courtsim.domain.player import AbilityRatings, SizeClass
 from courtsim.draft_assets import TradableDraftPick
@@ -83,6 +84,9 @@ def evaluate_trade_shadow(
     contract_rules: ContractRules,
     trade_rules: TradeRules = DEFAULT_TRADE_RULES,
     manager_rules: ManagerTradeRules = DEFAULT_MANAGER_TRADE_RULES,
+    cap_ledger: CapLedger | None = None,
+    cap_rules: CapMechanicsRules | None = None,
+    frozen_pick_ids: frozenset[int] = frozenset(),
 ) -> TradeShadowResult:
     """Evaluate both managers independently; this function never executes the trade."""
     if set(profiles) != {offer.team_a_id, offer.team_b_id}:
@@ -92,7 +96,16 @@ def evaluate_trade_shadow(
     player_map = {player.player_id: player for player in players}
     if len(player_map) != len(players):
         raise ValueError("career player ids must be unique")
-    rejected = trade_rejections(management, picks, offer, contract_rules, trade_rules)
+    rejected = trade_rejections(
+        management,
+        picks,
+        offer,
+        contract_rules,
+        trade_rules,
+        cap_ledger=cap_ledger,
+        cap_rules=cap_rules,
+        frozen_pick_ids=frozen_pick_ids,
+    )
     approvals: list[TradeManagerApproval] = []
     ledger = ManagerDecisionLedger()
     for (

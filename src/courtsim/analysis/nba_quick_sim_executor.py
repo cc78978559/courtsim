@@ -7,6 +7,17 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from typing import cast
 
+from courtsim.analysis.nba_player_aggregates import (
+    NBAPlayerSeasonAggregate,
+    build_nba_player_season_aggregates,
+)
+from courtsim.analysis.nba_player_targets import NBAPlayerTargetSet
+from courtsim.analysis.nba_real_rosters import build_nba_real_game_team
+from courtsim.analysis.nba_shot_profiles import (
+    NBAShotProfileSet,
+    apply_nba_shot_profiles,
+    apply_nba_team_shot_profile,
+)
 from courtsim.analysis.quick_sim_comparison import (
     QuickSimSeasonSummary,
     summarize_quick_sim_season,
@@ -27,6 +38,7 @@ from courtsim.nba_league import (
     PlayInGame,
     PlayInResult,
     generate_nba_schedule,
+    nba_series_home_court_order,
     resolve_nba_playoffs,
     resolve_play_in,
 )
@@ -46,7 +58,16 @@ from courtsim.season import (
     sample_season,
 )
 
-NBA_QUICK_SIM_EXECUTOR_VERSION = "nba-quick-sim-executor-v5"
+NBA_QUICK_SIM_EXECUTOR_VERSION = "nba-quick-sim-executor-v6"
+NBA_QUICK_SIM_EXECUTOR_CANDIDATE_VERSION = "nba-quick-sim-executor-v7"
+NBA_QUICK_SIM_EXECUTOR_LEGACY_VERSION = "nba-quick-sim-executor-v5"
+NBA_QUICK_SIM_EXECUTOR_VERSIONS = frozenset(
+    {
+        NBA_QUICK_SIM_EXECUTOR_VERSION,
+        NBA_QUICK_SIM_EXECUTOR_CANDIDATE_VERSION,
+        NBA_QUICK_SIM_EXECUTOR_LEGACY_VERSION,
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,6 +116,7 @@ class NBAQuickSimExecution:
     summary: QuickSimSeasonSummary
     matchup_team_count: int = 0
     version: str = NBA_QUICK_SIM_EXECUTOR_VERSION
+    player_aggregates: tuple[NBAPlayerSeasonAggregate, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,6 +135,8 @@ class NBAQuickSimExecutor:
     playoff_game_rest_days: int = 1
     playoff_round_rest_days: int = 2
     version: str = NBA_QUICK_SIM_EXECUTOR_VERSION
+    shot_zone_profiles: NBAShotProfileSet | None = None
+    player_targets: NBAPlayerTargetSet | None = None
 
     def __post_init__(self) -> None:
         team_ids = tuple(team.team_id for team in self.teams)
@@ -150,8 +174,20 @@ class NBAQuickSimExecutor:
             )
         ):
             raise ValueError("NBA quick simulation rest days must be non-negative integers")
-        if self.version != NBA_QUICK_SIM_EXECUTOR_VERSION:
+        if self.version not in NBA_QUICK_SIM_EXECUTOR_VERSIONS:
             raise ValueError("unsupported NBA quick simulation executor version")
+        if self.shot_zone_profiles is not None:
+            if (
+                self.shot_zone_profiles.zone_tendency_loading
+                != self.parameters.schema.zone_tendency_loading
+            ):
+                raise ValueError("NBA shot profile loading differs from model parameters")
+            if {item.team_id for item in self.shot_zone_profiles.teams} != set(team_ids):
+                raise ValueError("NBA shot profiles must cover every quick-sim team")
+        if self.player_targets is not None:
+            target_ids = {item.nba_player_id for item in self.player_targets.players}
+            if any(player_id not in target_ids for player_id in player_ids):
+                raise ValueError("NBA player targets must cover every quick-sim roster identity")
 
     def __call__(self, season_id: str, seed: int) -> QuickSimSeasonSummary:
         return self.execute(season_id, seed).summary
@@ -159,12 +195,28 @@ class NBAQuickSimExecutor:
     def execute(self, season_id: str, seed: int) -> NBAQuickSimExecution:
         if not season_id.strip():
             raise ValueError("NBA quick simulation season_id must not be blank")
+        profile_set = self.shot_zone_profiles
+        teams = apply_nba_shot_profiles(self.teams, profile_set) if profile_set else self.teams
+        if profile_set is None:
+            matchup_teams = self.matchup_teams
+        else:
+            profile_by_team = {item.team_id: item for item in profile_set.teams}
+            matchup_teams = tuple(
+                replace(
+                    item,
+                    team=apply_nba_team_shot_profile(
+                        item.team,
+                        profile_by_team[item.team.team_id],
+                    ),
+                )
+                for item in self.matchup_teams
+            )
         schedule = generate_nba_schedule(
-            tuple(team.team_id for team in self.teams),
+            tuple(team.team_id for team in teams),
             alignment=self.alignment,
         )
         matchup_map = {
-            (item.team.team_id, item.opponent_team_id): item.team for item in self.matchup_teams
+            (item.team.team_id, item.opponent_team_id): item.team for item in matchup_teams
         }
 
         def resolve_matchup(
@@ -173,26 +225,40 @@ class NBAQuickSimExecutor:
         ) -> tuple[GameTeam, GameTeam]:
             home_team_id = scheduled.home_team_id
             away_team_id = scheduled.away_team_id
-            return (
-                matchup_map.get((home_team_id, away_team_id), team_map[home_team_id]),
-                matchup_map.get((away_team_id, home_team_id), team_map[away_team_id]),
-            )
+            home = matchup_map.get((home_team_id, away_team_id), team_map[home_team_id])
+            away = matchup_map.get((away_team_id, home_team_id), team_map[away_team_id])
+            if self.player_targets is not None:
+                home = build_nba_real_game_team(
+                    home,
+                    self.player_targets,
+                    game_id=scheduled.game_id,
+                    master_seed=seed,
+                )
+                away = build_nba_real_game_team(
+                    away,
+                    self.player_targets,
+                    game_id=scheduled.game_id,
+                    master_seed=seed,
+                )
+            return home, away
 
         season = sample_season(
             parameters=self.parameters,
             game_config=self.game_config,
             schedule=schedule,
-            teams=self.teams,
+            teams=teams,
             frame=RandomFrame(seed, RandomFrameAddress(season_id, 0, 0, 0, 0)),
             rules=self.game_rules,
             fatigue_config=self.fatigue_config,
             season_config=self.season_config,
             trace_mode=self.trace_mode,
-            team_resolver=resolve_matchup if matchup_map else None,
+            team_resolver=(
+                resolve_matchup if matchup_map or self.player_targets is not None else None
+            ),
         )
         east_regular = _conference_seeds(season, self.alignment.east_team_ids)
         west_regular = _conference_seeds(season, self.alignment.west_team_ids)
-        team_map = {team.team_id: team for team in self.teams}
+        team_map = {team.team_id: team for team in teams}
         runtime = _PostseasonRuntime.from_season(
             season,
             team_map=team_map,
@@ -206,34 +272,60 @@ class NBAQuickSimExecutor:
             trace_mode=self.trace_mode,
             postseason_rest_days=self.postseason_rest_days,
             game_rest_days=self.playoff_game_rest_days,
+            executor_version=self.version,
         )
-        east_play_in = _sample_play_in(
-            conference="east",
-            seeds=east_regular,
-            runtime=runtime,
-        )
-        west_play_in = _sample_play_in(
-            conference="west",
-            seeds=west_regular,
-            runtime=runtime,
-        )
+        concurrent_postseason = self.version != NBA_QUICK_SIM_EXECUTOR_LEGACY_VERSION
+        if concurrent_postseason:
+            play_in_start = runtime.day
+            east_play_in = _sample_play_in(
+                conference="east",
+                seeds=east_regular,
+                runtime=runtime,
+                concurrent_openers=True,
+            )
+            east_play_in_end = runtime.day
+            runtime.day = play_in_start
+            west_play_in = _sample_play_in(
+                conference="west",
+                seeds=west_regular,
+                runtime=runtime,
+                concurrent_openers=True,
+            )
+            runtime.day = max(east_play_in_end, runtime.day)
+        else:
+            east_play_in = _sample_play_in(
+                conference="east",
+                seeds=east_regular,
+                runtime=runtime,
+            )
+            west_play_in = _sample_play_in(
+                conference="west",
+                seeds=west_regular,
+                runtime=runtime,
+            )
         runtime.day += self.playoff_round_rest_days
         postseason = _sample_postseason(
             east_play_in.playoff_seeds,
             west_play_in.playoff_seeds,
+            regular_season_records={
+                row.team_id: (row.wins, row.point_differential) for row in season.standings
+            },
             runtime=runtime,
             playoff_config=self.playoff_config,
             round_rest_days=self.playoff_round_rest_days,
+            concurrent_rounds=concurrent_postseason,
         )
         postseason_state = runtime.result()
         return NBAQuickSimExecution(
-            season,
-            east_play_in,
-            west_play_in,
-            postseason,
-            postseason_state,
-            summarize_quick_sim_season(season_id, season, postseason),
-            len(matchup_map),
+            season=season,
+            east_play_in=east_play_in,
+            west_play_in=west_play_in,
+            postseason=postseason,
+            postseason_state=postseason_state,
+            summary=summarize_quick_sim_season(season_id, season, postseason),
+            matchup_team_count=len(matchup_map),
+            version=self.version,
+            player_aggregates=build_nba_player_season_aggregates(season),
         )
 
 
@@ -253,6 +345,7 @@ class _PostseasonRuntime:
     trace_mode: TraceMode
     game_rest_days: int
     day: int
+    executor_version: str
     injuries: list[InjuryRecord] = field(default_factory=list)
     games: list[NBAQuickSimPostseasonGame] = field(default_factory=list)
     player_seconds: dict[int, int] = field(default_factory=lambda: defaultdict(int))
@@ -276,6 +369,7 @@ class _PostseasonRuntime:
         trace_mode: TraceMode,
         postseason_rest_days: int,
         game_rest_days: int,
+        executor_version: str,
     ) -> _PostseasonRuntime:
         last_game_day: dict[int, int] = {}
         for record in season.games:
@@ -301,6 +395,7 @@ class _PostseasonRuntime:
             trace_mode,
             game_rest_days,
             final_day + postseason_rest_days + 1,
+            executor_version,
         )
 
     def score(
@@ -361,7 +456,7 @@ class _PostseasonRuntime:
             for attempt in range(100):
                 game_seed = derive_seed(
                     self.master_seed,
-                    NBA_QUICK_SIM_EXECUTOR_VERSION,
+                    self.executor_version,
                     *address,
                     attempt,
                 )
@@ -498,7 +593,11 @@ class _PostseasonRuntime:
             self.initial_states,
             tuple(self.states[key] for key in sorted(self.states)),
             tuple(self.injuries),
-            tuple(self.games),
+            (
+                tuple(sorted(self.games, key=lambda game: (game.day, game.game_index)))
+                if self.executor_version != NBA_QUICK_SIM_EXECUTOR_LEGACY_VERSION
+                else tuple(self.games)
+            ),
             tuple(sorted(self.player_seconds.items())),
             tuple(sorted(self.player_games.items())),
             tuple(sorted(self.team_games.items())),
@@ -571,19 +670,26 @@ def _sample_play_in(
     conference: str,
     seeds: tuple[PlayoffSeed, ...],
     runtime: _PostseasonRuntime,
+    concurrent_openers: bool = False,
 ) -> PlayInResult:
     by_seed = {item.seed: item.team_id for item in seeds}
+    opening_day = runtime.day if concurrent_openers else None
     first_score = runtime.score(
         by_seed[7],
         by_seed[8],
         address=(conference, "play-in", 1),
     )
+    first_end = runtime.day
     first = PlayInGame(1, by_seed[7], by_seed[8], *first_score)
+    if opening_day is not None:
+        runtime.day = opening_day
     second_score = runtime.score(
         by_seed[9],
         by_seed[10],
         address=(conference, "play-in", 2),
     )
+    if opening_day is not None:
+        runtime.day = max(first_end, runtime.day)
     second = PlayInGame(2, by_seed[9], by_seed[10], *second_score)
     third_score = runtime.score(
         first.loser_team_id,
@@ -607,9 +713,11 @@ def _sample_postseason(
     east_seeds: tuple[PlayoffSeed, ...],
     west_seeds: tuple[PlayoffSeed, ...],
     *,
+    regular_season_records: Mapping[str, tuple[int, int]],
     runtime: _PostseasonRuntime,
     playoff_config: PlayoffConfig,
     round_rest_days: int,
+    concurrent_rounds: bool = False,
 ) -> NBAPostseasonResult:
     seed_numbers = {item.team_id: item.seed for item in (*east_seeds, *west_seeds)}
     ledger: list[NBASeriesResult] = []
@@ -628,40 +736,93 @@ def _sample_postseason(
             first,
             second,
             seed_numbers=seed_numbers,
+            regular_season_records=regular_season_records,
             runtime=runtime,
             playoff_config=playoff_config,
         )
         ledger.append(result)
         return result.winner_team_id
 
+    def simultaneous_round(
+        matchups: tuple[tuple[int, int, str, str, str], ...],
+        *,
+        rest_after: bool = True,
+    ) -> tuple[str, ...]:
+        round_start = runtime.day
+        winners: list[str] = []
+        end_days: list[int] = []
+        for matchup in matchups:
+            runtime.day = round_start
+            winners.append(series(*matchup))
+            end_days.append(runtime.day)
+        runtime.day = max(end_days) + (round_rest_days if rest_after else 0)
+        return tuple(winners)
+
     east = {item.seed: item.team_id for item in east_seeds}
     west = {item.seed: item.team_id for item in west_seeds}
-    east_first = (
-        series(1, 1, "east", east[1], east[8]),
-        series(1, 2, "east", east[4], east[5]),
-        series(1, 3, "east", east[2], east[7]),
-        series(1, 4, "east", east[3], east[6]),
+    if not concurrent_rounds:
+        east_first = (
+            series(1, 1, "east", east[1], east[8]),
+            series(1, 2, "east", east[4], east[5]),
+            series(1, 3, "east", east[2], east[7]),
+            series(1, 4, "east", east[3], east[6]),
+        )
+        west_first = (
+            series(1, 5, "west", west[1], west[8]),
+            series(1, 6, "west", west[4], west[5]),
+            series(1, 7, "west", west[2], west[7]),
+            series(1, 8, "west", west[3], west[6]),
+        )
+        runtime.day += round_rest_days
+        east_second = (
+            series(2, 1, "east", east_first[0], east_first[1]),
+            series(2, 2, "east", east_first[2], east_first[3]),
+        )
+        west_second = (
+            series(2, 1, "west", west_first[0], west_first[1]),
+            series(2, 2, "west", west_first[2], west_first[3]),
+        )
+        runtime.day += round_rest_days
+        east_champion = series(3, 1, "east", *east_second)
+        west_champion = series(3, 1, "west", *west_second)
+        runtime.day += round_rest_days
+        series(4, 1, "nba", east_champion, west_champion)
+        return resolve_nba_playoffs(
+            east_seeds=east_seeds,
+            west_seeds=west_seeds,
+            series=tuple(ledger),
+        )
+
+    first_round = simultaneous_round(
+        (
+            (1, 1, "east", east[1], east[8]),
+            (1, 2, "east", east[4], east[5]),
+            (1, 3, "east", east[2], east[7]),
+            (1, 4, "east", east[3], east[6]),
+            (1, 5, "west", west[1], west[8]),
+            (1, 6, "west", west[4], west[5]),
+            (1, 7, "west", west[2], west[7]),
+            (1, 8, "west", west[3], west[6]),
+        )
     )
-    west_first = (
-        series(1, 5, "west", west[1], west[8]),
-        series(1, 6, "west", west[4], west[5]),
-        series(1, 7, "west", west[2], west[7]),
-        series(1, 8, "west", west[3], west[6]),
+    second_round = simultaneous_round(
+        (
+            (2, 1, "east", first_round[0], first_round[1]),
+            (2, 2, "east", first_round[2], first_round[3]),
+            (2, 1, "west", first_round[4], first_round[5]),
+            (2, 2, "west", first_round[6], first_round[7]),
+        )
     )
-    runtime.day += round_rest_days
-    east_second = (
-        series(2, 1, "east", east_first[0], east_first[1]),
-        series(2, 2, "east", east_first[2], east_first[3]),
+    conference_champions = simultaneous_round(
+        (
+            (3, 1, "east", second_round[0], second_round[1]),
+            (3, 1, "west", second_round[2], second_round[3]),
+        )
     )
-    west_second = (
-        series(2, 1, "west", west_first[0], west_first[1]),
-        series(2, 2, "west", west_first[2], west_first[3]),
+    simultaneous_round(
+        ((4, 1, "nba", conference_champions[0], conference_champions[1]),),
+        rest_after=False,
     )
-    runtime.day += round_rest_days
-    east_champion = series(3, 1, "east", *east_second)
-    west_champion = series(3, 1, "west", *west_second)
-    runtime.day += round_rest_days
-    series(4, 1, "nba", east_champion, west_champion)
     return resolve_nba_playoffs(
         east_seeds=east_seeds,
         west_seeds=west_seeds,
@@ -677,12 +838,16 @@ def _sample_series(
     second: str,
     *,
     seed_numbers: dict[str, int],
+    regular_season_records: Mapping[str, tuple[int, int]],
     runtime: _PostseasonRuntime,
     playoff_config: PlayoffConfig,
 ) -> NBASeriesResult:
-    higher, lower = sorted(
-        (first, second),
-        key=lambda team_id: (seed_numbers[team_id], team_id),
+    higher, lower = nba_series_home_court_order(
+        first,
+        second,
+        conference=conference,
+        seed_by_team=seed_numbers,
+        regular_season_records=regular_season_records,
     )
     wins = {first: 0, second: 0}
     game_number = 1

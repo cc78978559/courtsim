@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "dataset_id": "hoopr-team-box-reality-2022-25",
+  "reference_id": "real-nba-2022-25-quick-sim-v1",
+  "source_label": "SportsDataverse hoopR NBA team box scores (ESPN source), 2022-23 through 2024-25",
+  "frozen_at": "2026-08-01",
+  "resources": [
+    {
+      "filename": "team_box_2023.parquet",
+      "url": "https://raw.githubusercontent.com/sportsdataverse/hoopR-nba-data/main/nba/team_box/parquet/team_box_2023.parquet",
+      "sha256": "76475538f9582091d1b83e69fb7d378477ae3243e7218088a3189775f23868dc",
+      "excluded_non_standings_game_ids": []
+    },
+    {
+      "filename": "team_box_2024.parquet",
+      "url": "https://raw.githubusercontent.com/sportsdataverse/hoopR-nba-data/main/nba/team_box/parquet/team_box_2024.parquet",
+      "sha256": "3cb38009c72c325707ac90de7a7072a01dfea42f3e604927df426609b2a95d1a",
+      "excluded_non_standings_game_ids": [401607495]
+    },
+    {
+      "filename": "team_box_2025.parquet",
+      "url": "https://raw.githubusercontent.com/sportsdataverse/hoopR-nba-data/main/nba/team_box/parquet/team_box_2025.parquet",
+      "sha256": "f735bf3b743618e50987f3e3e296734e1dba43c450a21af848d7c34f23bf2aee",
+      "excluded_non_standings_game_ids": [401734908]
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "version": "quick-sim-formal-gate-v1",
+  "gate_id": "nba-2022-25-formal-aggregate-quick-sim-v1",
+  "frozen_at": "2026-08-02",
+  "reality_path": "../sources/nba-2022-25-standings-playoffs.json",
+  "reality_sha256": "56662a08763405ada0acc79cc1c155eec7bf8fd585c62e751019cb540278a0e8",
+  "reference_path": "../sources/nba-2022-25-quick-sim-reference.json",
+  "reference_sha256": "4d2828977ed392b970670848cf7eb035ffb5646c2806180c3240fe4145262fab",
+  "reference_id": "real-nba-2022-25-quick-sim-v1",
+  "team_count": 30,
+  "minimum_seasons": 30,
+  "forbidden_master_seeds": [
+    20260801,
+    20260802,
+    20260803,
+    20260804,
+    20260805,
+    20260806,
+    20260807,
+    20260808,
+    20260809,
+    20260810,
+    20260811,
+    20260812,
+    20260813,
+    20260814,
+    20260815,
+    20260816,
+    20260817,
+    20260818,
+    20260819,
+    20260820,
+    20260901,
+    20260902,
+    20260903,
+    20260904,
+    20260905
+  ],
+  "batch_id_prefix": "formal-nba-aggregate-",
+  "required_executor_version": "nba-aggregate-quick-sim-v1",
+  "required_runner_version": "nba-aggregate-quick-sim-runner-v1",
+  "required_game_config": {
+    "mode": "aggregate",
+    "parameters_version": "nba-aggregate-quick-sim-parameters-v1"
+  },
+  "required_input_sha256": {
+    "aggregate_parameters": "3eeb6c1785f31fd154fecd04e6794cb8749dde67f76689ef03f2929446546244",
+    "team_strength": "cddc066912465ce101208f166fab4579e8da73f23ccf55d18aa1534680656605"
+  }
+}

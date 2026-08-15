@@ -16,8 +16,10 @@ from courtsim.manager_ai import ManagerProfile
 from courtsim.three_team_market import (
     ThreeTeamMarketPlan,
     apply_three_team_market_plan,
+    build_three_team_market_contract_conditions,
     generate_three_team_market_shadow,
 )
+from courtsim.three_team_market_v2 import build_three_team_contract_negotiation_tree
 
 
 def timeline_players() -> tuple[CareerPlayer, ...]:
@@ -95,14 +97,50 @@ def test_three_team_market_discovers_and_replays_positive_cycle() -> None:
     )
     assert first == second
     assert first.plan.offers
+    assert {tree.trade_id for tree in first.negotiations} == {
+        offer.trade_id for offer in first.plan.offers
+    }
+    assert all(tree.nodes[0].status == "countered" for tree in first.negotiations)
+    assert all(any(node.status == "accepted" for node in tree.nodes) for tree in first.negotiations)
     execution = apply_three_team_market_plan(
         state(),
         (),
         first.plan,
         rules(),
+        negotiations=first.negotiations,
     )
     assert execution.audits
+    assert execution.negotiations == first.negotiations
+    assert len(execution.accepted_node_ids) == len(first.plan.offers)
     assert all(audit.replay_verified for audit in execution.audits)
+
+
+def test_three_team_market_records_rejected_contract_negotiation() -> None:
+    offer = circular_offer()
+    strict_profiles = {
+        team_id: ManagerProfile(
+            f"manager-{team_id}",
+            team_id,
+            risk_tolerance=0,
+            development_bias=100,
+        )
+        for team_id in offer.team_ids
+    }
+    conditions = build_three_team_market_contract_conditions(
+        offer,
+        state(),
+        strict_profiles,
+    )
+    tree = build_three_team_contract_negotiation_tree(
+        offer,
+        state(),
+        conditions,
+        maximum_rounds=4,
+    )
+    assert len(conditions) == 6
+    assert tree.nodes[0].status == "countered"
+    assert any(node.status == "rejected" for node in tree.nodes)
+    assert not any(node.status == "accepted" for node in tree.nodes)
 
 
 def test_three_team_market_searches_pick_compensation_with_parent_chain() -> None:

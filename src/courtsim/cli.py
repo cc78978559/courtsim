@@ -5,8 +5,9 @@ import json
 import platform
 import sys
 from collections.abc import Callable
+from dataclasses import asdict
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from courtsim import __version__
 from courtsim.analysis.artifact_archive import (
@@ -57,13 +58,105 @@ from courtsim.analysis.matrix_style_coverage import (
     build_matrix_style_coverage,
 )
 from courtsim.analysis.model_audit_runner import run_model_audit_to_directory
+from courtsim.analysis.nba_aggregate_quick_sim import (
+    NbaAggregateQuickSimError,
+    run_nba_aggregate_quick_sim_batch,
+)
+from courtsim.analysis.nba_data_audit import (
+    NbaDataAuditError,
+    build_nba_data_audit,
+    build_nba_possession_audit,
+    build_nba_shot_audit,
+)
+from courtsim.analysis.nba_data_pipeline import (
+    NbaDataPipelineError,
+    build_nba_data_summary,
+    inspect_nba_data,
+    sync_nba_data,
+)
+from courtsim.analysis.nba_player_calibration import build_player_calibration_plan
+from courtsim.analysis.nba_player_evaluation import (
+    NbaPlayerEvaluationError,
+    aggregate_nba_player_evaluation_files,
+    build_nba_player_audit_from_bundle,
+    evaluate_nba_player_audit_files,
+    evaluate_nba_player_reality_gate_files,
+)
+from courtsim.analysis.nba_player_holdout import (
+    NbaPlayerHoldoutError,
+    evaluate_nba_player_holdout,
+    load_nba_player_holdout_gate,
+    nba_player_holdout_from_dict,
+)
+from courtsim.analysis.nba_player_identity import (
+    NbaPlayerIdentityError,
+    augment_nba_player_crosswalk_payload,
+    build_nba_player_identity_payload,
+)
+from courtsim.analysis.nba_player_targets import (
+    NbaPlayerTargetError,
+    build_nba_player_target_payload,
+    load_nba_player_target_set,
+)
+from courtsim.analysis.nba_quick_sim_runner import (
+    NbaQuickSimRunnerError,
+    run_nba_quick_sim_batch,
+)
+from courtsim.analysis.nba_reality import NbaRealityError, build_nba_reality_payload
 from courtsim.analysis.nba_reference import (
     TEAM_METRIC_ORDER,
     NbaReferenceError,
     build_nba_core_target_payload,
     build_nba_team_target_payload,
 )
+from courtsim.analysis.nba_shot_profile_batch import (
+    NbaShotProfileBatchError,
+    inspect_nba_shot_profile_batch,
+    run_nba_shot_profile_batch,
+)
+from courtsim.analysis.nba_shot_profile_evaluation import (
+    NbaShotProfileEvaluationError,
+    aggregate_nba_shot_profile_evaluations,
+    evaluate_nba_shot_profile_audits,
+)
+from courtsim.analysis.nba_shot_profile_runner import (
+    NbaShotProfileRunnerError,
+    run_nba_shot_profile_experiment,
+)
+from courtsim.analysis.nba_shot_profiles import (
+    NbaShotProfileError,
+    build_calibrated_nba_shot_profile_payload,
+    build_nba_shot_profile_payload,
+    load_nba_shot_profile_set,
+)
+from courtsim.analysis.nba_team_strength import NbaTeamStrengthError
+from courtsim.analysis.pace_diagnostics import PaceDiagnosticError, build_pace_audit_from_bundle
 from courtsim.analysis.performance import run_model_benchmark
+from courtsim.analysis.quick_sim_batch import (
+    QuickSimBatchError,
+    quick_sim_batch_from_json,
+)
+from courtsim.analysis.quick_sim_comparison import (
+    QuickSimComparisonError,
+    compare_quick_sim_summaries,
+    load_quick_sim_reference,
+    quick_sim_report_to_json,
+)
+from courtsim.analysis.quick_sim_consistency import (
+    QuickSimConsistencyError,
+    compare_quick_sim_engines,
+    load_quick_sim_consistency_gate,
+    run_aggregate_sensitivity,
+    verify_quick_sim_consistency_manifests,
+)
+from courtsim.analysis.quick_sim_formal_gate import (
+    QuickSimFormalGateError,
+    evaluate_quick_sim_formal_gate,
+)
+from courtsim.analysis.quick_sim_pairing import (
+    QuickSimPairingError,
+    compare_paired_quick_sim_batches,
+)
 from courtsim.analysis.realism_targets import (
     RealismTargetError,
     load_realism_target_set,
@@ -76,7 +169,16 @@ from courtsim.artifacts import write_json
 from courtsim.config import ConfigError, load_scenario
 from courtsim.demo import FoundationDemoSimulator
 from courtsim.domain.game import GameClockConfig
+from courtsim.draft_obligations import DraftObligationError, inspect_draft_obligation_files
 from courtsim.model.trace_mode import TraceMode
+from courtsim.nba_franchise_artifacts import (
+    NBAFranchiseArtifactError,
+    load_nba_franchise_checkpoint,
+)
+from courtsim.nba_franchise_runner import (
+    NBAFranchiseRunnerError,
+    inspect_nba_franchise_manifest,
+)
 from courtsim.parameter_overlay import (
     ParameterOverlayError,
     add_assist_occurrence_effects,
@@ -97,6 +199,7 @@ from courtsim.player_profile_overlay import (
 )
 from courtsim.replay import ReplayError, replay_lines
 from courtsim.runner import run_batch_to_directory, run_to_directory
+from courtsim.tool_status import ProjectStatusError, build_project_status
 from courtsim.verification import VerificationError, verify_manifest
 
 ParameterMigration = Callable[[str | Path, str | Path], dict[str, Any]]
@@ -151,6 +254,375 @@ def _parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser("doctor", help="check the local runtime")
+
+    project_status = subparsers.add_parser(
+        "project-status",
+        help="emit compact release, Git, and tooling readiness JSON",
+    )
+    project_status.add_argument("--root", type=Path, default=Path("."))
+    project_status.add_argument("--pretty", action="store_true")
+
+    nba_data = subparsers.add_parser(
+        "nba-data",
+        help="sync and stream-reduce free personal NBA datasets locally",
+    )
+    nba_data_actions = nba_data.add_subparsers(dest="nba_data_action", required=True)
+    nba_data_sync = nba_data_actions.add_parser(
+        "sync",
+        help="populate the verified local raw-data cache",
+    )
+    nba_data_sync.add_argument("manifest", type=Path)
+    nba_data_sync.add_argument("--cache", type=Path, default=Path(".cache/nba-data"))
+    nba_data_sync.add_argument("--offline", action="store_true")
+    nba_data_sync.add_argument("--force", action="store_true")
+    nba_data_build = nba_data_actions.add_parser(
+        "build",
+        help="stream cached CSV data into a compact JSON summary",
+    )
+    nba_data_build.add_argument("manifest", type=Path)
+    nba_data_build.add_argument("output", type=Path)
+    nba_data_build.add_argument("--cache", type=Path, default=Path(".cache/nba-data"))
+    nba_data_build.add_argument("--force", action="store_true")
+    nba_data_build.add_argument("--quiet", action="store_true")
+    nba_data_status = nba_data_actions.add_parser(
+        "status",
+        help="inspect cache and summary freshness without reading raw rows",
+    )
+    nba_data_status.add_argument("manifest", type=Path)
+    nba_data_status.add_argument("--cache", type=Path, default=Path(".cache/nba-data"))
+    nba_data_status.add_argument("--output", type=Path)
+    nba_player_identity = nba_data_actions.add_parser(
+        "build-player-identity",
+        help="join player-box ESPN ids to pinned NBA player ids",
+    )
+    nba_player_identity.add_argument("player_box_summary", type=Path)
+    nba_player_identity.add_argument("crosswalk_summary", type=Path)
+    nba_player_identity.add_argument("output", type=Path)
+    nba_player_identity.add_argument("--minimum-player-coverage", type=float, default=0.9)
+    nba_player_identity.add_argument("--minimum-minutes-coverage", type=float, default=0.95)
+    nba_player_identity.add_argument("--minimum-match-confidence", type=float, default=0.9)
+    nba_player_crosswalk = nba_data_actions.add_parser(
+        "augment-player-crosswalk",
+        help="augment a pinned crosswalk with unique exact names from same-season NBA shots",
+    )
+    nba_player_crosswalk.add_argument("player_box_summary", type=Path)
+    nba_player_crosswalk.add_argument("crosswalk_summary", type=Path)
+    nba_player_crosswalk.add_argument("player_shot_summary", type=Path)
+    nba_player_crosswalk.add_argument("output", type=Path)
+    nba_player_targets = nba_data_actions.add_parser(
+        "build-player-targets",
+        help="build source-pinned player usage, efficiency, shot and minutes targets",
+    )
+    nba_player_targets.add_argument("player_box_summary", type=Path)
+    nba_player_targets.add_argument("player_shot_summary", type=Path)
+    nba_player_targets.add_argument("identity", type=Path)
+    nba_player_targets.add_argument("output", type=Path)
+    nba_player_targets.add_argument("--target-id", required=True)
+    nba_player_targets.add_argument("--minimum-games", type=int, default=10)
+    nba_player_targets.add_argument("--minimum-minutes-per-game", type=float, default=8.0)
+    nba_data_audit = nba_data_actions.add_parser(
+        "audit",
+        help="reconcile a local event summary with pinned NBA totals",
+    )
+    nba_data_audit.add_argument("summary", type=Path)
+    nba_data_audit.add_argument("core_snapshot", type=Path)
+    nba_data_audit.add_argument("free_throw_snapshot", type=Path)
+    nba_data_audit.add_argument("output", type=Path)
+    nba_data_audit.add_argument("--tolerance", type=float, default=0.001)
+    nba_data_audit.add_argument("--warning-multiplier", type=float, default=5.0)
+    nba_possession_audit = nba_data_actions.add_parser(
+        "audit-possessions",
+        help="reconcile deduplicated possessions with pinned NBA totals",
+    )
+    nba_possession_audit.add_argument("summary", type=Path)
+    nba_possession_audit.add_argument("core_snapshot", type=Path)
+    nba_possession_audit.add_argument("output", type=Path)
+    nba_possession_audit.add_argument("--tolerance", type=float, default=0.001)
+    nba_possession_audit.add_argument("--warning-multiplier", type=float, default=5.0)
+    nba_shot_audit = nba_data_actions.add_parser(
+        "audit-shots",
+        help="reconcile shot-detail totals and preserve zone calibration targets",
+    )
+    nba_shot_audit.add_argument("summary", type=Path)
+    nba_shot_audit.add_argument("core_snapshot", type=Path)
+    nba_shot_audit.add_argument("output", type=Path)
+    nba_shot_audit.add_argument("--tolerance", type=float, default=0.001)
+    nba_shot_audit.add_argument("--warning-multiplier", type=float, default=5.0)
+    nba_shot_profiles = nba_data_actions.add_parser(
+        "build-shot-profiles",
+        help="derive quick-sim team shot-zone profiles from a passed local audit",
+    )
+    nba_shot_profiles.add_argument("summary", type=Path)
+    nba_shot_profiles.add_argument("audit", type=Path)
+    nba_shot_profiles.add_argument("output", type=Path)
+    nba_shot_profiles.add_argument("--zone-tendency-loading", type=float, default=0.75)
+
+    nba_player_audit = subparsers.add_parser(
+        "nba-player-audit",
+        help="audit player metrics from a verified full-trace model bundle",
+    )
+    nba_player_audit.add_argument("manifest", type=Path)
+    nba_player_audit.add_argument("targets", type=Path)
+    nba_player_audit.add_argument("identity", type=Path)
+    nba_player_audit.add_argument("output", type=Path)
+    nba_player_evaluate = subparsers.add_parser(
+        "nba-player-evaluate",
+        help="evaluate a player simulation audit against observed targets",
+    )
+    nba_player_evaluate.add_argument("audit", type=Path)
+    nba_player_evaluate.add_argument("targets", type=Path)
+    nba_player_evaluate.add_argument("output", type=Path)
+    nba_player_evaluate_batch = subparsers.add_parser(
+        "nba-player-evaluate-batch",
+        help="pool compatible player evaluation reports across seeds",
+    )
+    nba_player_evaluate_batch.add_argument("output", type=Path)
+    nba_player_evaluate_batch.add_argument("reports", type=Path, nargs="+")
+    nba_player_gate = subparsers.add_parser(
+        "nba-player-formal-gate",
+        help="enforce frozen player realism thresholds with a failing exit status",
+    )
+    nba_player_gate.add_argument("evaluation", type=Path)
+    nba_player_gate.add_argument("audit", type=Path)
+    nba_player_gate.add_argument("output", type=Path)
+    nba_player_holdout_gate = subparsers.add_parser(
+        "nba-player-holdout-gate",
+        help="evaluate a complete thirty-season compact player holdout",
+    )
+    nba_player_holdout_gate.add_argument("checkpoint", type=Path)
+    nba_player_holdout_gate.add_argument("gate", type=Path)
+    nba_player_holdout_gate.add_argument("output", type=Path)
+    pace_clock_audit = subparsers.add_parser(
+        "pace-clock-audit",
+        help="decompose possession clock use from a verified full-trace model bundle",
+    )
+    pace_clock_audit.add_argument("manifest", type=Path)
+    pace_clock_audit.add_argument("output", type=Path)
+    player_calibration_plan = subparsers.add_parser(
+        "nba-player-calibration-plan",
+        help="gate identity coverage and emit an ordered player calibration plan",
+    )
+    player_calibration_plan.add_argument("targets", type=Path)
+    player_calibration_plan.add_argument("identity", type=Path)
+    player_calibration_plan.add_argument("output", type=Path)
+
+    draft_obligation_audit = subparsers.add_parser(
+        "draft-obligation-audit",
+        help="read-only verification of a draft obligation/freeze ledger v3",
+    )
+    draft_obligation_audit.add_argument("ledger", type=Path)
+    draft_obligation_audit.add_argument("assets", type=Path)
+    draft_obligation_audit.add_argument("--output", type=Path)
+
+    quick_sim_status = subparsers.add_parser(
+        "nba-quick-sim-status",
+        help="verify and summarize a quick-simulation checkpoint",
+    )
+    quick_sim_status.add_argument("checkpoint", type=Path)
+
+    quick_sim_run = subparsers.add_parser(
+        "nba-quick-sim-run",
+        help="run or resume an input-pinned formal thirty-team quick-sim batch",
+    )
+    quick_sim_run.add_argument("profile", type=Path)
+    quick_sim_run.add_argument("strength", type=Path)
+    quick_sim_run.add_argument("checkpoint", type=Path)
+    quick_sim_run.add_argument("--manifest", type=Path)
+    quick_sim_run.add_argument("--schema", type=Path, default=DEFAULT_MODEL_SCHEMA)
+    quick_sim_run.add_argument("--parameters", type=Path, default=DEFAULT_MODEL_PARAMETERS)
+    quick_sim_run.add_argument(
+        "--lineup", type=Path, default=Path("examples/calibration_lineup_v1.json")
+    )
+    quick_sim_run.add_argument(
+        "--player-rosters",
+        type=Path,
+        help="source-pinned NBA player target set used to build real rosters",
+    )
+    quick_sim_run.add_argument("--batch-id", required=True)
+    quick_sim_run.add_argument("--master-seed", type=int, required=True)
+    quick_sim_run.add_argument("--seasons", type=int, default=30)
+    quick_sim_run.add_argument("--maximum-new-seasons", type=int)
+    quick_sim_run.add_argument("--workers", type=int, default=1)
+    quick_sim_run.add_argument(
+        "--executor-version",
+        default="nba-quick-sim-executor-v6",
+        choices=(
+            "nba-quick-sim-executor-v5",
+            "nba-quick-sim-executor-v6",
+            "nba-quick-sim-executor-v7",
+        ),
+    )
+    quick_sim_run.add_argument("--periods", type=int, default=4)
+    quick_sim_run.add_argument("--period-seconds", type=int, default=720)
+    quick_sim_run.add_argument("--possession-seconds", type=int, default=24)
+    quick_sim_run.add_argument("--overtime-seconds", type=int, default=300)
+    quick_sim_run.add_argument("--max-overtimes", type=int, default=8)
+
+    aggregate_quick_sim_run = subparsers.add_parser(
+        "nba-aggregate-quick-sim-run",
+        help="run or resume a source-pinned aggregate NBA quick-sim batch",
+    )
+    aggregate_quick_sim_run.add_argument("checkpoint", type=Path)
+    aggregate_quick_sim_run.add_argument("--manifest", type=Path)
+    aggregate_quick_sim_run.add_argument(
+        "--aggregate-parameters",
+        type=Path,
+        default=Path("experiments/sources/nba-aggregate-quick-sim-parameters-v1.json"),
+    )
+    aggregate_quick_sim_run.add_argument(
+        "--strength",
+        type=Path,
+        default=Path("experiments/sources/nba-2024-25-team-strength-v1.json"),
+    )
+    aggregate_quick_sim_run.add_argument("--batch-id", required=True)
+    aggregate_quick_sim_run.add_argument("--master-seed", type=int, required=True)
+    aggregate_quick_sim_run.add_argument("--seasons", type=int, default=30)
+    aggregate_quick_sim_run.add_argument("--maximum-new-seasons", type=int)
+    aggregate_sensitivity = subparsers.add_parser(
+        "nba-aggregate-sensitivity",
+        help="run paired home-advantage and pace-variance sensitivity",
+    )
+    aggregate_sensitivity.add_argument("baseline", type=Path)
+    aggregate_sensitivity.add_argument("output", type=Path)
+    aggregate_sensitivity.add_argument(
+        "--aggregate-parameters",
+        type=Path,
+        default=Path("experiments/sources/nba-aggregate-quick-sim-parameters-v1.json"),
+    )
+    aggregate_sensitivity.add_argument(
+        "--strength",
+        type=Path,
+        default=Path("experiments/sources/nba-2024-25-team-strength-v1.json"),
+    )
+
+    nba_reality_build = subparsers.add_parser(
+        "nba-reality-build",
+        help="build source-pinned multi-season NBA standings/playoff reality",
+    )
+    nba_reality_build.add_argument("manifest", type=Path)
+    nba_reality_build.add_argument("reality_output", type=Path)
+    nba_reality_build.add_argument("reference_output", type=Path)
+    nba_reality_build.add_argument("--cache", type=Path, required=True)
+
+    quick_sim_compare = subparsers.add_parser(
+        "nba-quick-sim-compare",
+        help="compare a verified quick-simulation checkpoint with a reference",
+    )
+    quick_sim_compare.add_argument("checkpoint", type=Path)
+    quick_sim_compare.add_argument("reference", type=Path)
+    quick_sim_compare.add_argument("--output", type=Path)
+    quick_sim_paired = subparsers.add_parser(
+        "nba-quick-sim-paired-diff",
+        help="compare complete baseline and candidate batches with identical seeds",
+    )
+    quick_sim_paired.add_argument("baseline", type=Path)
+    quick_sim_paired.add_argument("candidate", type=Path)
+    quick_sim_paired.add_argument("output", type=Path)
+    quick_sim_consistency = subparsers.add_parser(
+        "nba-quick-sim-consistency",
+        help="compare paired aggregate and full-engine checkpoint seasons",
+    )
+    quick_sim_consistency.add_argument("aggregate", type=Path)
+    quick_sim_consistency.add_argument("full_engine", type=Path)
+    quick_sim_consistency.add_argument("output", type=Path)
+    quick_sim_consistency.add_argument("--gate", type=Path)
+    quick_sim_consistency.add_argument("--aggregate-manifest", type=Path)
+    quick_sim_consistency.add_argument("--full-manifest", type=Path)
+    quick_sim_formal_gate = subparsers.add_parser(
+        "nba-quick-sim-formal-gate",
+        help="evaluate a complete unseen-seed batch against a frozen NBA reality gate",
+    )
+    quick_sim_formal_gate.add_argument("checkpoint", type=Path)
+    quick_sim_formal_gate.add_argument("gate", type=Path)
+    quick_sim_formal_gate.add_argument("run_manifest", type=Path)
+    quick_sim_formal_gate.add_argument("--output", type=Path)
+    shot_profile_evaluate = subparsers.add_parser(
+        "nba-shot-profile-evaluate",
+        help="compare baseline and candidate team shot-zone audits with NBA profiles",
+    )
+    shot_profile_evaluate.add_argument("baseline_audit", type=Path)
+    shot_profile_evaluate.add_argument("candidate_audit", type=Path)
+    shot_profile_evaluate.add_argument("profiles", type=Path)
+    shot_profile_evaluate.add_argument("output", type=Path)
+    shot_profile_evaluate.add_argument("--quiet", action="store_true")
+    shot_profile_batch = subparsers.add_parser(
+        "nba-shot-profile-evaluate-batch",
+        help="pool multiple compatible shot-profile evaluation reports",
+    )
+    shot_profile_batch.add_argument("output", type=Path)
+    shot_profile_batch.add_argument("reports", type=Path, nargs="+")
+    shot_profile_batch.add_argument("--quiet", action="store_true")
+    shot_profile_calibrate = subparsers.add_parser(
+        "nba-shot-profile-calibrate",
+        help="materialize a source-pinned profile from a complete simulation baseline",
+    )
+    shot_profile_calibrate.add_argument("profile", type=Path)
+    shot_profile_calibrate.add_argument("baseline_audit", type=Path)
+    shot_profile_calibrate.add_argument("output", type=Path)
+    shot_profile_calibrate.add_argument("--calibration-strength", type=float, default=0.75)
+    shot_profile_calibrate.add_argument("--rim-contrast-strength", type=float, default=1.0)
+    shot_profile_calibrate.add_argument("--midrange-contrast-strength", type=float, default=0.75)
+    shot_profile_calibrate.add_argument("--maximum-absolute-offset", type=int, default=30)
+    shot_profile_calibrate.add_argument("--quiet", action="store_true")
+    shot_profile_run = subparsers.add_parser(
+        "nba-shot-profile-run",
+        help="run a paired 30-team regular-season shot-profile experiment",
+    )
+    shot_profile_run.add_argument("profile", type=Path)
+    shot_profile_run.add_argument("--schema", type=Path, default=DEFAULT_MODEL_SCHEMA)
+    shot_profile_run.add_argument("--parameters", type=Path, default=DEFAULT_MODEL_PARAMETERS)
+    shot_profile_run.add_argument(
+        "--lineup", type=Path, default=Path("examples/calibration_lineup_v1.json")
+    )
+    shot_profile_run.add_argument("--seed", type=int, default=20260801)
+    shot_profile_run.add_argument("--periods", type=int, default=4)
+    shot_profile_run.add_argument("--period-seconds", type=int, default=720)
+    shot_profile_run.add_argument("--possession-seconds", type=int, default=24)
+    shot_profile_run.add_argument("--overtime-seconds", type=int, default=300)
+    shot_profile_run.add_argument("--max-overtimes", type=int, default=8)
+    shot_profile_run.add_argument("--output", type=Path, default=Path("work/runs/shot-profile"))
+    shot_profile_run.add_argument("--quiet", action="store_true")
+    shot_profile_run_batch = subparsers.add_parser(
+        "nba-shot-profile-run-batch",
+        help="resume a deterministic multi-seed shot-profile experiment batch",
+    )
+    shot_profile_run_batch.add_argument("profile", type=Path)
+    shot_profile_run_batch.add_argument("--schema", type=Path, default=DEFAULT_MODEL_SCHEMA)
+    shot_profile_run_batch.add_argument("--parameters", type=Path, default=DEFAULT_MODEL_PARAMETERS)
+    shot_profile_run_batch.add_argument(
+        "--lineup", type=Path, default=Path("examples/calibration_lineup_v1.json")
+    )
+    shot_profile_run_batch.add_argument("--master-seed", type=int, default=20260801)
+    shot_profile_run_batch.add_argument("--runs", type=int, default=3)
+    shot_profile_run_batch.add_argument("--maximum-new-runs", type=int)
+    shot_profile_run_batch.add_argument("--workers", type=int, default=1)
+    shot_profile_run_batch.add_argument("--periods", type=int, default=4)
+    shot_profile_run_batch.add_argument("--period-seconds", type=int, default=720)
+    shot_profile_run_batch.add_argument("--possession-seconds", type=int, default=24)
+    shot_profile_run_batch.add_argument("--overtime-seconds", type=int, default=300)
+    shot_profile_run_batch.add_argument("--max-overtimes", type=int, default=8)
+    shot_profile_run_batch.add_argument(
+        "--output", type=Path, default=Path("work/runs/shot-profile-batch")
+    )
+    shot_profile_run_batch.add_argument("--quiet", action="store_true")
+    shot_profile_batch_status = subparsers.add_parser(
+        "nba-shot-profile-batch-status",
+        help="verify and summarize a shot-profile batch manifest",
+    )
+    shot_profile_batch_status.add_argument("manifest", type=Path)
+
+    franchise_checkpoint = subparsers.add_parser(
+        "nba-franchise-checkpoint-verify",
+        help="verify and summarize a franchise checkpoint",
+    )
+    franchise_checkpoint.add_argument("checkpoint", type=Path)
+    franchise_checkpoint.add_argument("--expected-file-sha256")
+
+    franchise_status = subparsers.add_parser(
+        "nba-franchise-status",
+        help="verify and summarize a resumable franchise manifest",
+    )
+    franchise_status.add_argument("manifest", type=Path)
 
     validate = subparsers.add_parser("validate", help="validate a scenario JSON file")
     validate.add_argument("scenario", type=Path)
@@ -468,6 +940,664 @@ def main(argv: list[str] | None = None) -> int:
                     },
                     ensure_ascii=False,
                     indent=2,
+                )
+            )
+            return 0
+
+        if arguments.command == "project-status":
+            status_report = build_project_status(arguments.root)
+            print(
+                json.dumps(
+                    status_report,
+                    ensure_ascii=False,
+                    indent=2 if arguments.pretty else None,
+                    sort_keys=True,
+                    separators=None if arguments.pretty else (",", ":"),
+                )
+            )
+            release_status = cast(dict[str, object], status_report["release"])
+            return 0 if release_status["hashes_ok"] is True else 4
+
+        if arguments.command == "nba-data":
+            if arguments.nba_data_action == "sync":
+                nba_data_report = sync_nba_data(
+                    arguments.manifest,
+                    arguments.cache,
+                    offline=arguments.offline,
+                    force=arguments.force,
+                )
+            elif arguments.nba_data_action == "build":
+                nba_data_report = build_nba_data_summary(
+                    arguments.manifest,
+                    arguments.cache,
+                    arguments.output,
+                    force=arguments.force,
+                )
+            elif arguments.nba_data_action == "status":
+                nba_data_report = inspect_nba_data(
+                    arguments.manifest,
+                    arguments.cache,
+                    arguments.output,
+                )
+            elif arguments.nba_data_action == "build-player-identity":
+                nba_data_report = build_nba_player_identity_payload(
+                    arguments.player_box_summary,
+                    arguments.crosswalk_summary,
+                    minimum_player_coverage=arguments.minimum_player_coverage,
+                    minimum_minutes_coverage=arguments.minimum_minutes_coverage,
+                    minimum_match_confidence=arguments.minimum_match_confidence,
+                )
+                write_json(arguments.output, nba_data_report)
+            elif arguments.nba_data_action == "augment-player-crosswalk":
+                nba_data_report = augment_nba_player_crosswalk_payload(
+                    arguments.player_box_summary,
+                    arguments.crosswalk_summary,
+                    arguments.player_shot_summary,
+                )
+                write_json(arguments.output, nba_data_report)
+            elif arguments.nba_data_action == "build-player-targets":
+                nba_data_report = build_nba_player_target_payload(
+                    arguments.player_box_summary,
+                    arguments.player_shot_summary,
+                    arguments.identity,
+                    target_id=arguments.target_id,
+                    minimum_games=arguments.minimum_games,
+                    minimum_minutes_per_game=arguments.minimum_minutes_per_game,
+                )
+                write_json(arguments.output, nba_data_report)
+            elif arguments.nba_data_action == "audit":
+                nba_data_report = build_nba_data_audit(
+                    arguments.summary,
+                    arguments.core_snapshot,
+                    arguments.free_throw_snapshot,
+                    tolerance=arguments.tolerance,
+                    warning_multiplier=arguments.warning_multiplier,
+                )
+                write_json(arguments.output, nba_data_report)
+            elif arguments.nba_data_action == "audit-possessions":
+                nba_data_report = build_nba_possession_audit(
+                    arguments.summary,
+                    arguments.core_snapshot,
+                    tolerance=arguments.tolerance,
+                    warning_multiplier=arguments.warning_multiplier,
+                )
+                write_json(arguments.output, nba_data_report)
+            elif arguments.nba_data_action == "audit-shots":
+                nba_data_report = build_nba_shot_audit(
+                    arguments.summary,
+                    arguments.core_snapshot,
+                    tolerance=arguments.tolerance,
+                    warning_multiplier=arguments.warning_multiplier,
+                )
+                write_json(arguments.output, nba_data_report)
+            else:
+                nba_data_report = build_nba_shot_profile_payload(
+                    arguments.summary,
+                    arguments.audit,
+                    zone_tendency_loading=arguments.zone_tendency_loading,
+                )
+                write_json(arguments.output, nba_data_report)
+            if not getattr(arguments, "quiet", False):
+                console_report = nba_data_report
+                groups = nba_data_report.get("groups")
+                if arguments.nba_data_action == "build" and isinstance(groups, (dict, list)):
+                    console_report = {
+                        "cached": nba_data_report.get("cached"),
+                        "dataset_id": nba_data_report.get("dataset_id"),
+                        "group_count": len(groups),
+                        "output": str(arguments.output),
+                        "rows_processed": nba_data_report.get("rows_processed"),
+                        "season": nba_data_report.get("season"),
+                    }
+                elif arguments.nba_data_action == "build-player-identity":
+                    console_report = {
+                        "coverage": nba_data_report.get("coverage"),
+                        "output": str(arguments.output),
+                        "promotion": nba_data_report.get("promotion"),
+                        "season": nba_data_report.get("season"),
+                        "version": nba_data_report.get("version"),
+                    }
+                elif arguments.nba_data_action == "augment-player-crosswalk":
+                    console_report = {
+                        "augmentation": nba_data_report.get("augmentation"),
+                        "output": str(arguments.output),
+                        "season": nba_data_report.get("season"),
+                    }
+                elif arguments.nba_data_action == "build-player-targets":
+                    console_report = {
+                        "output": str(arguments.output),
+                        "players": len(cast(list[object], nba_data_report["players"])),
+                        "season": nba_data_report.get("season"),
+                        "target_id": nba_data_report.get("target_id"),
+                        "version": nba_data_report.get("version"),
+                    }
+                print(
+                    json.dumps(
+                        console_report,
+                        ensure_ascii=True,
+                        separators=(",", ":"),
+                        sort_keys=True,
+                    )
+                )
+            return 0
+
+        if arguments.command == "nba-player-audit":
+            player_audit_report = build_nba_player_audit_from_bundle(
+                arguments.manifest,
+                arguments.targets,
+                arguments.identity,
+            )
+            write_json(arguments.output, player_audit_report)
+            print(
+                json.dumps(
+                    {
+                        "games": player_audit_report.get("games"),
+                        "output": str(arguments.output),
+                        "players": len(cast(list[object], player_audit_report["players"])),
+                        "version": player_audit_report.get("version"),
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0
+
+        if arguments.command == "nba-player-evaluate":
+            player_evaluation_report = evaluate_nba_player_audit_files(
+                arguments.audit, arguments.targets
+            )
+            write_json(arguments.output, player_evaluation_report)
+            print(
+                json.dumps(
+                    {
+                        "metrics": len(cast(list[object], player_evaluation_report["metrics"])),
+                        "output": str(arguments.output),
+                        "players": player_evaluation_report.get("players"),
+                        "version": player_evaluation_report.get("version"),
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0
+
+        if arguments.command == "nba-player-evaluate-batch":
+            player_batch_report = aggregate_nba_player_evaluation_files(tuple(arguments.reports))
+            write_json(arguments.output, player_batch_report)
+            print(
+                json.dumps(
+                    {
+                        "metrics": len(cast(list[object], player_batch_report["metrics"])),
+                        "output": str(arguments.output),
+                        "players": player_batch_report.get("players"),
+                        "runs": player_batch_report.get("runs"),
+                        "version": player_batch_report.get("version"),
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0
+
+        if arguments.command == "nba-player-formal-gate":
+            player_gate_report = evaluate_nba_player_reality_gate_files(
+                arguments.evaluation, arguments.audit
+            )
+            write_json(arguments.output, player_gate_report)
+            print(
+                json.dumps(
+                    {
+                        "output": str(arguments.output),
+                        "passed": player_gate_report.get("passed"),
+                        "version": player_gate_report.get("version"),
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0 if player_gate_report["passed"] is True else 16
+
+        if arguments.command == "nba-player-holdout-gate":
+            player_holdout = nba_player_holdout_from_dict(
+                json.loads(arguments.checkpoint.read_text(encoding="utf-8"))
+            )
+            player_holdout_thresholds = load_nba_player_holdout_gate(
+                json.loads(arguments.gate.read_text(encoding="utf-8"))
+            )
+            player_holdout_report = evaluate_nba_player_holdout(
+                player_holdout, player_holdout_thresholds
+            )
+            write_json(arguments.output, player_holdout_report)
+            print(
+                json.dumps(
+                    {
+                        "output": str(arguments.output),
+                        "passed": player_holdout_report["passed"],
+                        "seasons": player_holdout_report["seasons"],
+                        "version": player_holdout_report["version"],
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0 if player_holdout_report["passed"] is True else 17
+
+        if arguments.command == "pace-clock-audit":
+            pace_report = build_pace_audit_from_bundle(arguments.manifest)
+            write_json(arguments.output, pace_report)
+            print(
+                json.dumps(
+                    {
+                        "contexts": len(cast(list[object], pace_report["contexts"])),
+                        "games": pace_report["games"],
+                        "mean_team_possessions": pace_report["mean_team_possessions"],
+                        "output": str(arguments.output),
+                        "version": pace_report["version"],
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0
+
+        if arguments.command == "nba-player-calibration-plan":
+            try:
+                identity_payload = json.loads(arguments.identity.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as error:
+                raise NbaPlayerIdentityError("invalid player identity JSON") from error
+            if not isinstance(identity_payload, dict):
+                raise NbaPlayerIdentityError("player identity must be an object")
+            calibration_plan = build_player_calibration_plan(
+                load_nba_player_target_set(arguments.targets),
+                identity_payload,
+            )
+            write_json(arguments.output, calibration_plan)
+            print(
+                json.dumps(
+                    {
+                        "output": str(arguments.output),
+                        "players": calibration_plan["players"],
+                        "promotion_ready": calibration_plan["promotion_ready"],
+                        "version": calibration_plan["version"],
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0 if calibration_plan["promotion_ready"] is True else 17
+
+        if arguments.command == "draft-obligation-audit":
+            draft_obligation_report = inspect_draft_obligation_files(
+                arguments.ledger, arguments.assets
+            )
+            if arguments.output is not None:
+                write_json(arguments.output, draft_obligation_report)
+            print(
+                json.dumps(
+                    {
+                        "as_of_year": draft_obligation_report.get("as_of_year"),
+                        "counts": draft_obligation_report.get("counts"),
+                        "ready": draft_obligation_report.get("ready"),
+                        "source_verified": draft_obligation_report.get("source_verified"),
+                        "version": draft_obligation_report.get("ledger_version"),
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0 if draft_obligation_report["ready"] is True else 6
+
+        if arguments.command == "nba-quick-sim-status":
+            result = quick_sim_batch_from_json(arguments.checkpoint.read_text(encoding="utf-8"))
+            print(
+                json.dumps(
+                    {
+                        "batch_id": result.spec.batch_id,
+                        "completed_seasons": len(result.cells),
+                        "target_seasons": result.spec.seasons,
+                        "team_count": result.spec.team_count,
+                        "complete": result.complete,
+                        "batch_sha256": result.batch_sha256,
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0
+
+        if arguments.command == "nba-quick-sim-run":
+            run_manifest_path = arguments.manifest or arguments.checkpoint.with_suffix(
+                ".manifest.json"
+            )
+            quick_sim_run_manifest = run_nba_quick_sim_batch(
+                schema_path=arguments.schema,
+                parameters_path=arguments.parameters,
+                lineup_path=arguments.lineup,
+                profile_path=arguments.profile,
+                strength_path=arguments.strength,
+                checkpoint_path=arguments.checkpoint,
+                manifest_path=run_manifest_path,
+                batch_id=arguments.batch_id,
+                master_seed=arguments.master_seed,
+                seasons=arguments.seasons,
+                maximum_new_seasons=arguments.maximum_new_seasons,
+                game_config=GameClockConfig(
+                    arguments.periods,
+                    arguments.period_seconds,
+                    arguments.possession_seconds,
+                    arguments.overtime_seconds,
+                    arguments.max_overtimes,
+                    True,
+                ),
+                workers=arguments.workers,
+                executor_version=arguments.executor_version,
+                player_roster_path=arguments.player_rosters,
+            )
+            print(
+                json.dumps(
+                    quick_sim_run_manifest["checkpoint"],
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0
+
+        if arguments.command == "nba-aggregate-quick-sim-run":
+            aggregate_manifest_path = arguments.manifest or arguments.checkpoint.with_suffix(
+                ".manifest.json"
+            )
+            aggregate_manifest = run_nba_aggregate_quick_sim_batch(
+                parameter_path=arguments.aggregate_parameters,
+                strength_path=arguments.strength,
+                checkpoint_path=arguments.checkpoint,
+                manifest_path=aggregate_manifest_path,
+                batch_id=arguments.batch_id,
+                master_seed=arguments.master_seed,
+                seasons=arguments.seasons,
+                maximum_new_seasons=arguments.maximum_new_seasons,
+            )
+            print(
+                json.dumps(
+                    aggregate_manifest["checkpoint"],
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0
+
+        if arguments.command == "nba-aggregate-sensitivity":
+            sensitivity_report = run_aggregate_sensitivity(
+                arguments.aggregate_parameters,
+                arguments.strength,
+                arguments.baseline,
+            )
+            write_json(arguments.output, sensitivity_report)
+            print(
+                json.dumps(
+                    {
+                        "baseline_batch_sha256": sensitivity_report["baseline_batch_sha256"],
+                        "output": str(arguments.output),
+                        "variants": len(cast(list[object], sensitivity_report["variants"])),
+                        "version": sensitivity_report["version"],
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0
+
+        if arguments.command == "nba-reality-build":
+            reality, reality_reference = build_nba_reality_payload(
+                arguments.manifest, arguments.cache
+            )
+            write_json(arguments.reality_output, reality)
+            write_json(arguments.reference_output, reality_reference)
+            print(
+                json.dumps(
+                    {
+                        "dataset_id": reality["dataset_id"],
+                        "seasons": len(cast(list[object], reality["seasons"])),
+                        "reality_output": str(arguments.reality_output),
+                        "reference_output": str(arguments.reference_output),
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0
+
+        if arguments.command == "nba-quick-sim-compare":
+            result = quick_sim_batch_from_json(arguments.checkpoint.read_text(encoding="utf-8"))
+            if not result.complete:
+                raise QuickSimBatchError("quick-simulation comparison requires a complete batch")
+            reference = load_quick_sim_reference(arguments.reference.read_text(encoding="utf-8"))
+            comparison_report = compare_quick_sim_summaries(
+                tuple(cell.summary for cell in result.cells),
+                reference,
+            )
+            payload = quick_sim_report_to_json(comparison_report)
+            if arguments.output is None:
+                print(payload)
+            else:
+                write_json(arguments.output, json.loads(payload))
+                print(f"completed: {arguments.output}")
+            return 0 if comparison_report.passed else 14
+
+        if arguments.command == "nba-quick-sim-paired-diff":
+            baseline = quick_sim_batch_from_json(arguments.baseline.read_text(encoding="utf-8"))
+            paired_candidate = quick_sim_batch_from_json(
+                arguments.candidate.read_text(encoding="utf-8")
+            )
+            paired_report = compare_paired_quick_sim_batches(baseline, paired_candidate)
+            write_json(arguments.output, paired_report)
+            print(
+                json.dumps(paired_report, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+            )
+            return 0
+
+        if arguments.command == "nba-quick-sim-consistency":
+            aggregate = quick_sim_batch_from_json(arguments.aggregate.read_text(encoding="utf-8"))
+            full_engine = quick_sim_batch_from_json(
+                arguments.full_engine.read_text(encoding="utf-8")
+            )
+            aggregate_by_seed = {cell.seed: cell.summary for cell in aggregate.cells}
+            full_by_seed = {cell.seed: cell.summary for cell in full_engine.cells}
+            if aggregate.spec != full_engine.spec:
+                raise QuickSimConsistencyError("consistency batches must use the same spec")
+            consistency_gate = (
+                None if arguments.gate is None else load_quick_sim_consistency_gate(arguments.gate)
+            )
+            inputs_verified = None
+            if consistency_gate is not None:
+                if arguments.aggregate_manifest is None or arguments.full_manifest is None:
+                    raise QuickSimConsistencyError(
+                        "consistency gate requires both aggregate and full manifests"
+                    )
+                inputs_verified = verify_quick_sim_consistency_manifests(
+                    consistency_gate,
+                    arguments.aggregate_manifest,
+                    arguments.full_manifest,
+                    arguments.aggregate,
+                    arguments.full_engine,
+                )
+            consistency_report = compare_quick_sim_engines(
+                aggregate_by_seed,
+                full_by_seed,
+                gate=consistency_gate,
+                master_seed=aggregate.spec.master_seed,
+                inputs_verified=inputs_verified,
+            )
+            write_json(arguments.output, consistency_report)
+            print(
+                json.dumps(
+                    consistency_report,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            if consistency_gate is None:
+                return 0
+            return 0 if consistency_report["promotion_ready"] is True else 16
+
+        if arguments.command == "nba-quick-sim-formal-gate":
+            formal_report = evaluate_quick_sim_formal_gate(
+                arguments.checkpoint, arguments.gate, arguments.run_manifest
+            )
+            if arguments.output is not None:
+                write_json(arguments.output, formal_report)
+            print(
+                json.dumps(
+                    formal_report,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0 if formal_report["passed"] is True else 15
+
+        if arguments.command == "nba-shot-profile-evaluate":
+            evaluation = evaluate_nba_shot_profile_audits(
+                load_distribution_audit(arguments.baseline_audit),
+                load_distribution_audit(arguments.candidate_audit),
+                load_nba_shot_profile_set(arguments.profiles),
+            )
+            write_json(arguments.output, evaluation)
+            if not arguments.quiet:
+                print(
+                    f"{evaluation['status']}: RMSE {evaluation['baseline_rmse']} -> "
+                    f"{evaluation['candidate_rmse']}"
+                )
+            return 0
+
+        if arguments.command == "nba-shot-profile-evaluate-batch":
+            reports: list[dict[str, object]] = []
+            for path in arguments.reports:
+                try:
+                    raw = json.loads(path.read_text(encoding="utf-8"))
+                except json.JSONDecodeError as error:
+                    raise NbaShotProfileEvaluationError(
+                        "invalid shot profile evaluation JSON"
+                    ) from error
+                if not isinstance(raw, dict):
+                    raise NbaShotProfileEvaluationError(
+                        "shot profile evaluation report must be an object"
+                    )
+                reports.append(raw)
+            evaluation = aggregate_nba_shot_profile_evaluations(tuple(reports))
+            write_json(arguments.output, evaluation)
+            if not arguments.quiet:
+                print(
+                    f"{evaluation['status']}: {evaluation['improved_runs']}/"
+                    f"{evaluation['runs']} runs improved; RMSE "
+                    f"{evaluation['baseline_rmse']} -> {evaluation['candidate_rmse']}"
+                )
+            return 0
+
+        if arguments.command == "nba-shot-profile-calibrate":
+            calibrated_payload = build_calibrated_nba_shot_profile_payload(
+                arguments.profile,
+                arguments.baseline_audit,
+                calibration_strength=arguments.calibration_strength,
+                contrast_calibration_strengths=(
+                    arguments.rim_contrast_strength,
+                    arguments.midrange_contrast_strength,
+                ),
+                maximum_absolute_offset=arguments.maximum_absolute_offset,
+            )
+            write_json(arguments.output, calibrated_payload)
+            if not arguments.quiet:
+                calibrated_teams = calibrated_payload["teams"]
+                if not isinstance(calibrated_teams, list):
+                    raise NbaShotProfileError("calibrated shot profile teams are invalid")
+                print(f"calibrated: {arguments.output} ({len(calibrated_teams)} teams)")
+            return 0
+
+        if arguments.command == "nba-shot-profile-run":
+            run_manifest = run_nba_shot_profile_experiment(
+                profile_path=arguments.profile,
+                schema_path=arguments.schema,
+                parameters_path=arguments.parameters,
+                lineup_path=arguments.lineup,
+                output_directory=arguments.output,
+                seed=arguments.seed,
+                game_config=GameClockConfig(
+                    arguments.periods,
+                    arguments.period_seconds,
+                    arguments.possession_seconds,
+                    arguments.overtime_seconds,
+                    arguments.max_overtimes,
+                    True,
+                ),
+            )
+            if not arguments.quiet:
+                summary = cast(dict[str, object], run_manifest["summary"])
+                print(
+                    f"{summary['status']}: {summary['games']} games; RMSE "
+                    f"{summary['baseline_rmse']} -> {summary['candidate_rmse']}"
+                )
+            return 0
+
+        if arguments.command == "nba-shot-profile-run-batch":
+            batch_manifest = run_nba_shot_profile_batch(
+                profile_path=arguments.profile,
+                schema_path=arguments.schema,
+                parameters_path=arguments.parameters,
+                lineup_path=arguments.lineup,
+                output_directory=arguments.output,
+                master_seed=arguments.master_seed,
+                runs=arguments.runs,
+                maximum_new_runs=arguments.maximum_new_runs,
+                workers=arguments.workers,
+                game_config=GameClockConfig(
+                    arguments.periods,
+                    arguments.period_seconds,
+                    arguments.possession_seconds,
+                    arguments.overtime_seconds,
+                    arguments.max_overtimes,
+                    True,
+                ),
+            )
+            if not arguments.quiet:
+                print(
+                    f"shot-profile batch: {batch_manifest['completed_runs']}/"
+                    f"{arguments.runs} runs complete"
+                )
+            return 0
+
+        if arguments.command == "nba-shot-profile-batch-status":
+            print(
+                json.dumps(
+                    inspect_nba_shot_profile_batch(arguments.manifest),
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0
+
+        if arguments.command == "nba-franchise-checkpoint-verify":
+            state, _, receipt = load_nba_franchise_checkpoint(
+                arguments.checkpoint,
+                expected_file_sha256=arguments.expected_file_sha256,
+            )
+            print(
+                json.dumps(
+                    {
+                        **asdict(receipt),
+                        "management_year": state.management.season_year,
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0
+
+        if arguments.command == "nba-franchise-status":
+            print(
+                json.dumps(
+                    asdict(inspect_nba_franchise_manifest(arguments.manifest)),
+                    separators=(",", ":"),
+                    sort_keys=True,
                 )
             )
             return 0
@@ -876,6 +2006,7 @@ def main(argv: list[str] | None = None) -> int:
         ArtifactRetentionError,
         AuditGateError,
         ConfigError,
+        DraftObligationError,
         ExperimentMatrixError,
         MatrixContrastError,
         MatrixContrastRobustnessError,
@@ -883,8 +2014,31 @@ def main(argv: list[str] | None = None) -> int:
         MatrixStyleCoverageError,
         MatrixRobustnessError,
         NbaReferenceError,
+        NbaDataAuditError,
+        NbaAggregateQuickSimError,
+        NbaShotProfileError,
+        NbaShotProfileEvaluationError,
+        NbaShotProfileBatchError,
+        NbaShotProfileRunnerError,
+        NbaTeamStrengthError,
+        NbaDataPipelineError,
+        NbaPlayerIdentityError,
+        NbaPlayerEvaluationError,
+        NbaPlayerHoldoutError,
+        NbaPlayerTargetError,
+        NbaQuickSimRunnerError,
+        NbaRealityError,
+        NBAFranchiseArtifactError,
+        NBAFranchiseRunnerError,
         ParameterOverlayError,
+        PaceDiagnosticError,
         PlayerProfileOverlayError,
+        ProjectStatusError,
+        QuickSimBatchError,
+        QuickSimPairingError,
+        QuickSimComparisonError,
+        QuickSimConsistencyError,
+        QuickSimFormalGateError,
         ReplayError,
         RealismTargetError,
         ShardMergeError,

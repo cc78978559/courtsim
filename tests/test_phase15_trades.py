@@ -10,6 +10,7 @@ from courtsim.manager_ai import ManagerPolicyMode, ManagerProfile
 from courtsim.manager_trade import evaluate_trade_shadow
 from courtsim.rosters import RosterSnapshot
 from courtsim.trades import (
+    ContractTradeCondition,
     TradeOffer,
     TradeRules,
     apply_trade,
@@ -139,6 +140,27 @@ def test_trade_rejects_unowned_assets_and_preserves_state() -> None:
     assert initial == management()
 
 
+def test_trade_rejects_draft_obligation_frozen_pick() -> None:
+    offer = TradeOffer(20, "home", "away", (), (), (1,), (2,))
+    rejected = trade_rejections(
+        management(),
+        picks(),
+        offer,
+        contract_rules(),
+        TradeRules(),
+        frozen_pick_ids=frozenset({1}),
+    )
+    assert "draft-obligation-frozen:1" in rejected
+    with pytest.raises(ValueError, match="draft-obligation-frozen:1"):
+        apply_trade(
+            management(),
+            picks(),
+            offer,
+            contract_rules(),
+            frozen_pick_ids=frozenset({1}),
+        )
+
+
 def test_trade_rejects_roster_and_salary_matching_failures() -> None:
     initial = management(salary_a=40_000_000, salary_b=2_000_000)
     roster_offer = TradeOffer(3, "home", "away", (1, 2), (11,))
@@ -249,3 +271,29 @@ def test_illegal_trade_is_visible_to_both_manager_traces() -> None:
     for approval in shadow.approvals:
         accept = next(item for item in approval.trace.candidates if item.candidate_id == "accept")
         assert not accept.eligible
+
+
+def test_contract_conditions_are_binding_at_execution_time() -> None:
+    initial = management(salary_a=5_000_000, salary_b=5_000_000)
+    legal = TradeOffer(
+        8,
+        "home",
+        "away",
+        (1,),
+        (11,),
+        contract_conditions=(ContractTradeCondition(11, 5_000_000, 2),),
+    )
+    assert not trade_rejections(initial, picks(), legal, contract_rules(), TradeRules())
+
+    rejected = replace(
+        legal,
+        trade_id=9,
+        contract_conditions=(ContractTradeCondition(11, 4_999_999, 2),),
+    )
+    assert "contract-condition:11" in trade_rejections(
+        initial,
+        picks(),
+        rejected,
+        contract_rules(),
+        TradeRules(),
+    )

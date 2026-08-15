@@ -1,0 +1,42 @@
+{
+  "game_version": "real-nba-team-box-guardband-v1",
+  "metrics": [
+    {
+      "maximum": 0.1808030610091202,
+      "metric": "win-rate-stddev",
+      "minimum": 0.1001905420941415
+    },
+    {
+      "maximum": 104.65008130081301,
+      "metric": "pace-possessions-per-team",
+      "minimum": 97.80577235772357
+    },
+    {
+      "maximum": 118.29845448584616,
+      "metric": "offensive-rating",
+      "minimum": 107.53286847129719
+    },
+    {
+      "maximum": 7.393381480158248,
+      "metric": "point-differential-stddev",
+      "minimum": 2.446501750390316
+    },
+    {
+      "maximum": 0.6166666666666667,
+      "metric": "playoff-upset-rate",
+      "minimum": 0.25
+    },
+    {
+      "maximum": 3.0,
+      "metric": "champion-seed-mean",
+      "minimum": 1.0
+    }
+  ],
+  "observed_seasons": 3,
+  "reference_id": "real-nba-2022-25-quick-sim-v1",
+  "roster_date": "2026-08-01",
+  "source_label": "SportsDataverse hoopR NBA team box scores (ESPN source), 2022-23 through 2024-25; formal ranges include frozen anti-overfit guardbands",
+  "source_status": "observed",
+  "team_count": 30,
+  "version": "quick-sim-comparison-v1"
+}

@@ -11,31 +11,51 @@
 ## 初次准备
 
 ```powershell
-.\tools.ps1 bootstrap
-.\tools.ps1 doctor
-.\tools.ps1 check
+.\tools.cmd bootstrap
+.\tools.cmd doctor
+.\tools.cmd check
 ```
 
 `bootstrap` 优先使用本地 wheelhouse。没有本地安装包时才会联网下载。
+`tools.cmd` 只对当前子进程绕过 PowerShell 脚本策略，不修改机器配置。
 
 ## 日常命令
 
 ```powershell
-.\tools.ps1 format
-.\tools.ps1 lint
-.\tools.ps1 typecheck
-.\tools.ps1 test
-.\tools.ps1 coverage
-.\tools.ps1 check
+.\tools.cmd check-static
+.\tools.cmd check-unit
+.\tools.cmd check-fast
+.\tools.cmd check-slow
+.\tools.cmd check-franchise
+.\tools.cmd check
 ```
 
-`check`依次执行格式检查、静态检查、严格类型检查、测试和覆盖率门槛。
+`check-fast` 排除 `slow` 标记；`check` 依次执行格式检查、静态检查、严格类型检查、
+全部测试和覆盖率门槛。失败时控制台只保留有界摘要，完整输出写入
+`work/logs/tooling/`。
+
+## 机器状态与 NBA 产物
+
+```powershell
+.\tools.cmd project-status
+.\tools.cmd nba-data sync <manifest.json>
+.\tools.cmd nba-data build <manifest.json> <summary.json>
+.\tools.cmd nba-data status <manifest.json> --output <summary.json>
+.\tools.cmd nba-quick-sim-status <checkpoint.json>
+.\tools.cmd nba-quick-sim-compare <checkpoint.json> <reference.json>
+.\tools.cmd nba-franchise-checkpoint-verify <checkpoint.json.gz>
+.\tools.cmd nba-franchise-status <manifest.json>
+```
+
+这些入口默认输出紧凑 JSON，并在报告状态前验证治理哈希或产物哈希。
+`nba-data` 原始缓存位于 `.cache/nba-data/` 且不进入 Git；构建过程逐行聚合，
+详情见 [NBA 本地数据流水线](nba-local-data-pipeline-v1.md)。
 
 ## 模拟产物工具
 
 ```powershell
-.\tools.ps1 replay work/runs/demo/events.jsonl --possession 3
-.\tools.ps1 verify work/runs/demo/manifest.json
+.\tools.cmd replay work/runs/demo/events.jsonl --possession 3
+.\tools.cmd verify work/runs/demo/manifest.json
 ```
 
 Replay只读取已保存事件，不重新运行模拟。Verify会重新计算清单中输入和输出文件的SHA-256。
@@ -43,4 +63,3 @@ Replay只读取已保存事件，不重新运行模拟。Verify会重新计算�
 ## Trace边界
 
 正式事件记录“发生了什么”，Decision Trace记录“AI为什么这样选择”。Trace包含候选项、权重、概率、选中项和随机流名称，默认批跑时可以关闭。
-

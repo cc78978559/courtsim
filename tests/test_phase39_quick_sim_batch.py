@@ -7,6 +7,7 @@ from courtsim.analysis.quick_sim_batch import (
     QuickSimBatchError,
     QuickSimBatchResult,
     QuickSimBatchSpec,
+    append_precomputed_quick_sim_summaries,
     quick_sim_batch_from_json,
     quick_sim_batch_to_json,
     run_quick_sim_batch,
@@ -47,6 +48,32 @@ def test_batch_resumes_to_the_same_hash_as_one_shot_execution() -> None:
     assert resumed == one_shot
     assert resumed.complete
     assert len({cell.seed for cell in resumed.cells}) == 5
+
+
+def test_batch_round_trips_optional_team_rank_order() -> None:
+    rank_order = tuple(f"team-{index:02d}" for index in range(30))
+
+    def ranked_executor(season_id: str, seed: int) -> QuickSimSeasonSummary:
+        return replace(_executor(season_id, seed), team_rank_order=rank_order)
+
+    result = run_quick_sim_batch(QuickSimBatchSpec("ranked", 17, 1), ranked_executor)
+    restored = quick_sim_batch_from_json(quick_sim_batch_to_json(result))
+    assert restored == result
+    assert restored.cells[0].summary.team_rank_order == rank_order
+
+
+def test_precomputed_wave_has_the_same_canonical_batch_hash() -> None:
+    spec = QuickSimBatchSpec("parallel-wave", 20260801, 4)
+    expected = run_quick_sim_batch(spec, _executor)
+    first = append_precomputed_quick_sim_summaries(
+        spec, tuple(cell.summary for cell in expected.cells[:2])
+    )
+    result = append_precomputed_quick_sim_summaries(
+        spec,
+        tuple(cell.summary for cell in expected.cells[2:]),
+        previous=first,
+    )
+    assert result == expected
 
 
 def test_batch_rejects_tampered_checkpoint_and_mismatched_executor() -> None:

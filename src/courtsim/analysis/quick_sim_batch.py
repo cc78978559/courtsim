@@ -124,6 +124,49 @@ def run_quick_sim_batch(
     )
 
 
+def append_precomputed_quick_sim_summaries(
+    spec: QuickSimBatchSpec,
+    summaries: tuple[QuickSimSeasonSummary, ...],
+    *,
+    previous: QuickSimBatchResult | None = None,
+) -> QuickSimBatchResult:
+    """Canonically append independently computed contiguous season summaries."""
+    if previous is not None and previous.spec != spec:
+        raise QuickSimBatchError("precomputed quick-sim batch spec differs")
+    cells = list(previous.cells if previous is not None else ())
+    if len(cells) + len(summaries) > spec.seasons:
+        raise QuickSimBatchError("precomputed quick-sim batch has too many summaries")
+    for offset, summary in enumerate(summaries):
+        season_index = len(cells)
+        expected_id = f"{spec.batch_id}:season-{season_index + 1:04d}"
+        seed = derive_seed(
+            spec.master_seed,
+            QUICK_SIM_BATCH_VERSION,
+            spec.batch_id,
+            season_index,
+        )
+        if summary.season_id != expected_id or summary.team_count != spec.team_count:
+            raise QuickSimBatchError(
+                f"precomputed quick-sim summary differs at wave offset {offset}"
+            )
+        cells.append(
+            QuickSimBatchCell(
+                season_index,
+                expected_id,
+                seed,
+                summary,
+                _summary_digest(summary),
+            )
+        )
+    canonical_cells = tuple(cells)
+    return QuickSimBatchResult(
+        spec,
+        canonical_cells,
+        len(canonical_cells) == spec.seasons,
+        _batch_digest(spec, canonical_cells),
+    )
+
+
 def quick_sim_batch_to_json(result: QuickSimBatchResult) -> str:
     return json.dumps(
         {
@@ -218,7 +261,7 @@ def quick_sim_batch_from_json(payload: str) -> QuickSimBatchResult:
 
 
 def _summary_to_dict(summary: QuickSimSeasonSummary) -> dict[str, object]:
-    return {
+    payload: dict[str, object] = {
         "season_id": summary.season_id,
         "team_count": summary.team_count,
         "games": summary.games,
@@ -229,10 +272,15 @@ def _summary_to_dict(summary: QuickSimSeasonSummary) -> dict[str, object]:
         "playoff_upset_rate": summary.playoff_upset_rate,
         "champion_seed": summary.champion_seed,
     }
+    if summary.team_rank_order is not None:
+        payload["team_rank_order"] = list(summary.team_rank_order)
+    if summary.home_win_rate is not None:
+        payload["home_win_rate"] = summary.home_win_rate
+    return payload
 
 
 def _summary_from_dict(raw: dict[object, object]) -> QuickSimSeasonSummary:
-    if set(raw) != {
+    required = {
         "season_id",
         "team_count",
         "games",
@@ -242,10 +290,20 @@ def _summary_from_dict(raw: dict[object, object]) -> QuickSimSeasonSummary:
         "point_differential_stddev",
         "playoff_upset_rate",
         "champion_seed",
-    }:
+    }
+    optional = {"team_rank_order", "home_win_rate"}
+    if not required <= set(raw) or not set(raw) <= required | optional:
         raise QuickSimBatchError("invalid quick-sim summary keys")
     upset = raw["playoff_upset_rate"]
     champion = raw["champion_seed"]
+    rank_order_raw = raw.get("team_rank_order")
+    if rank_order_raw is not None and not isinstance(rank_order_raw, list):
+        raise QuickSimBatchError("quick-sim batch team_rank_order must be a list")
+    rank_order = (
+        None
+        if rank_order_raw is None
+        else tuple(_require_string(item, "team_rank_order item") for item in rank_order_raw)
+    )
     return QuickSimSeasonSummary(
         _require_string(raw["season_id"], "season_id"),
         _require_int(raw["team_count"], "team_count"),
@@ -256,6 +314,12 @@ def _summary_from_dict(raw: dict[object, object]) -> QuickSimSeasonSummary:
         _require_number(raw["point_differential_stddev"], "point_differential_stddev"),
         None if upset is None else _require_number(upset, "playoff_upset_rate"),
         None if champion is None else _require_int(champion, "champion_seed"),
+        rank_order,
+        (
+            None
+            if raw.get("home_win_rate") is None
+            else _require_number(raw["home_win_rate"], "home_win_rate")
+        ),
     )
 
 

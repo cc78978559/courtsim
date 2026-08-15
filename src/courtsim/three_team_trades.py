@@ -6,7 +6,12 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from typing import cast
 
-from courtsim.cap_mechanics import CapLedger, CapMechanicsRules, evaluate_trade_salary
+from courtsim.cap_mechanics import (
+    CapLedger,
+    CapMechanicsRules,
+    evaluate_trade_salary,
+    transfer_bird_rights,
+)
 from courtsim.career import CareerPlayer
 from courtsim.draft_assets import TradableDraftPick
 from courtsim.management import (
@@ -141,6 +146,7 @@ class ThreeTeamTradeResult:
     initial_cap_ledger: CapLedger | None = None
     final_cap_ledger: CapLedger | None = None
     cap_rules: CapMechanicsRules | None = None
+    frozen_pick_ids: tuple[int, ...] = ()
     version: str = THREE_TEAM_TRADE_VERSION
 
 
@@ -175,6 +181,7 @@ def three_team_trade_rejections(
     *,
     cap_ledger: CapLedger | None = None,
     cap_rules: CapMechanicsRules | None = None,
+    frozen_pick_ids: frozenset[int] = frozenset(),
 ) -> tuple[str, ...]:
     rejected: list[str] = []
     if cap_ledger is not None and cap_rules is None:
@@ -204,6 +211,8 @@ def three_team_trade_rejections(
                 f"player-not-owned:{player_route.from_team_id}:{player_route.player_id}"
             )
     for pick_route in offer.pick_routes:
+        if pick_route.pick_id in frozen_pick_ids:
+            rejected.append(f"draft-obligation-frozen:{pick_route.pick_id}")
         pick = pick_map.get(pick_route.pick_id)
         if pick is None or pick.owner_team_id != pick_route.from_team_id:
             rejected.append(f"pick-not-owned:{pick_route.from_team_id}:{pick_route.pick_id}")
@@ -278,6 +287,7 @@ def apply_three_team_trade(
     *,
     cap_ledger: CapLedger | None = None,
     cap_rules: CapMechanicsRules | None = None,
+    frozen_pick_ids: frozenset[int] = frozenset(),
 ) -> ThreeTeamTradeResult:
     if cap_ledger is not None and cap_rules is None:
         cap_rules = CapMechanicsRules()
@@ -289,6 +299,7 @@ def apply_three_team_trade(
         trade_rules,
         cap_ledger=cap_ledger,
         cap_rules=cap_rules,
+        frozen_pick_ids=frozen_pick_ids,
     )
     if rejected:
         raise ValueError("illegal three-team trade: " + ", ".join(rejected))
@@ -362,6 +373,8 @@ def apply_three_team_trade(
                 rules=cap_rules,
             )
             final_cap_ledger = cap_result.final_ledger
+        assert final_cap_ledger is not None
+        final_cap_ledger = transfer_bird_rights(final_cap_ledger, player_destinations)
     validate_management_state(
         final_management,
         contract_rules,
@@ -378,6 +391,7 @@ def apply_three_team_trade(
         cap_ledger,
         final_cap_ledger,
         cap_rules,
+        tuple(sorted(frozen_pick_ids)),
     )
 
 
@@ -390,6 +404,7 @@ def audit_three_team_trade(result: ThreeTeamTradeResult) -> ThreeTeamTradeAudit:
         result.trade_rules,
         cap_ledger=result.initial_cap_ledger,
         cap_rules=result.cap_rules,
+        frozen_pick_ids=frozenset(result.frozen_pick_ids),
     )
     if (
         replayed.final_management != result.final_management
@@ -416,6 +431,9 @@ def evaluate_three_team_trade_shadow(
     contract_rules: ContractRules,
     trade_rules: TradeRules = DEFAULT_TRADE_RULES,
     manager_rules: ManagerTradeRules = DEFAULT_MANAGER_TRADE_RULES,
+    cap_ledger: CapLedger | None = None,
+    cap_rules: CapMechanicsRules | None = None,
+    frozen_pick_ids: frozenset[int] = frozenset(),
 ) -> ThreeTeamTradeShadowResult:
     if set(profiles) != set(offer.team_ids):
         raise ValueError("three-team profiles must cover every participant exactly")
@@ -430,6 +448,9 @@ def evaluate_three_team_trade_shadow(
         offer,
         contract_rules,
         trade_rules,
+        cap_ledger=cap_ledger,
+        cap_rules=cap_rules,
+        frozen_pick_ids=frozen_pick_ids,
     )
     approvals: list[TradeManagerApproval] = []
     ledger = ManagerDecisionLedger()

@@ -1,5 +1,41 @@
 # Changelog
 
+## Unreleased
+
+- Separate the `0.55.0.dev0` WIP candidate from the frozen `0.54.0` release registry, promote the
+  franchise runner to v5/schema 3, verify all 40 frozen artifact hashes, and track the exact v6
+  long-holdout inputs.
+- Remove clean-checkout test dependence on ignored `work/` artifacts and run CI for `agent/**`
+  backup branches.
+- Treat manager learning as current-manager tenure so replacements start fresh without invalidating
+  an otherwise continuous franchise checkpoint.
+- Clear approved bilateral and three-team offers together with deterministic team/player/pick locks,
+  allowing non-conflicting markets to execute in the same season.
+- Derive contract demands from destination-manager risk and development preferences, retain complete
+  counter/reject trees, and execute only negotiations that reach accepted terms.
+
+- Create a remote WIP backup branch without merging, tagging, or marking a release.
+- Replace the compressed 92-day NBA calendar with a 174-day schedule and calendar realism gates.
+- Guarantee playable post-offseason rosters, two-round 60-player draft classes, and long contract-cliff continuity.
+- Enforce draft-obligation freezes through bilateral and three-team offer generation and execution.
+- Complete Bird-rights accrual, transfer, clearing, signing, and cap-ledger lifecycle, including AI over-cap signings.
+- Make franchise retention crash-safe and bind resumes to a canonical execution-configuration hash.
+- Use one shared regular-season-record rule for NBA Finals home court in both simulation engines.
+- Integrate v2 contract-condition negotiation trees into the three-team franchise market.
+- Add source-pinned real NBA player rosters, target-shaped rotations, and a dedicated formal holdout gate.
+- Correct Git artifact boundaries and add packaging, license, and cross-machine WIP handoff checks.
+- Reallocate the unchanged 1,230-game matchup matrix across 164 game dates in a 174-day season,
+  with a separate seven-day All-Star break and hard daily/team rest-distribution gates.
+- Add possession-free `PLAYER_AGGREGATES` traces, probabilistic 11-15 player rotations with
+  low-sample shrinkage, plus a resumable hash-chained player holdout and non-zero formal gate for
+  minutes, usage, efficiency, shot structure, and zero-minute coverage.
+- Freeze the unpromoted v7 real-player candidate, its development-only aggregate calibration,
+  disjoint 30-season holdout identity, and paired macro/player/engine gate contracts.
+- Complete the frozen v7 30 full-engine + 30 aggregate holdout, pass all macro/player/consistency
+  gates, and record a local candidate receipt while leaving v6 release governance immutable.
+- Pass clean-checkout Ubuntu, Windows, and package-smoke CI for the v7 freeze commit without
+  merging, tagging, or creating a release.
+
 ## [0.52.0] - 2026-07-26
 
 - Add a resumable automatic multi-season NBA franchise runner.

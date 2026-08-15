@@ -5,6 +5,7 @@ from test_phase15_trades import contract_rules, management
 
 from courtsim.draft_assets import (
     DraftAssetLedger,
+    DraftPickCondition,
     DraftPickSwapRight,
     FutureDraftPickAsset,
     draft_asset_ledger_from_dict,
@@ -162,3 +163,53 @@ def test_ledger_rejects_duplicate_native_pick_and_strict_json_keys() -> None:
     payload["extra"] = True
     with pytest.raises(ValueError, match="keys"):
         draft_asset_ledger_from_dict(payload)
+
+
+def test_conditional_pick_converts_to_next_year_second_round() -> None:
+    ledger = DraftAssetLedger(
+        (
+            FutureDraftPickAsset(
+                1,
+                2029,
+                1,
+                "A",
+                "B",
+                deferrals_remaining=1,
+                conditions=(DraftPickCondition(1, 2, "convert", 2),),
+            ),
+            FutureDraftPickAsset(2, 2029, 1, "B", "B"),
+            FutureDraftPickAsset(3, 2030, 2, "A", "A"),
+        ),
+        next_asset_id=4,
+    )
+    settlement = settle_draft_assets(
+        ledger,
+        draft_year=2029,
+        original_team_order=("A", "B"),
+    )
+    current = next(item for item in settlement.picks if item.original_team_id == "A")
+    converted = next(
+        item
+        for item in settlement.final_ledger.picks
+        if item.draft_year == 2030 and item.round_number == 2 and item.original_team_id == "A"
+    )
+    assert current.owner_team_id == "A"
+    assert converted.owner_team_id == "B"
+    assert settlement.converted_asset_ids == (1,)
+
+
+def test_v1_draft_asset_payload_migrates_to_v2() -> None:
+    payload = draft_asset_ledger_to_dict(
+        DraftAssetLedger((FutureDraftPickAsset(1, 2029, 1, "A", "A"),), next_asset_id=2)
+    )
+    payload["schema_version"] = 1
+    payload["version"] = "draft-asset-v1"
+    raw_picks = payload["picks"]
+    assert isinstance(raw_picks, list)
+    for pick in raw_picks:
+        assert isinstance(pick, dict)
+        pick["version"] = "draft-asset-v1"
+        del pick["conditions"]
+    restored = draft_asset_ledger_from_dict(payload)
+    assert restored.version == "draft-asset-v2"
+    assert restored.picks[0].conditions == ()

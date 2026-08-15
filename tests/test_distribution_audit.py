@@ -153,6 +153,9 @@ def test_distribution_metrics_obey_count_and_share_identities() -> None:
     assert sum(item.share for item in audit.shot_zone_shares) == pytest.approx(1.0)
     assert sum(item.share for item in audit.play_family_shares) == pytest.approx(1.0)
     assert sum(item.share for item in audit.coverage_shares) == pytest.approx(1.0)
+    assert sum(item.share for item in audit.route_shares) == pytest.approx(1.0)
+    assert sum(item.share for item in audit.creation_mode_shares) == pytest.approx(1.0)
+    assert sum(item.share for item in audit.tactical_action_shares) == pytest.approx(1.0)
     for team_id in ("home", "away"):
         assert sum(
             item.share for item in audit.player_usage_shares if item.team_id == team_id
@@ -161,9 +164,15 @@ def test_distribution_metrics_obey_count_and_share_identities() -> None:
     assert sum(team.possessions for team in audit.team_metrics) == 36
     for team in audit.team_metrics:
         assert sum(zone.share for zone in team.shot_zone_shares) == pytest.approx(1.0)
+        assert sum(item.share for item in team.route_shares) == pytest.approx(1.0)
+        assert sum(item.share for item in team.creation_mode_shares) == pytest.approx(1.0)
+        assert sum(item.share for item in team.tactical_action_shares) == pytest.approx(1.0)
     metrics = audit_metric_map(audit)
     assert metrics["team.home.mean_team_possessions"] == pytest.approx(3.0)
     assert metrics["team.away.mean_team_possessions"] == pytest.approx(3.0)
+    assert "route_share.INITIATOR_SELF" in metrics
+    assert "creation_mode_share.SELF_CREATED" in metrics
+    assert "tactical_action_share.ISOLATION_ATTACK" in metrics
     assert distribution_audit_to_json(audit) == distribution_audit_to_json(audit)
 
     with pytest.raises(ValueError):

@@ -143,7 +143,7 @@ def test_playing_time_derives_only_from_possession_lineups() -> None:
         validate_game_result(tampered, GameClockConfig(1, 30, 10))
 
 
-def test_game_schema_v2_round_trips_and_v1_remains_readable() -> None:
+def test_game_schema_v4_round_trips_and_v1_remains_readable() -> None:
     result = rotation_game().result
     assert game_result_from_json(game_result_to_json(result), GameClockConfig(1, 30, 10)) == result
     raw = game_result_to_dict(result)
@@ -153,6 +153,10 @@ def test_game_schema_v2_round_trips_and_v1_remains_readable() -> None:
     raw.pop("final_fatigue")
     raw.pop("rotation_version")
     raw.pop("fatigue_version")
+    raw.pop("player_shot_zones")
+    raw.pop("possessions_omitted")
+    raw.pop("home_possessions")
+    raw.pop("away_possessions")
     raw_possessions = raw["possessions"]
     assert isinstance(raw_possessions, list)
     for possession in raw_possessions:

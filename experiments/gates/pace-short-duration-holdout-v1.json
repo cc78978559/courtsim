@@ -1,0 +1,16 @@
+{
+  "experiment_id": "pace-short-duration-v1",
+  "freeze_sha256": "709ade7aaacaa48b9bed00326b5e5d3bd415413c284ac98301742d4f671ab377",
+  "holdout_seeds_sha256": "8d61b643a1a2b3bebe922a1f4217982b43f45b9d2e34e442ac9745c99363e6b1",
+  "maximum_pace": 98.43333333333334,
+  "mean_pace": 98.26666666666667,
+  "minimum_pace": 98.10833333333333,
+  "passed": true,
+  "schema_version": 1,
+  "seeds": 3,
+  "target": {
+    "maximum": 104.6500813,
+    "minimum": 97.80577236
+  },
+  "version": "pace-holdout-evaluation-v1"
+}

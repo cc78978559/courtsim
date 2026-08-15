@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "nba_franchise_runner_version": "nba-franchise-runner-v5",
+  "nba_franchise_artifact_version": "nba-franchise-artifact-v4",
+  "nba_franchise_version": "nba-franchise-v6",
+  "manifest_schema": 3,
+  "legacy_manifest_schemas": [1, 2, 3],
+  "legacy_runner_versions": [
+    "nba-franchise-runner-v2",
+    "nba-franchise-runner-v3",
+    "nba-franchise-runner-v4"
+  ],
+  "execution_config_sha256_required": true,
+  "legacy_unbound_execution_config_sha256": true,
+  "retention_two_phase_commit": true,
+  "manifest_durable_before_garbage_collection": true,
+  "deterministic_season_seeds": true,
+  "per_checkpoint_seed_version": true,
+  "checkpoint_after_every_season": true,
+  "verified_contiguous_metadata_prefix": true,
+  "retained_file_hashes_verified": true,
+  "retained_state_hashes_verified": true,
+  "bounded_new_seasons_per_call": true,
+  "complete_run_noop": true
+}

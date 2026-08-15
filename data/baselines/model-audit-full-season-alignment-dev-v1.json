@@ -1,0 +1,24 @@
+{
+  "candidate": true,
+  "development_only": true,
+  "completed_full_seasons": 3,
+  "mean_team_possessions": 98.26666666666665,
+  "points_per_100_possessions": 111.5,
+  "team_score_stddev": 14.0,
+  "rating_offset_margin_points": 2.5,
+  "methodology": "Rounded parameters selected from the three development full-engine seasons; requires disjoint holdout validation.",
+  "development_batch": {
+    "batch_id": "full-engine-pace-v1",
+    "master_seed": 20260920,
+    "batch_sha256": "1af29fc7b300bfa0b890f7e2eac0c23142b53dc51f0b330b3b69cd8ed20c7496"
+  },
+  "forbidden_holdout_master_seeds": [
+    20260920,
+    20260921
+  ],
+  "parameter_selection": {
+    "base_offensive_rating": "Rounded to one decimal rather than fitting the observed 111.5578 exactly.",
+    "team_score_stddev": "Rounded to a whole point after single-factor development sensitivity.",
+    "rating_offset_margin_points": "Rounded to one decimal after single-factor development sensitivity."
+  }
+}

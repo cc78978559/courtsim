@@ -1,4 +1,5 @@
 from collections import Counter
+from itertools import pairwise
 
 import pytest
 
@@ -9,6 +10,7 @@ from courtsim.nba_league import (
     generate_nba_schedule,
     nba_alignment_from_dict,
     nba_alignment_to_dict,
+    nba_series_home_court_order,
     resolve_nba_playoffs,
     resolve_play_in,
 )
@@ -17,6 +19,20 @@ from courtsim.playoffs import PlayoffSeed
 
 def team_ids() -> tuple[str, ...]:
     return tuple(f"T{index:02d}" for index in range(1, 31))
+
+
+def test_series_home_court_uses_record_for_finals_and_seed_within_conference() -> None:
+    seeds = {"E1": 1, "W4": 4, "W1": 1, "E2": 2}
+    records = {"E1": (50, 300), "W4": (60, 100), "W1": (50, 200), "E2": (50, 200)}
+    assert nba_series_home_court_order(
+        "E1", "W4", conference="nba", seed_by_team=seeds, regular_season_records=records
+    ) == ("W4", "E1")
+    assert nba_series_home_court_order(
+        "W4", "W1", conference="west", seed_by_team=seeds, regular_season_records=records
+    ) == ("W1", "W4")
+    assert nba_series_home_court_order(
+        "W1", "E2", conference="nba", seed_by_team=seeds, regular_season_records=records
+    ) == ("E2", "W1")
 
 
 def test_thirty_team_schedule_has_1230_games_and_82_per_team() -> None:
@@ -37,6 +53,36 @@ def test_thirty_team_schedule_has_1230_games_and_82_per_team() -> None:
         }
         assert len(games) <= 15
         assert len(participants) == len(games) * 2
+
+
+def test_thirty_team_schedule_passes_calendar_distribution_gates() -> None:
+    schedule = generate_nba_schedule(team_ids())
+    assert schedule.games[0].day == 1
+    assert schedule.games[-1].day == 174
+    games_by_day = Counter(game.day for game in schedule.games)
+    assert 158 <= len(games_by_day) <= 166
+    assert 8 <= 174 - len(games_by_day) <= 16
+    assert sum(6 <= games <= 9 for games in games_by_day.values()) >= 140
+    assert sum(games >= 14 for games in games_by_day.values()) <= 12
+    off_days = tuple(day for day in range(1, 175) if day not in games_by_day)
+    off_day_runs: list[list[int]] = []
+    for day in off_days:
+        if not off_day_runs or day != off_day_runs[-1][-1] + 1:
+            off_day_runs.append([])
+        off_day_runs[-1].append(day)
+    assert sorted(map(len, off_day_runs)) == [1, 1, 1, 7]
+    for team_id in team_ids():
+        days = tuple(
+            game.day for game in schedule.games if team_id in (game.home_team_id, game.away_team_id)
+        )
+        gaps = tuple(second - first for first, second in pairwise(days))
+        assert 12 <= sum(gap == 1 for gap in gaps) <= 20
+        assert 50 <= sum(gap == 2 for gap in gaps) <= 72
+        assert 7 <= max(gap - 1 for gap in gaps) <= 14
+        assert all(
+            not (first == second == third == 1)
+            for first, second, third in zip(gaps, gaps[1:], gaps[2:], strict=False)
+        )
 
 
 def test_schedule_uses_division_conference_and_interconference_series_weights() -> None:

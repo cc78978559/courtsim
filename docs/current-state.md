@@ -2,10 +2,13 @@
 
 这是给开发者和外部模型使用的低上下文入口。除非任务涉及历史原因或某个节点的
 详细公式，否则先读本文件，再按下方路由读取少量相关源码或阶段文档。
+跨机器接续使用 `docs/handoff-v0.55.md`；`handoff-v0.52.md` 和
+`handoff-v0.54.md` 只保留为历史快照。
 
 ## 当前冻结版本
 
-- 引擎候选版本：`0.52.0`
+- 冻结引擎版本：`0.54.0`；当前 GitHub 分支使用 `0.55.0.dev0` WIP candidate，
+  不改变冻结 release。
 - 模型结构：`data/model_schema_demo_v1_12.json`
 - 模型参数：`data/model_parameters_demo_1.4.0.json`
 - 球员夹具：`examples/calibration_lineup_v1.json`
@@ -15,10 +18,13 @@
 - 正式发布清单：`governance/current-release.json`
 - NBA 核心目标：`experiments/nba-2024-25-regular-season-core-v1.json`
 - NBA 罚球目标：`experiments/nba-2024-25-regular-season-free-throws-v1.json`
-- 30 队快速模拟：`nba-quick-sim-executor-v5`
-- 完整赛季学习循环：`nba-franchise-v3`
-- 原子存档：`nba-franchise-artifact-v1`
-- 多赛季恢复运行器：`nba-franchise-runner-v1`
+- 30 队快速模拟：冻结 release 为 `nba-quick-sim-executor-v6`；当前 WIP 候选
+  `nba-quick-sim-executor-v7` 已通过本地 30+30 未见种子现实门禁和远端 Ubuntu、
+  Windows、package-smoke CI，尚未合并或晋级 release。
+- 交易和工资帽完整赛季循环：`nba-franchise-v6`
+- 压缩且可迁移的原子存档：`nba-franchise-artifact-v4`
+- 带保留策略的多赛季恢复运行器：WIP 为 `nba-franchise-runner-v5` / schema 3；
+  冻结 0.54 合同仍为 runner v4 / schema 2
 
 独立种子 `20260728` 的 100 场审计通过 10 项核心目标、3 项罚球目标和
 37 项回归门禁。冻结审计 SHA-256：
@@ -116,7 +122,11 @@ OFF_BALL_ACTION
 ## 日常验证
 
 ```powershell
-.\tools.ps1 check
+.\tools.cmd project-status
+.\tools.cmd check-static
+.\tools.cmd check-fast
+.\tools.cmd check
+.\tools.cmd check-franchise
 .\tools.ps1 verify work/runs/<run>/manifest.json
 .\tools.ps1 audit-check <audit.json> <regression-gates.json>
 .\tools.ps1 audit-score <audit.json> <realism-targets.json>
@@ -131,9 +141,14 @@ OFF_BALL_ACTION
 .\tools.ps1 model-audit --profile <tested.json> --opponent-profile <baseline.json> ...
 ```
 
-`check` 包含格式、静态检查、严格类型检查、测试和 85% 覆盖率门槛。
+`project-status` 是面向代理和跨机器接续的单行 JSON 入口；它验证冻结治理哈希并
+报告版本、Git 状态和可用能力。`check-fast` 排除显式标记的慢速完整 NBA/franchise
+路径；`check` 包含全部测试和 85% 覆盖率门槛。Windows 优先使用 `tools.cmd`，
+它不会修改系统 PowerShell 执行策略；下方历史命令仍可经 `tools.ps1` 调用。
 大型校准运行不进入默认门禁，参数或概率结构改变后必须手动生成独立种子审计。
 版本轴、人工晋级和回退规则见 `docs/versioning-and-promotion-v1.md`。
+v7 的冻结输入、断点续跑及三项正式门禁见 `docs/v7-long-holdout-runbook.md`；在回执完成前，
+不得替换阈值、参数、种子、样本量或旧 v6 治理记录。
 
 只需要分布指标时可以使用：
 
@@ -167,15 +182,19 @@ OFF_BALL_ACTION
 
 ## 当前边界
 
-当前仍未实现的主要边界包括更高级的条件选秀权和七年 Stepien 边界、
-四轮以上及合同条件交易谈判、checkpoint 保留/迁移策略、因果战术实验、
-Shadow 之外的人工批准流程，以及完整玩法 UI。
+当前仍未闭环的主要边界包括：把只读 draft obligation/freeze ledger v3 接入规范交易
+生成、执行与结算；把已经实现的 three-team-market v2 合同谈判树晋级并接入每赛季
+franchise；从战术可观测性推进到配对种子的因果战术实验；Shadow 之外的人工批准流程；
+以及完整玩法 UI。
 
 已经实现的联盟层包括 30 队 1,230 场赛程、play-in、完整季后赛、疲劳和伤病连续、
 乐透与选秀权结算、球探不确定性、球员成长/衰退/退休、完整休赛期、鸟权/工资匹配/
-交易特例、白盒经理交易与轮换、对手级战术、跨赛季经理学习、2K 快速模拟比较入口、
-原子 franchise 存档，以及不重放已完成赛季的多赛季恢复运行器。最新进度和测试数
-以 `PROJECT_STATUS.md` 与 `governance/current-release.json` 为准。
+交易特例、完整七年 Stepien、条件选秀权、四至八轮双边谈判、draft obligation/freeze
+ledger v3 只读审计、three-team-market v2 合同谈判树、白盒经理交易与轮换、
+对手级战术、跨赛季经理学习、2K 快速模拟比较入口、压缩/保留/迁移的原子 franchise
+存档，以及不重放已完成赛季的多赛季恢复运行器。最新进度和测试数
+冻结发布以 `governance/current-release.json` 为准；WIP 能力和限制以
+`PROJECT_STATUS.md`、`docs/handoff-v0.55.md` 与 `CHANGELOG.md` 的 Unreleased 段为准。
 
 固定对手和球队分侧审计已落地；球队级 `tempo` 已通过 12/15/18 秒有界分布改变
 回合数。v1.9 进一步在末节最后 120 秒按 6 分分差调整节奏：三个种子上落后球权

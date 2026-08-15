@@ -2,7 +2,14 @@ import json
 from dataclasses import replace
 
 import pytest
-from test_game_runtime import AWAY, HOME, MATCHUPS, PARAMETERS, player
+from test_game_runtime import (
+    AWAY,
+    HOME,
+    MATCHUPS,
+    NON_BONUS_INTENTIONAL_FOUL_PARAMETERS,
+    PARAMETERS,
+    player,
+)
 
 from courtsim.domain.game import GameClockConfig
 from courtsim.domain.serialization import SerializationError
@@ -11,6 +18,7 @@ from courtsim.model import (
     GameTeam,
     sample_game,
 )
+from courtsim.model.game_runtime import possession_duration_options
 from courtsim.randomness import RandomFrame, RandomFrameAddress
 from courtsim.rotations import RotationPlan, RotationStint
 from courtsim.season import (
@@ -67,6 +75,22 @@ def run_season(
         fatigue_config=FatigueConfig(maximum_fatigue=1_000),
         season_config=season_config or SeasonConfig(injury_probability_bps=0),
     )
+
+
+def test_season_validation_accepts_parameter_owned_possession_durations() -> None:
+    config = GameClockConfig(1, 180, 15)
+    allowed = possession_duration_options(NON_BONUS_INTENTIONAL_FOUL_PARAMETERS)
+    result = sample_season(
+        parameters=NON_BONUS_INTENTIONAL_FOUL_PARAMETERS,
+        game_config=config,
+        schedule=schedule(1),
+        teams=season_teams(),
+        frame=FRAME,
+        fatigue_config=FatigueConfig(maximum_fatigue=1_000),
+        season_config=SeasonConfig(injury_probability_bps=0),
+    )
+    assert audit_season(result, config, allowed).games_completed == 1
+    assert season_result_from_json(season_result_to_json(result), config, allowed) == result
 
 
 def test_schedule_contract_is_strict_and_chronological() -> None:

@@ -1,0 +1,21 @@
+{
+  "version": "nba-aggregate-quick-sim-parameters-v1",
+  "source": {
+    "path": "../../data/baselines/model-audit-full-season-alignment-dev-v1.json",
+    "sha256": "738ef93370fc1f4abf9807cfb5637eac0408956ebbb89a2a8b31f53f2745c6cd"
+  },
+  "base_pace": 98.26666666666665,
+  "base_offensive_rating": 111.5,
+  "team_score_standard_deviation": 14.0,
+  "pace_standard_deviation": 4.0,
+  "home_advantage_points": 2.2,
+  "rating_offset_margin_points": 2.5,
+  "methodology": {
+    "base_pace": "unchanged pre-registered 180-game Pace holdout mean",
+    "base_offensive_rating": "rounded full-season development alignment; not fitted to holdout",
+    "team_score_standard_deviation": "rounded full-season development sensitivity",
+    "rating_offset_margin_points": "rounded full-season development sensitivity",
+    "pace_standard_deviation": "unchanged explicit design constant",
+    "home_advantage_points": "unchanged explicit design constant"
+  }
+}

@@ -32,6 +32,18 @@ class CreationMode(IntEnum):
     OFF_BALL_MOVEMENT_FEED = 3
 
 
+class TacticalAction(IntEnum):
+    BALL_SCREEN_KEEP = 0
+    BALL_SCREEN_ROLL = 1
+    BALL_SCREEN_POP = 2
+    BALL_SCREEN_KICKOUT = 3
+    ISOLATION_ATTACK = 4
+    ISOLATION_KICKOUT = 5
+    PINDOWN = 6
+    BACKDOOR_CUT = 7
+    OFF_BALL_BAILOUT = 8
+
+
 class ShotZone(IntEnum):
     RIM = 0
     MIDRANGE = 1

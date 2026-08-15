@@ -1,0 +1,11 @@
+{
+  "version": "team-strength-holdout-v2",
+  "candidate_id": "nba-2024-25-team-strength-035-v1",
+  "frozen_at": "2026-08-02",
+  "supersedes_holdout_master_seed": 20261030,
+  "prior_result": "failed without parameter changes; full-engine reality champion-seed mean and paired postseason MAE gates failed",
+  "design_correction": "continuous metrics remain paired-MAE; stochastic postseason metrics compare absolute multi-season mean error",
+  "minimum_holdout_seasons": 5,
+  "holdout_master_seed": 20261101,
+  "forbidden_master_seeds": [20260920, 20260921, 20261010, 20261011, 20261020, 20261021, 20261022, 20261030, 20261031]
+}

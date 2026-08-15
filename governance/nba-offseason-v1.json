@@ -6,7 +6,7 @@
   "contract_version": "contract-v1",
   "nba_draft_offseason_version": "nba-draft-offseason-v1",
   "free_agency_version": "free-agency-v1",
-  "draft_asset_version": "draft-asset-v1",
+  "draft_asset_version": "draft-asset-v2",
   "team_count": 30,
   "stage_order": [
     "career-development-retirement",

@@ -9,6 +9,7 @@ from courtsim.domain.enums import (
     FinisherRoute,
     PlayFamily,
     ShotZone,
+    TacticalAction,
 )
 
 PlayerId: TypeAlias = int
@@ -173,6 +174,29 @@ def validate_zone(route: FinisherRoute, zone: ShotZone) -> None:
 
 def creation_mode_for(route: FinisherRoute) -> CreationMode:
     return CREATION_MODE_BY_ROUTE[route]
+
+
+def tactical_action_for(plan: OffensivePlan, route: FinisherRoute) -> TacticalAction:
+    """Name an existing plan/route combination without changing its probability."""
+    validate_route(plan, route)
+    if isinstance(plan, BallScreenPlan):
+        return {
+            FinisherRoute.INITIATOR_SELF: TacticalAction.BALL_SCREEN_KEEP,
+            FinisherRoute.SCREENER_ROLL: TacticalAction.BALL_SCREEN_ROLL,
+            FinisherRoute.SCREENER_POP: TacticalAction.BALL_SCREEN_POP,
+            FinisherRoute.HELP_RELEASE: TacticalAction.BALL_SCREEN_KICKOUT,
+        }[route]
+    if isinstance(plan, IsolationPlan):
+        return (
+            TacticalAction.ISOLATION_ATTACK
+            if route is FinisherRoute.INITIATOR_SELF
+            else TacticalAction.ISOLATION_KICKOUT
+        )
+    if route is FinisherRoute.INITIATOR_BAILOUT:
+        return TacticalAction.OFF_BALL_BAILOUT
+    return (
+        TacticalAction.PINDOWN if plan.screen_setter_id is not None else TacticalAction.BACKDOOR_CUT
+    )
 
 
 def plan_ball_handler_id(plan: OffensivePlan) -> PlayerId:

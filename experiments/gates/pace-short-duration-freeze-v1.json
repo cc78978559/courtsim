@@ -1,0 +1,32 @@
+{
+  "baseline_value": 12.0,
+  "development": [
+    {
+      "candidate": 11.0,
+      "distance_to_gate": 0.0,
+      "mean_pace": 98.35833333333333
+    },
+    {
+      "candidate": 12.0,
+      "distance_to_gate": 0.8391056933333374,
+      "mean_pace": 96.96666666666667
+    }
+  ],
+  "development_seeds": [20260820],
+  "experiment_id": "pace-short-duration-v1",
+  "factor_path": ["nodes", "possession_duration", "durations_seconds", "SHORT"],
+  "freeze_sha256": "709ade7aaacaa48b9bed00326b5e5d3bd415413c284ac98301742d4f671ab377",
+  "holdout_seeds_sha256": "8d61b643a1a2b3bebe922a1f4217982b43f45b9d2e34e442ac9745c99363e6b1",
+  "schema_version": 1,
+  "selected_value": 11.0,
+  "selection": {
+    "development_mean_pace": 98.35833333333333,
+    "rule": "minimum distance to target, then minimum change from baseline",
+    "selected_value": 11.0
+  },
+  "target": {
+    "maximum": 104.6500813,
+    "minimum": 97.80577236
+  },
+  "version": "pace-single-factor-experiment-v1"
+}

@@ -4,8 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "courtsim"
-version = "0.52.0"
+version = "0.55.0.dev0"
 description = "Offline-first foundation for a discrete-space basketball simulator"
+readme = "README.md"
+license = "MIT"
 requires-python = ">=3.11"
 dependencies = []
 
@@ -44,6 +46,11 @@ exclude = ["work", "outputs"]
 [tool.pytest.ini_options]
 addopts = "-ra --strict-config --strict-markers"
 testpaths = ["tests"]
+markers = [
+  "slow: computationally expensive simulation coverage excluded from fast feedback",
+  "nba: complete thirty-team NBA schedule or postseason integration",
+  "franchise: multi-season NBA franchise integration",
+]
 
 [tool.coverage.run]
 branch = true

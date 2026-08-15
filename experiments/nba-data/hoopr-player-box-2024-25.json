@@ -1,0 +1,68 @@
+{
+  "build": {
+    "group_by": ["team_id", "athlete_id", "athlete_display_name"],
+    "metrics": [
+      {
+        "column": "game_id",
+        "name": "games_played",
+        "operation": "distinct_count",
+        "where": {
+          "did_not_play": {"truthy": false}
+        }
+      },
+      {"column": "minutes", "name": "minutes", "operation": "sum"},
+      {
+        "column": "field_goals_made",
+        "name": "field_goals_made",
+        "operation": "sum"
+      },
+      {
+        "column": "field_goals_attempted",
+        "name": "field_goal_attempts",
+        "operation": "sum"
+      },
+      {
+        "column": "three_point_field_goals_made",
+        "name": "three_points_made",
+        "operation": "sum"
+      },
+      {
+        "column": "three_point_field_goals_attempted",
+        "name": "three_point_attempts",
+        "operation": "sum"
+      },
+      {"column": "free_throws_made", "name": "free_throws_made", "operation": "sum"},
+      {
+        "column": "free_throws_attempted",
+        "name": "free_throw_attempts",
+        "operation": "sum"
+      },
+      {"column": "turnovers", "name": "turnovers", "operation": "sum"},
+      {"column": "points", "name": "points", "operation": "sum"}
+    ],
+    "resource_id": "player-box",
+    "where": {
+      "season_type": {"equals": "2"},
+      "team_id": {
+        "in": [
+          "1", "2", "3", "4", "5", "6", "7", "8", "9", "10",
+          "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
+          "21", "22", "23", "24", "25", "26", "27", "28", "29", "30"
+        ]
+      }
+    }
+  },
+  "dataset_id": "hoopr-player-box-2024-25",
+  "provider": "SportsDataverse hoopR NBA data (ESPN source)",
+  "resources": [
+    {
+      "filename": "player_box_2025.parquet",
+      "resource_id": "player-box",
+      "sha256": "80532a6ce57bf08e72faa8a7322208cc5d82569ffdc33da99e257d940736db31",
+      "url": "https://raw.githubusercontent.com/sportsdataverse/hoopR-nba-data/main/nba/player_box/parquet/player_box_2025.parquet"
+    }
+  ],
+  "schema_version": 1,
+  "season": "2024-25",
+  "terms_note": "Free personal research; preserve SportsDataverse and ESPN attribution and follow the upstream repository license."
+}

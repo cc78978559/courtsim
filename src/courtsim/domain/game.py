@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from courtsim.domain.enums import GameEndReason, SubstitutionReason
+from courtsim.domain.enums import GameEndReason, ShotZone, SubstitutionReason
 from courtsim.domain.plans import Lineup, validate_lineup
 from courtsim.domain.results import PossessionResult, validate_possession_result
 from courtsim.stats.attribution import PlayerStatDelta, StatCode, attribute_segment
@@ -130,6 +130,28 @@ class PlayerPlayingTime:
 
 
 @dataclass(frozen=True, slots=True)
+class PlayerShotZoneStat:
+    player_id: int
+    zone: ShotZone
+    attempts: int
+    makes: int
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.player_id, int)
+            or isinstance(self.player_id, bool)
+            or self.player_id < 0
+            or not isinstance(self.zone, ShotZone)
+            or not isinstance(self.attempts, int)
+            or isinstance(self.attempts, bool)
+            or not isinstance(self.makes, int)
+            or isinstance(self.makes, bool)
+            or not 0 <= self.makes <= self.attempts
+        ):
+            raise ValueError("player shot-zone aggregate is invalid")
+
+
+@dataclass(frozen=True, slots=True)
 class GameResult:
     home_team_id: str
     away_team_id: str
@@ -143,6 +165,10 @@ class GameResult:
     final_fatigue: tuple[PlayerFatigueSnapshot, ...] = ()
     rotation_version: str | None = None
     fatigue_version: str | None = None
+    player_shot_zones: tuple[PlayerShotZoneStat, ...] = ()
+    possessions_omitted: bool = False
+    home_possessions: int = 0
+    away_possessions: int = 0
 
     @property
     def completed(self) -> bool:
@@ -171,8 +197,20 @@ def validate_game_result(
         raise ValueError("team ids must be distinct")
     if result.home_score < 0 or result.away_score < 0:
         raise ValueError("scores must be non-negative")
-    if not result.possessions:
+    if (
+        not isinstance(result.home_possessions, int)
+        or isinstance(result.home_possessions, bool)
+        or result.home_possessions < 0
+        or not isinstance(result.away_possessions, int)
+        or isinstance(result.away_possessions, bool)
+        or result.away_possessions < 0
+    ):
+        raise ValueError("team possession totals must be non-negative integers")
+    if not result.possessions and not result.possessions_omitted:
         raise ValueError("game must contain at least one possession")
+    if result.possessions_omitted:
+        _validate_player_aggregate_game_result(result, config)
+        return
     expected_offense = result.home_team_id
     expected_period = 1
     expected_clock = config.period_seconds
@@ -334,3 +372,40 @@ def validate_game_result(
     for version in (result.rotation_version, result.fatigue_version):
         if version is not None and (not isinstance(version, str) or not version.strip()):
             raise ValueError("state versions must be non-empty strings")
+
+
+def _validate_player_aggregate_game_result(
+    result: GameResult,
+    config: GameClockConfig,
+) -> None:
+    if (
+        result.possessions
+        or not result.completed
+        or result.home_score == result.away_score
+        or result.home_possessions < 1
+        or result.away_possessions < 1
+    ):
+        raise ValueError("player-aggregate game must be completed without possessions")
+    stats = {(item.player_id, item.stat): item.amount for item in result.player_stats}
+    playing_time = {(item.team_id, item.player_id): item.seconds for item in result.playing_time}
+    zones = {(item.player_id, item.zone): item for item in result.player_shot_zones}
+    if len(stats) != len(result.player_stats):
+        raise ValueError("player-aggregate stats must be unique")
+    if len(playing_time) != len(result.playing_time):
+        raise ValueError("player-aggregate playing time must be unique")
+    if len(zones) != len(result.player_shot_zones):
+        raise ValueError("player-aggregate shot zones must be unique")
+    known_players = {item.player_id for item in result.playing_time}
+    if any(item.player_id not in known_players for item in result.player_shot_zones):
+        raise ValueError("player-aggregate shot zones reference a player without minutes")
+    if any(
+        item.team_id not in {result.home_team_id, result.away_team_id}
+        for item in result.playing_time
+    ):
+        raise ValueError("player-aggregate playing time references another team")
+    if any(
+        item.clock_seconds > config.seconds_for_period(item.period) for item in result.substitutions
+    ):
+        raise ValueError("player-aggregate substitution clock is invalid")
+    if len({item.player_id for item in result.final_fatigue}) != len(result.final_fatigue):
+        raise ValueError("player-aggregate fatigue ids must be unique")

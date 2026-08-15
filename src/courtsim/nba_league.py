@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Mapping
 from dataclasses import dataclass
+from functools import lru_cache
+from itertools import pairwise
 
 from courtsim.playoffs import PlayoffSeed
 from courtsim.season import ScheduledGame, SeasonSchedule
@@ -15,11 +18,46 @@ NBA_LEAGUE_VERSION = "nba-league-v1"
 class NBARegularSeasonRules:
     team_count: int = 30
     games_per_team: int = 82
+    season_span_days: int = 174
+    minimum_team_back_to_backs: int = 12
+    maximum_team_back_to_backs: int = 20
+    maximum_consecutive_game_days: int = 3
+    minimum_one_day_rest_intervals: int = 50
+    maximum_one_day_rest_intervals: int = 72
+    minimum_longest_rest_days: int = 7
+    maximum_longest_rest_days: int = 14
+    minimum_game_days: int = 158
+    maximum_game_days: int = 166
+    minimum_league_off_days: int = 8
+    maximum_league_off_days: int = 16
+    balanced_day_minimum_games: int = 6
+    balanced_day_maximum_games: int = 9
+    minimum_balanced_game_days: int = 140
+    heavy_day_minimum_games: int = 14
+    maximum_heavy_game_days: int = 12
+    all_star_break_days: int = 7
+    all_star_break_after_game_day: int = 100
     version: str = NBA_LEAGUE_VERSION
 
     def __post_init__(self) -> None:
         if self.team_count != 30 or self.games_per_team != 82:
             raise ValueError("nba-league-v1 requires thirty teams and eighty-two games")
+        if (
+            self.season_span_days < self.games_per_team
+            or not 0 <= self.minimum_team_back_to_backs <= self.maximum_team_back_to_backs
+            or self.maximum_consecutive_game_days < 2
+            or not 0 <= self.minimum_one_day_rest_intervals <= self.maximum_one_day_rest_intervals
+            or not 0 <= self.minimum_longest_rest_days <= self.maximum_longest_rest_days
+            or not 1 <= self.minimum_game_days <= self.maximum_game_days <= self.season_span_days
+            or not 0 <= self.minimum_league_off_days <= self.maximum_league_off_days
+            or not 1 <= self.balanced_day_minimum_games <= self.balanced_day_maximum_games <= 15
+            or self.minimum_balanced_game_days < 1
+            or not 1 <= self.heavy_day_minimum_games <= 15
+            or self.maximum_heavy_game_days < 0
+            or self.all_star_break_days < 1
+            or not 1 <= self.all_star_break_after_game_day < self.minimum_game_days
+        ):
+            raise ValueError("NBA calendar gate rules are invalid")
         if self.version != NBA_LEAGUE_VERSION:
             raise ValueError("unsupported NBA league version")
 
@@ -185,6 +223,35 @@ class NBAPostseasonResult:
     version: str = NBA_LEAGUE_VERSION
 
 
+def nba_series_home_court_order(
+    first_team_id: str,
+    second_team_id: str,
+    *,
+    conference: str,
+    seed_by_team: Mapping[str, int],
+    regular_season_records: Mapping[str, tuple[int, int]],
+) -> tuple[str, str]:
+    """Return higher/lower home-court teams under one shared NBA rule."""
+    teams = (first_team_id, second_team_id)
+    if conference == "nba":
+        if any(team_id not in regular_season_records for team_id in teams):
+            raise ValueError("NBA Finals home court requires regular-season records")
+        ordered = sorted(
+            teams,
+            key=lambda team_id: (
+                -regular_season_records[team_id][0],
+                -regular_season_records[team_id][1],
+                team_id,
+            ),
+        )
+        return ordered[0], ordered[1]
+    if conference not in {"east", "west"} or any(team_id not in seed_by_team for team_id in teams):
+        raise ValueError("NBA conference home court requires playoff seeds")
+    ordered = sorted(teams, key=lambda team_id: (seed_by_team[team_id], team_id))
+    return ordered[0], ordered[1]
+
+
+@lru_cache(maxsize=16)
 def generate_nba_schedule(
     team_ids: tuple[str, ...],
     *,
@@ -251,8 +318,9 @@ def generate_nba_schedule(
                 break
         else:
             days.append(([(home, away)], {home, away}))
+    calendar = _assign_nba_calendar(days, active_rules)
     scheduled_games: list[ScheduledGame] = []
-    for day, (matchups, _) in enumerate(days, start=1):
+    for day, matchups in calendar:
         for home, away in sorted(matchups):
             scheduled_games.append(ScheduledGame(len(scheduled_games) + 1, day, home, away))
     schedule = SeasonSchedule(team_ids, tuple(scheduled_games))
@@ -264,7 +332,457 @@ def generate_nba_schedule(
     home_games = Counter(game.home_team_id for game in schedule.games)
     if set(home_games.values()) != {active_rules.games_per_team // 2}:
         raise ValueError("generated NBA schedule does not balance home games")
+    _validate_nba_calendar_gate(schedule, active_rules)
     return schedule
+
+
+def _assign_nba_calendar(
+    slots: list[tuple[list[tuple[str, str]], set[str]]],
+    rules: NBARegularSeasonRules,
+) -> tuple[tuple[int, tuple[tuple[str, str], ...]], ...]:
+    """Split dense conflict-free rounds across a realistic 174-day calendar."""
+    if len(slots) < 52:
+        raise ValueError("NBA matchup slots cannot support the calendar gate")
+    target_game_days = min(rules.maximum_game_days, 2 * len(slots))
+    unsplit_count = 2 * len(slots) - target_game_days
+    unsplit_candidates = tuple(index for index, (games, _) in enumerate(slots) if len(games) >= 2)
+    unsplit_slots = {
+        unsplit_candidates[(index + 1) * len(unsplit_candidates) // (unsplit_count + 1)]
+        for index in range(unsplit_count)
+    }
+    active_groups: list[list[tuple[str, str]]] = []
+    split_pairs: list[tuple[int, int]] = []
+    for index, (games, _) in enumerate(slots):
+        ordered = tuple(sorted(games))
+        if index in unsplit_slots:
+            active_groups.append(list(ordered))
+            continue
+        midpoint = len(ordered) // 2
+        early = list(ordered[:midpoint])
+        late = list(ordered[midpoint:])
+        if early and late:
+            early_index = len(active_groups)
+            active_groups.extend((early, late))
+            split_pairs.append((early_index, early_index + 1))
+        else:
+            active_groups.append(early or late)
+    if not rules.minimum_game_days <= len(active_groups) <= rules.maximum_game_days:
+        raise ValueError("NBA calendar game-day count differs")
+    league_off_days = rules.season_span_days - len(active_groups)
+    ordinary_off_days = league_off_days - rules.all_star_break_days
+    if ordinary_off_days < 0:
+        raise ValueError("NBA calendar cannot fit the All-Star break")
+    ordinary_breaks = {
+        (index + 1) * len(active_groups) // (ordinary_off_days + 1)
+        for index in range(ordinary_off_days)
+    }
+    day_numbers = _nba_game_day_numbers(
+        len(active_groups),
+        ordinary_breaks,
+        rules,
+    )
+    _optimize_nba_split_assignments(active_groups, split_pairs, day_numbers, rules)
+    _rebalance_nba_daily_groups(active_groups, day_numbers, rules)
+    if day_numbers[-1] != rules.season_span_days:
+        raise ValueError("NBA calendar does not reach the configured season span")
+    return tuple(
+        (day, tuple(sorted(group))) for day, group in zip(day_numbers, active_groups, strict=True)
+    )
+
+
+def _rebalance_nba_daily_groups(
+    groups: list[list[tuple[str, str]]],
+    day_numbers: tuple[int, ...],
+    rules: NBARegularSeasonRules,
+) -> None:
+    """Move games off dense dates while keeping dates conflict-free."""
+    days_by_team: dict[str, list[int]] = {}
+    for day, group in zip(day_numbers, groups, strict=True):
+        for home, away in group:
+            days_by_team.setdefault(home, []).append(day)
+            days_by_team.setdefault(away, []).append(day)
+    for _ in range(256):
+        sources = [index for index, group in enumerate(groups) if len(group) > 9]
+        if not sources:
+            break
+        targets = [index for index, group in enumerate(groups) if len(group) < 6] or [
+            index for index, group in enumerate(groups) if len(group) < 9
+        ]
+        best: tuple[int, int, int, dict[str, list[int]]] | None = None
+        best_score: tuple[int, int, int] | None = None
+        for source_index in sources:
+            source_day = day_numbers[source_index]
+            for game_index, game in enumerate(groups[source_index]):
+                for target_index in targets:
+                    target_day = day_numbers[target_index]
+                    target_teams = {
+                        team_id for target_game in groups[target_index] for team_id in target_game
+                    }
+                    if target_teams.intersection(game):
+                        continue
+                    revised = {
+                        team_id: _moved_team_calendar_days(
+                            days_by_team[team_id], source_day, target_day
+                        )
+                        for team_id in game
+                    }
+                    back_to_backs = tuple(
+                        _nba_team_gap_metrics(days)[0] for days in revised.values()
+                    )
+                    if any(
+                        value < rules.minimum_team_back_to_backs
+                        or value > rules.maximum_team_back_to_backs
+                        for value in back_to_backs
+                    ):
+                        continue
+                    score = (
+                        sum(_nba_consecutive_violation_count(days) for days in revised.values()),
+                        abs(target_day - source_day),
+                        len(groups[target_index]),
+                    )
+                    if best_score is None or score < best_score:
+                        best_score = score
+                        best = source_index, game_index, target_index, revised
+        if best is None:
+            raise ValueError("NBA daily groups cannot be balanced within rest bounds")
+        source_index, game_index, target_index, revised = best
+        groups[target_index].append(groups[source_index].pop(game_index))
+        days_by_team.update(revised)
+    _repair_nba_consecutive_games(groups, [], day_numbers, days_by_team, rules)
+
+
+def _nba_game_day_numbers(
+    game_day_count: int,
+    ordinary_breaks: set[int],
+    rules: NBARegularSeasonRules,
+) -> tuple[int, ...]:
+    result: list[int] = []
+    day = 0
+    for game_day in range(1, game_day_count + 1):
+        day += 1
+        result.append(day)
+        if game_day == rules.all_star_break_after_game_day:
+            day += rules.all_star_break_days
+        if game_day in ordinary_breaks:
+            day += 1
+    return tuple(result)
+
+
+def _optimize_nba_split_assignments(
+    groups: list[list[tuple[str, str]]],
+    split_pairs: list[tuple[int, int]],
+    day_numbers: tuple[int, ...],
+    rules: NBARegularSeasonRules,
+) -> None:
+    """Swap games between adjacent split days until team rest constraints converge."""
+    days_by_team: dict[str, list[int]] = {}
+    for day, group in zip(day_numbers, groups, strict=True):
+        for home, away in group:
+            days_by_team.setdefault(home, []).append(day)
+            days_by_team.setdefault(away, []).append(day)
+    penalties = {
+        team_id: _nba_single_team_calendar_penalty(days, rules)
+        for team_id, days in days_by_team.items()
+    }
+    for _ in range(256):
+        best_swap: tuple[int, int, int, int] | None = None
+        best_delta = 0
+        for early_index, late_index in split_pairs:
+            early = groups[early_index]
+            late = groups[late_index]
+            early_day = day_numbers[early_index]
+            late_day = day_numbers[late_index]
+            early_deltas = tuple(
+                sum(
+                    _moved_team_calendar_penalty(days_by_team[team_id], early_day, late_day, rules)
+                    - penalties[team_id]
+                    for team_id in game
+                )
+                for game in early
+            )
+            late_deltas = tuple(
+                sum(
+                    _moved_team_calendar_penalty(days_by_team[team_id], late_day, early_day, rules)
+                    - penalties[team_id]
+                    for team_id in game
+                )
+                for game in late
+            )
+            for first_index in range(len(early)):
+                for second_index in range(len(late)):
+                    delta = early_deltas[first_index] + late_deltas[second_index]
+                    if delta < best_delta:
+                        best_delta = delta
+                        best_swap = (
+                            early_index,
+                            late_index,
+                            first_index,
+                            second_index,
+                        )
+        if best_swap is None:
+            break
+        early_index, late_index, first_index, second_index = best_swap
+        early_day = day_numbers[early_index]
+        late_day = day_numbers[late_index]
+        first_game = groups[early_index][first_index]
+        second_game = groups[late_index][second_index]
+        for team_id in first_game:
+            days_by_team[team_id].remove(early_day)
+            days_by_team[team_id].append(late_day)
+            days_by_team[team_id].sort()
+            penalties[team_id] = _nba_single_team_calendar_penalty(days_by_team[team_id], rules)
+        for team_id in second_game:
+            days_by_team[team_id].remove(late_day)
+            days_by_team[team_id].append(early_day)
+            days_by_team[team_id].sort()
+            penalties[team_id] = _nba_single_team_calendar_penalty(days_by_team[team_id], rules)
+        groups[early_index][first_index], groups[late_index][second_index] = (
+            second_game,
+            first_game,
+        )
+    _repair_nba_consecutive_games(groups, split_pairs, day_numbers, days_by_team, rules)
+
+
+def _moved_team_calendar_penalty(
+    days: list[int],
+    source_day: int,
+    target_day: int,
+    rules: NBARegularSeasonRules,
+) -> int:
+    revised = _moved_team_calendar_days(days, source_day, target_day)
+    return _nba_single_team_calendar_penalty(revised, rules)
+
+
+def _moved_team_calendar_days(days: list[int], source_day: int, target_day: int) -> list[int]:
+    revised = list(days)
+    revised[revised.index(source_day)] = target_day
+    revised.sort()
+    return revised
+
+
+def _repair_nba_consecutive_games(
+    groups: list[list[tuple[str, str]]],
+    _split_pairs: list[tuple[int, int]],
+    day_numbers: tuple[int, ...],
+    days_by_team: dict[str, list[int]],
+    rules: NBARegularSeasonRules,
+) -> None:
+    for _ in range(128):
+        days_by_team = {}
+        for day, group in zip(day_numbers, groups, strict=True):
+            for home, away in group:
+                days_by_team.setdefault(home, []).append(day)
+                days_by_team.setdefault(away, []).append(day)
+        offenders = tuple(
+            team_id
+            for team_id in sorted(days_by_team)
+            if _nba_team_gap_metrics(days_by_team[team_id])[1] > rules.maximum_consecutive_game_days
+        )
+        if not offenders:
+            return
+        offender = offenders[0]
+        repaired = False
+        source_indices = [
+            index for index, group in enumerate(groups) if any(offender in game for game in group)
+        ]
+        for source_index in source_indices:
+            source = groups[source_index]
+            source_game_index = next(index for index, game in enumerate(source) if offender in game)
+            source_game = source[source_game_index]
+            source_day = day_numbers[source_index]
+            target_indices = sorted(
+                (index for index in range(len(groups)) if index != source_index),
+                key=lambda index: (abs(day_numbers[index] - source_day), index),
+            )
+            for target_index in target_indices:
+                target = groups[target_index]
+                target_day = day_numbers[target_index]
+                target_teams = {team_id for game in target for team_id in game}
+                if (
+                    len(source) > rules.balanced_day_minimum_games
+                    and len(target) < rules.balanced_day_maximum_games
+                    and not target_teams.intersection(source_game)
+                ):
+                    moved_days = {
+                        team_id: _moved_team_calendar_days(
+                            days_by_team[team_id], source_day, target_day
+                        )
+                        for team_id in source_game
+                    }
+                    if _nba_calendar_repair_improves(moved_days, offender, days_by_team, rules):
+                        source.pop(source_game_index)
+                        target.append(source_game)
+                        days_by_team.update(moved_days)
+                        repaired = True
+                        break
+                source_other_teams = {
+                    team_id
+                    for index, game in enumerate(source)
+                    if index != source_game_index
+                    for team_id in game
+                }
+                for target_game_index, target_game in enumerate(target):
+                    target_other_teams = {
+                        team_id
+                        for index, game in enumerate(target)
+                        if index != target_game_index
+                        for team_id in game
+                    }
+                    if source_other_teams.intersection(
+                        target_game
+                    ) or target_other_teams.intersection(source_game):
+                        continue
+                    revised_days: dict[str, list[int]] = {}
+                    for team_id in source_game:
+                        revised = list(days_by_team[team_id])
+                        revised.remove(source_day)
+                        revised.append(target_day)
+                        revised.sort()
+                        revised_days[team_id] = revised
+                    for team_id in target_game:
+                        revised = list(days_by_team[team_id])
+                        revised.remove(target_day)
+                        revised.append(source_day)
+                        revised.sort()
+                        revised_days[team_id] = revised
+                    if not _nba_calendar_repair_improves(
+                        revised_days, offender, days_by_team, rules
+                    ):
+                        continue
+                    source[source_game_index], target[target_game_index] = (
+                        target_game,
+                        source_game,
+                    )
+                    days_by_team.update(revised_days)
+                    repaired = True
+                    break
+                if repaired:
+                    break
+            if repaired:
+                break
+        if not repaired:
+            return
+
+
+def _nba_calendar_repair_improves(
+    revised_days: Mapping[str, list[int]],
+    offender: str,
+    days_by_team: Mapping[str, list[int]],
+    rules: NBARegularSeasonRules,
+) -> bool:
+    return (
+        all(
+            rules.minimum_team_back_to_backs
+            <= _nba_team_gap_metrics(days)[0]
+            <= rules.maximum_team_back_to_backs
+            for days in revised_days.values()
+        )
+        and _nba_consecutive_violation_count(revised_days[offender])
+        < _nba_consecutive_violation_count(days_by_team[offender])
+        and sum(_nba_consecutive_violation_count(days) for days in revised_days.values())
+        <= 1
+        + sum(_nba_consecutive_violation_count(days_by_team[team_id]) for team_id in revised_days)
+    )
+
+
+def _nba_team_gap_metrics(days: list[int]) -> tuple[int, int]:
+    gaps = tuple(second - first for first, second in pairwise(days))
+    back_to_backs = sum(gap == 1 for gap in gaps)
+    consecutive = 1
+    longest_consecutive = 1
+    for gap in gaps:
+        consecutive = consecutive + 1 if gap == 1 else 1
+        longest_consecutive = max(longest_consecutive, consecutive)
+    return back_to_backs, longest_consecutive
+
+
+def _nba_consecutive_violation_count(days: list[int]) -> int:
+    return sum(
+        second == first + 1 and third == second + 1
+        for first, second, third in zip(days, days[1:], days[2:], strict=False)
+    )
+
+
+def _nba_single_team_calendar_penalty(
+    days: list[int],
+    rules: NBARegularSeasonRules,
+) -> int:
+    back_to_backs, longest_consecutive = _nba_team_gap_metrics(days)
+    penalty = 0
+    if back_to_backs < rules.minimum_team_back_to_backs:
+        penalty += 100 * (rules.minimum_team_back_to_backs - back_to_backs) ** 2
+    elif back_to_backs > rules.maximum_team_back_to_backs:
+        penalty += 100 * (back_to_backs - rules.maximum_team_back_to_backs) ** 2
+    penalty += (back_to_backs - 14) ** 2
+    if longest_consecutive > rules.maximum_consecutive_game_days:
+        penalty += 1_000 * (longest_consecutive - rules.maximum_consecutive_game_days) ** 2
+    return penalty
+
+
+def _validate_nba_calendar_gate(
+    schedule: SeasonSchedule,
+    rules: NBARegularSeasonRules,
+) -> None:
+    if not schedule.games or schedule.games[0].day != 1:
+        raise ValueError("NBA calendar must begin on day one")
+    if schedule.games[-1].day != rules.season_span_days:
+        raise ValueError("NBA calendar span differs")
+    games_by_day = Counter(game.day for game in schedule.games)
+    game_days = len(games_by_day)
+    off_days = rules.season_span_days - game_days
+    balanced_days = sum(
+        rules.balanced_day_minimum_games <= games <= rules.balanced_day_maximum_games
+        for games in games_by_day.values()
+    )
+    heavy_days = sum(games >= rules.heavy_day_minimum_games for games in games_by_day.values())
+    if not rules.minimum_game_days <= game_days <= rules.maximum_game_days:
+        raise ValueError("NBA game-day gate differs")
+    if not rules.minimum_league_off_days <= off_days <= rules.maximum_league_off_days:
+        raise ValueError("NBA league-off-day gate differs")
+    if balanced_days < rules.minimum_balanced_game_days:
+        raise ValueError("NBA daily game-count distribution differs")
+    if heavy_days > rules.maximum_heavy_game_days:
+        raise ValueError("NBA heavy game-day gate differs")
+    all_star_start = next(
+        day + 1
+        for index, day in enumerate(sorted(games_by_day), start=1)
+        if index == rules.all_star_break_after_game_day
+    )
+    all_star_days = tuple(range(all_star_start, all_star_start + rules.all_star_break_days))
+    if any(day in games_by_day for day in all_star_days):
+        raise ValueError("NBA All-Star break contains a game")
+    days_by_team = {
+        team_id: tuple(
+            game.day for game in schedule.games if team_id in (game.home_team_id, game.away_team_id)
+        )
+        for team_id in schedule.team_ids
+    }
+    for team_id, days_played in days_by_team.items():
+        gaps = tuple(second - first for first, second in pairwise(days_played))
+        back_to_backs = sum(gap == 1 for gap in gaps)
+        one_day_rest = sum(gap == 2 for gap in gaps)
+        longest_rest = max((gap - 1 for gap in gaps), default=0)
+        consecutive = 1
+        longest_consecutive = 1
+        for gap in gaps:
+            consecutive = consecutive + 1 if gap == 1 else 1
+            longest_consecutive = max(longest_consecutive, consecutive)
+        if (
+            not rules.minimum_team_back_to_backs
+            <= back_to_backs
+            <= rules.maximum_team_back_to_backs
+        ):
+            raise ValueError(f"NBA back-to-back gate differs: {team_id}")
+        if longest_consecutive > rules.maximum_consecutive_game_days:
+            raise ValueError(f"NBA consecutive-game gate differs: {team_id}")
+        if not (
+            rules.minimum_one_day_rest_intervals
+            <= one_day_rest
+            <= rules.maximum_one_day_rest_intervals
+        ):
+            raise ValueError(f"NBA one-day-rest gate differs: {team_id}")
+        if not rules.minimum_longest_rest_days <= longest_rest <= rules.maximum_longest_rest_days:
+            raise ValueError(f"NBA long-rest gate differs: {team_id}")
 
 
 def _default_divisions(team_ids: tuple[str, ...]) -> tuple[tuple[str, ...], ...]:

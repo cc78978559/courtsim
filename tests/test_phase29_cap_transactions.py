@@ -1,14 +1,17 @@
 from dataclasses import replace
 
 import pytest
-from test_phase12_manager_league_adapter import league_state
+from test_phase12_manager_league_adapter import career_player, league_state
 
 from courtsim.cap_mechanics import (
     BirdRights,
     CapLedger,
     CapMechanicsRules,
+    accrue_bird_rights,
+    remove_bird_rights,
+    transfer_bird_rights,
 )
-from courtsim.career import DraftPickAsset
+from courtsim.career import CareerStatus, DraftPickAsset
 from courtsim.management import (
     ContractRules,
     LeagueManagementState,
@@ -17,7 +20,9 @@ from courtsim.management import (
     MarketPlan,
     PlayerContract,
     apply_market_plan,
+    audit_market,
 )
+from courtsim.manager_ai import ManagerProfile, generate_market_shadow
 from courtsim.manager_league_adapter import league_state_from_json, league_state_to_json
 from courtsim.rosters import RosterSnapshot
 from courtsim.trades import TradeOffer, apply_trade, audit_trade
@@ -75,6 +80,57 @@ def test_canonical_market_entry_uses_bird_rights_for_over_cap_signing() -> None:
         )
         == 25_000_000
     )
+    assert result.final_cap_ledger is not None
+    assert result.final_cap_ledger.bird_rights == (BirdRights("A", 99, 3, 5_000_000),)
+    assert audit_market(result, maximum_payroll=cap_rules.second_apron).signings == 1
+
+
+def test_bird_rights_accrue_transfer_and_clear_as_canonical_state() -> None:
+    contracts = ((1, "A", 4_000_000),)
+    first = accrue_bird_rights(CapLedger(), contracts)
+    second = accrue_bird_rights(first, contracts)
+    third = accrue_bird_rights(second, contracts)
+    assert third.bird_rights == (BirdRights("A", 1, 3, 4_000_000),)
+    transferred = transfer_bird_rights(third, {1: "B"})
+    assert transferred.bird_rights == (BirdRights("B", 1, 3, 4_000_000),)
+    assert remove_bird_rights(transferred, frozenset({1})).bird_rights == ()
+
+
+def test_manager_shadow_can_recommend_legal_over_cap_bird_signing() -> None:
+    rules = contract_rules(salary_cap=20_000_000)
+    cap_rules = CapMechanicsRules(
+        salary_cap=20_000_000,
+        first_apron=25_000_000,
+        second_apron=27_000_000,
+    )
+    state = LeagueManagementState(
+        2030,
+        (RosterSnapshot("A", (1, 2, 3, 4, 5)),),
+        (99,),
+        tuple(PlayerContract(player_id, "A", 4_000_000, 2) for player_id in range(1, 6)),
+    )
+    players = (
+        *(career_player(player_id) for player_id in range(1, 6)),
+        career_player(99, value=90, potential=90, status=CareerStatus.FREE_AGENT),
+    )
+    without_rights = generate_market_shadow(
+        management=state,
+        players=players,
+        profiles={"A": ManagerProfile("manager-A", "A")},
+        contract_rules=rules,
+        cap_ledger=CapLedger(),
+        cap_rules=cap_rules,
+    )
+    with_rights = generate_market_shadow(
+        management=state,
+        players=players,
+        profiles={"A": ManagerProfile("manager-A", "A")},
+        contract_rules=rules,
+        cap_ledger=CapLedger((BirdRights("A", 99, 3, 4_000_000),)),
+        cap_rules=cap_rules,
+    )
+    assert without_rights.plan.actions == ()
+    assert tuple(action.player_id for action in with_rights.plan.actions) == (99,)
 
 
 def trade_state() -> LeagueManagementState:
@@ -125,10 +181,11 @@ def test_trade_entry_atomically_creates_consumes_and_audits_exception() -> None:
         picks,
         TradeOffer(1, "A", "B", (1,), (11,)),
         rules,
-        cap_ledger=CapLedger(),
+        cap_ledger=CapLedger((BirdRights("A", 1, 2, 20_000_000),)),
         cap_rules=cap_rules,
     )
     assert first.final_cap_ledger is not None
+    assert first.final_cap_ledger.bird_rights == (BirdRights("B", 1, 2, 20_000_000),)
     exception = first.final_cap_ledger.trade_exceptions[0]
     assert (exception.team_id, exception.remaining_amount) == ("A", 10_000_000)
     assert audit_trade(first).replay_verified

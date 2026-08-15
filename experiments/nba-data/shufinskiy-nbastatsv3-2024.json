@@ -1,0 +1,172 @@
+{
+  "build": {
+    "encoding": "utf-8-sig",
+    "metrics": [
+      {
+        "column": "gameId",
+        "name": "games",
+        "operation": "distinct_count"
+      },
+      {
+        "column": "teamId",
+        "name": "teams",
+        "operation": "distinct_count",
+        "where": {
+          "teamId": {
+            "not_equals": "0"
+          }
+        }
+      },
+      {
+        "name": "events",
+        "operation": "count"
+      },
+      {
+        "name": "field_goal_attempts",
+        "operation": "count",
+        "where": {
+          "isFieldGoal": {
+            "truthy": true
+          }
+        }
+      },
+      {
+        "name": "field_goals_made",
+        "operation": "count",
+        "where": {
+          "shotResult": {
+            "equals": "Made"
+          }
+        }
+      },
+      {
+        "name": "three_point_attempts",
+        "operation": "count",
+        "where": {
+          "isFieldGoal": {
+            "truthy": true
+          },
+          "shotValue": {
+            "equals": "3"
+          }
+        }
+      },
+      {
+        "name": "three_points_made",
+        "operation": "count",
+        "where": {
+          "shotResult": {
+            "equals": "Made"
+          },
+          "shotValue": {
+            "equals": "3"
+          }
+        }
+      },
+      {
+        "name": "free_throw_attempts",
+        "operation": "count",
+        "where": {
+          "actionType": {
+            "contains": "Free Throw"
+          }
+        }
+      },
+      {
+        "name": "free_throws_made",
+        "operation": "count",
+        "where": {
+          "actionType": {
+            "contains": "Free Throw"
+          },
+          "description": {
+            "not_contains": "MISS"
+          }
+        }
+      },
+      {
+        "name": "turnovers",
+        "operation": "count",
+        "where": {
+          "actionType": {
+            "contains": "Turnover"
+          }
+        }
+      },
+      {
+        "name": "fouls",
+        "operation": "count",
+        "where": {
+          "actionType": {
+            "contains": "Foul"
+          }
+        }
+      },
+      {
+        "name": "rebounds",
+        "operation": "count",
+        "where": {
+          "actionType": {
+            "contains": "Rebound"
+          }
+        }
+      },
+      {
+        "denominator": "field_goal_attempts",
+        "name": "field_goal_percentage",
+        "numerator": "field_goals_made",
+        "operation": "ratio"
+      },
+      {
+        "denominator": "three_point_attempts",
+        "name": "three_point_percentage",
+        "numerator": "three_points_made",
+        "operation": "ratio"
+      },
+      {
+        "denominator": "free_throw_attempts",
+        "name": "free_throw_percentage",
+        "numerator": "free_throws_made",
+        "operation": "ratio"
+      },
+      {
+        "denominator": "games",
+        "name": "events_per_game",
+        "numerator": "events",
+        "operation": "ratio"
+      },
+      {
+        "denominator": "games",
+        "name": "turnovers_per_game",
+        "numerator": "turnovers",
+        "operation": "ratio"
+      },
+      {
+        "denominator": "games",
+        "name": "fouls_per_game",
+        "numerator": "fouls",
+        "operation": "ratio"
+      },
+      {
+        "denominator": "games",
+        "name": "rebounds_per_game",
+        "numerator": "rebounds",
+        "operation": "ratio"
+      }
+    ],
+    "resource_id": "nbastatsv3"
+  },
+  "dataset_id": "shufinskiy-nbastatsv3-2024",
+  "provider": "shufinskiy/nba_data",
+  "resources": [
+    {
+      "filename": "nbastatsv3_2024.tar.xz",
+      "resource_id": "nbastatsv3",
+      "sha256": "38fb8bfb43be8db3d47576600f32f25d89cc3cc05ebac77a51f4db42faf0b841",
+      "url": "https://github.com/shufinskiy/nba_data/raw/main/datasets/nbastatsv3_2024.tar.xz"
+    }
+  ],
+  "schema_version": 1,
+  "season": "2024-25",
+  "terms_note": "Free personal research only; preserve upstream attribution and do not redistribute raw NBA-derived data."
+}

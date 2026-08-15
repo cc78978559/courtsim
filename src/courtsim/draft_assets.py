@@ -6,8 +6,31 @@ from dataclasses import dataclass, replace
 
 from courtsim.career import DraftPickAsset
 
-DRAFT_ASSET_VERSION = "draft-asset-v1"
-DRAFT_ASSET_SCHEMA_VERSION = 1
+DRAFT_ASSET_VERSION = "draft-asset-v2"
+DRAFT_ASSET_SCHEMA_VERSION = 2
+
+
+@dataclass(frozen=True, slots=True)
+class DraftPickCondition:
+    selection_start: int
+    selection_end: int
+    outcome: str
+    conversion_round_number: int = 0
+
+    def __post_init__(self) -> None:
+        values = (
+            self.selection_start,
+            self.selection_end,
+            self.conversion_round_number,
+        )
+        if any(not isinstance(value, int) or isinstance(value, bool) for value in values):
+            raise ValueError("draft-pick condition values must be integers")
+        if not 1 <= self.selection_start <= self.selection_end:
+            raise ValueError("draft-pick condition selection range is invalid")
+        if self.outcome not in {"defer", "convert", "retain"}:
+            raise ValueError("draft-pick condition outcome is unsupported")
+        if (self.outcome == "convert") != (self.conversion_round_number > 0):
+            raise ValueError("only conversion conditions require a target round")
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,6 +43,7 @@ class FutureDraftPickAsset:
     protected_top_n: int = 0
     deferrals_remaining: int = 0
     version: str = DRAFT_ASSET_VERSION
+    conditions: tuple[DraftPickCondition, ...] = ()
 
     def __post_init__(self) -> None:
         values = (
@@ -35,8 +59,22 @@ class FutureDraftPickAsset:
             raise ValueError("future draft-pick identity values must be positive")
         if self.protected_top_n < 0 or self.deferrals_remaining < 0:
             raise ValueError("future draft-pick protection values must be non-negative")
-        if self.protected_top_n == 0 and self.deferrals_remaining != 0:
+        if self.protected_top_n == 0 and self.deferrals_remaining != 0 and not self.conditions:
             raise ValueError("an unprotected pick cannot carry deferrals")
+        if self.protected_top_n and self.conditions:
+            raise ValueError("legacy top protection cannot be combined with conditions")
+        if self.conditions != tuple(
+            sorted(self.conditions, key=lambda item: (item.selection_start, item.selection_end))
+        ):
+            raise ValueError("draft-pick conditions must use canonical order")
+        for previous, following in zip(self.conditions, self.conditions[1:], strict=False):
+            if previous.selection_end >= following.selection_start:
+                raise ValueError("draft-pick condition ranges cannot overlap")
+        if (
+            any(item.outcome == "defer" for item in self.conditions)
+            and not self.deferrals_remaining
+        ):
+            raise ValueError("defer conditions require remaining deferrals")
         if not self.original_team_id.strip() or not self.owner_team_id.strip():
             raise ValueError("future draft-pick team ids must not be blank")
         if self.version != DRAFT_ASSET_VERSION:
@@ -116,6 +154,7 @@ class DraftAssetSettlement:
     final_ledger: DraftAssetLedger
     protected_asset_ids: tuple[int, ...]
     rolled_asset_ids: tuple[int, ...]
+    converted_asset_ids: tuple[int, ...]
     exercised_swap_ids: tuple[int, ...]
     version: str = DRAFT_ASSET_VERSION
 
@@ -184,26 +223,32 @@ def settle_draft_assets(
         raise ValueError("draft order does not cover every due original team")
     protected: list[int] = []
     rolled: list[int] = []
+    converted: list[int] = []
     current: list[tuple[FutureDraftPickAsset, str]] = []
     next_id_cursor = ledger.next_asset_id
     for pick in due:
         round_order = first_order if pick.round_number == 1 else order
         round_pick = round_order[pick.original_team_id]
         owner = pick.owner_team_id
-        if (
-            owner != pick.original_team_id
-            and pick.protected_top_n
-            and round_pick <= pick.protected_top_n
-        ):
+        outcome = _conditional_outcome(pick, round_pick)
+        if owner != pick.original_team_id and outcome is not None:
             owner = pick.original_team_id
             protected.append(pick.asset_id)
-            if pick.deferrals_remaining:
+            if outcome == "defer" and pick.deferrals_remaining:
                 future, next_id_cursor = _roll_obligation(
                     future,
                     pick,
                     next_id_cursor,
                 )
                 rolled.append(pick.asset_id)
+            elif outcome.startswith("convert:"):
+                future, next_id_cursor = _convert_obligation(
+                    future,
+                    pick,
+                    int(outcome.partition(":")[2]),
+                    next_id_cursor,
+                )
+                converted.append(pick.asset_id)
         current.append((pick, owner))
 
     current.sort(
@@ -287,6 +332,7 @@ def settle_draft_assets(
         final_ledger,
         tuple(protected),
         tuple(rolled),
+        tuple(converted),
         tuple(exercised),
     )
 
@@ -306,6 +352,15 @@ def draft_asset_ledger_to_dict(ledger: DraftAssetLedger) -> dict[str, object]:
                 "protected_top_n": pick.protected_top_n,
                 "deferrals_remaining": pick.deferrals_remaining,
                 "version": pick.version,
+                "conditions": [
+                    {
+                        "selection_start": condition.selection_start,
+                        "selection_end": condition.selection_end,
+                        "outcome": condition.outcome,
+                        "conversion_round_number": condition.conversion_round_number,
+                    }
+                    for condition in pick.conditions
+                ],
             }
             for pick in ledger.picks
         ],
@@ -332,10 +387,12 @@ def draft_asset_ledger_from_dict(value: object) -> DraftAssetLedger:
         "swaps",
     }:
         raise ValueError("invalid draft asset ledger keys")
-    if (
-        value["schema_version"] != DRAFT_ASSET_SCHEMA_VERSION
-        or value["version"] != DRAFT_ASSET_VERSION
-    ):
+    schema_version = value["schema_version"]
+    version = value["version"]
+    if schema_version not in {1, DRAFT_ASSET_SCHEMA_VERSION} or version not in {
+        "draft-asset-v1",
+        DRAFT_ASSET_VERSION,
+    }:
         raise ValueError("unsupported draft asset ledger")
     raw_picks = value["picks"]
     raw_swaps = value["swaps"]
@@ -343,7 +400,11 @@ def draft_asset_ledger_from_dict(value: object) -> DraftAssetLedger:
         raise ValueError("draft asset picks and swaps must be lists")
     picks = tuple(_pick_from_dict(item) for item in raw_picks)
     swaps = tuple(_swap_from_dict(item) for item in raw_swaps)
-    return DraftAssetLedger(picks, swaps, _integer(value["next_asset_id"], "next_asset_id"))
+    return DraftAssetLedger(
+        picks,
+        swaps,
+        _integer(value["next_asset_id"], "next_asset_id"),
+    )
 
 
 def _roll_obligation(
@@ -368,6 +429,7 @@ def _roll_obligation(
         pick.owner_team_id,
         pick.protected_top_n if pick.deferrals_remaining > 1 else 0,
         max(0, pick.deferrals_remaining - 1),
+        conditions=pick.conditions if pick.deferrals_remaining > 1 else (),
     )
     if existing is not None and existing.owner_team_id != existing.original_team_id:
         raise ValueError("protected pick cannot roll onto an already traded native pick")
@@ -379,7 +441,7 @@ def _roll_obligation(
 
 
 def _pick_from_dict(value: object) -> FutureDraftPickAsset:
-    if not isinstance(value, dict) or set(value) != {
+    legacy_keys = {
         "asset_id",
         "draft_year",
         "round_number",
@@ -388,8 +450,15 @@ def _pick_from_dict(value: object) -> FutureDraftPickAsset:
         "protected_top_n",
         "deferrals_remaining",
         "version",
+    }
+    if not isinstance(value, dict) or frozenset(value) not in {
+        frozenset(legacy_keys),
+        frozenset((*legacy_keys, "conditions")),
     }:
         raise ValueError("invalid future draft-pick keys")
+    raw_conditions = value.get("conditions", [])
+    if not isinstance(raw_conditions, list):
+        raise ValueError("draft-pick conditions must be a list")
     return FutureDraftPickAsset(
         _integer(value["asset_id"], "asset_id"),
         _integer(value["draft_year"], "draft_year"),
@@ -398,7 +467,8 @@ def _pick_from_dict(value: object) -> FutureDraftPickAsset:
         _text(value["owner_team_id"], "owner_team_id"),
         _integer(value["protected_top_n"], "protected_top_n"),
         _integer(value["deferrals_remaining"], "deferrals_remaining"),
-        _text(value["version"], "version"),
+        DRAFT_ASSET_VERSION,
+        tuple(_condition_from_dict(item) for item in raw_conditions),
     )
 
 
@@ -418,7 +488,76 @@ def _swap_from_dict(value: object) -> DraftPickSwapRight:
         _integer(value["round_number"], "round_number"),
         _text(value["controller_team_id"], "controller_team_id"),
         _text(value["target_original_team_id"], "target_original_team_id"),
-        _text(value["version"], "version"),
+        DRAFT_ASSET_VERSION,
+    )
+
+
+def _conditional_outcome(pick: FutureDraftPickAsset, selection: int) -> str | None:
+    if pick.conditions:
+        condition = next(
+            (
+                item
+                for item in pick.conditions
+                if item.selection_start <= selection <= item.selection_end
+            ),
+            None,
+        )
+        if condition is None:
+            return None
+        return (
+            f"convert:{condition.conversion_round_number}"
+            if condition.outcome == "convert"
+            else condition.outcome
+        )
+    if pick.protected_top_n and selection <= pick.protected_top_n:
+        return "defer"
+    return None
+
+
+def _convert_obligation(
+    future: list[FutureDraftPickAsset],
+    pick: FutureDraftPickAsset,
+    round_number: int,
+    next_asset_id: int,
+) -> tuple[list[FutureDraftPickAsset], int]:
+    key = (pick.draft_year + 1, round_number, pick.original_team_id)
+    existing = next(
+        (
+            candidate
+            for candidate in future
+            if (candidate.draft_year, candidate.round_number, candidate.original_team_id) == key
+        ),
+        None,
+    )
+    if existing is not None and existing.owner_team_id != existing.original_team_id:
+        raise ValueError("conditional pick cannot convert onto an already traded native pick")
+    replacement = FutureDraftPickAsset(
+        existing.asset_id if existing else next_asset_id,
+        pick.draft_year + 1,
+        round_number,
+        pick.original_team_id,
+        pick.owner_team_id,
+    )
+    updated = [
+        *(candidate for candidate in future if candidate is not existing),
+        replacement,
+    ]
+    return updated, next_asset_id if existing else next_asset_id + 1
+
+
+def _condition_from_dict(value: object) -> DraftPickCondition:
+    if not isinstance(value, dict) or set(value) != {
+        "selection_start",
+        "selection_end",
+        "outcome",
+        "conversion_round_number",
+    }:
+        raise ValueError("invalid draft-pick condition keys")
+    return DraftPickCondition(
+        _integer(value["selection_start"], "selection_start"),
+        _integer(value["selection_end"], "selection_end"),
+        _text(value["outcome"], "outcome"),
+        _integer(value["conversion_round_number"], "conversion_round_number"),
     )
 
 

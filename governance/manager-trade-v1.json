@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "manager_trade_version": "manager-trade-v1",
-  "trade_version": "trade-v1",
+  "trade_version": "trade-v2",
   "default_mode": "shadow",
   "reasonable_band": 0.08,
   "style_contribution_limit": 0.04,

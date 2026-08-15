@@ -1,0 +1,15 @@
+{
+  "version": "postseason-schedule-long-holdout-v1",
+  "candidate_id": "nba-quick-sim-executor-v6",
+  "frozen_at": "2026-08-02",
+  "purpose": "promotion-quality long-run validation after the five-season candidate holdout",
+  "change": "play-in openers and every playoff round start concurrently; next round starts after the latest feeder series ends",
+  "batch_id": "long-holdout-v6-strength035-v1",
+  "master_seed": 20261210,
+  "seasons": 30,
+  "workers": 3,
+  "decision_point": "only after all 30 full-engine seasons and all 30 paired aggregate seasons are complete",
+  "interim_policy": "checkpoint progress may be inspected for health only; metrics must not change thresholds, inputs, sample size, or stopping time",
+  "promotion_rule": "both frozen reality and aggregate/full-engine consistency gates must pass",
+  "forbidden_master_seeds": [20260920, 20260921, 20261010, 20261011, 20261020, 20261021, 20261022, 20261030, 20261031, 20261101, 20261110, 20261120]
+}

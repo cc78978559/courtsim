@@ -1,6 +1,6 @@
 # CourtSim project status
 
-Status date: 2026-07-26
+Status date: 2026-08-09
 
 CourtSim is a local-first, no-UI basketball game simulator. It uses a layered
 conditional-probability model, deterministic state machines, and an event-sourced
@@ -8,7 +8,8 @@ statistics ledger rather than continuous court physics.
 
 ## Current versions
 
-- Engine release candidate: `0.52.0`.
+- Frozen release engine: `0.54.0`.
+- Current WIP candidate package: `0.55.0.dev0`.
 - Latest mechanics: schema `demo-v1.12`, parameters `demo-1.4.0`.
 - Frozen realism baseline: `demo-1.4.0`.
 - Game rules: `nba-v1`.
@@ -26,29 +27,33 @@ statistics ledger rather than continuous court physics.
 - Versioned external quick-simulation comparison: `quick-sim-comparison-v1`.
 - Resumable multi-season quick-simulation batches: `quick-sim-batch-v1`.
 - Atomic quick-simulation checkpoints and reference artifacts: `quick-sim-artifact-v1`.
-- Direct 30-team quick-simulation execution: `nba-quick-sim-executor-v5`.
+- Direct 30-team quick-simulation execution: `nba-quick-sim-executor-v6`.
 - Manager counterfactual evidence and release registry:
   `manager-evidence-v1 / manager-release-registry-v1`.
 - Resumable paired manager experiment orchestration: `manager-experiment-v1`.
 - Real season/playoff/offseason experiment adapter: `manager-league-adapter-v1`.
 - Annual deterministic draft classes: `prospect-generation-v1`.
 - White-box manager lineups and playing time: `manager-rotation-v1`.
-- Atomic bilateral trades and white-box approval: `trade-v1 / manager-trade-v1`.
-- Deterministic offer generation and conflict-free clearing: `trade-market-v1`.
-- Persistent future picks, protections, and swap rights: `draft-asset-v1`.
+- Atomic bilateral trades and white-box approval: `trade-v2 / manager-trade-v1`.
+- Deterministic offer generation and conflict-free clearing: `trade-market-v2`.
+- Persistent future picks, ranged conditions, conversion, and swap rights: `draft-asset-v2`.
 - Weighted first-round lottery and Stepien safety: `draft-lottery-v1`.
 - Fourteen-team NBA lottery and complete draft order: `nba-draft-lottery-v1`.
 - NBA lottery-aware persistent pick settlement: `nba-draft-asset-settlement-v1`.
 - Thirty-team white-box manager draft execution: `nba-draft-offseason-v1`.
 - Complete thirty-team career and management offseason: `nba-offseason-v1`.
-- Complete-season learning-aware thirty-team franchise loop: `nba-franchise-v3`.
-- Atomic hash-verified franchise checkpoints: `nba-franchise-artifact-v1`.
-- Resumable automatic multi-season orchestration: `nba-franchise-runner-v1`.
+- Trade- and cap-aware thirty-team franchise loop: `nba-franchise-v6`.
+- Compressed, migratable atomic franchise checkpoints: `nba-franchise-artifact-v4`.
+- Retention-aware resumable multi-season orchestration: `nba-franchise-runner-v5`
+  with manifest schema 3; frozen 0.54 remains on runner v4/schema 2.
 - Native routed three-team transactions: `three-team-trade-v1`.
-- Automatic cyclic/hub three-team discovery and unified clearing: `three-team-market-v1`.
+- Automatic cyclic/hub three-team discovery and unified clearing: `three-team-market-v1`, now
+  executing `three-team-market-v2` contract-condition trees in the franchise WIP path.
+- Conservative multi-obligation and pick-freeze derivation: `draft-obligation-ledger-v3`, enforced
+  in bilateral and three-team offer generation and execution, then re-derived after settlement.
 - Team-specific hidden-potential scouting: `scouting-v1`.
 - Bird rights, aprons, salary tiers, and trade exceptions: `cap-mechanics-v1`.
-- Thirty-team schedule, play-in, and full bracket: `nba-league-v1`.
+- 174-day thirty-team schedule, play-in, and full bracket: `nba-league-v1`.
 - Cross-season opponent modeling: `manager-learning-v1`.
 
 The latest mechanics are now the formal baseline after a complete independent
@@ -94,12 +99,17 @@ promotion.
   replay gates, plus independent bilateral manager approval in Shadow mode.
 - Deterministic direct/counteroffer generation, positive-surplus ranking, asset locking, and
   preseason Shadow-market execution inside real multi-season manager experiments.
-- Bounded three-round bilateral negotiation trees with parent offers, additional-pick final
-  counters, repeated white-box approval, and explicit accepted/round-limit/no-counter outcomes.
+- Bounded bilateral negotiation trees supporting four through eight rounds, parent offers,
+  pick counters, binding contract-condition counters, repeated white-box approval, and
+  explicit accepted/round-limit/no-counter outcomes.
 - Stable future-pick ownership across seasons, top-N protection and deferral, one-way
   better-slot swaps, and standings-addressed annual settlement into the draft.
+- Ordered, non-overlapping pick-position conditions that defer, convert to a later-round
+  obligation, or return the pick to its native team, with legacy draft-asset migration.
 - Addressed weighted lottery draws, round-specific order settlement, consecutive-future-first
   trade safety, and bounded two-for-one white-box trade packages.
+- Complete seven-year NBA franchise pick seeding and conservative Stepien validation, where
+  conditional incoming firsts cannot hide a guaranteed consecutive first-round gap.
 - NBA-accurate 14-team lottery odds with four drawn selections and a complete 30-team order
   derived from non-playoff records, postseason elimination rounds, Finals loser, and champion.
 - Atomic application of the final NBA order to traded future picks, top-N protection,
@@ -120,7 +130,7 @@ promotion.
   hidden true potential, and direct integration into Shadow draft decisions.
 - Non-Bird, Early Bird, and Full Bird over-cap signing paths, first/second aprons, three salary
   matching tiers, and immutable expiring trade-exception ledgers.
-- A deterministic 30-team schedule containing exactly 1,230 games and 82 games per team,
+- A deterministic 174-day 30-team schedule containing exactly 1,230 games and 82 games per team,
   conference play-in resolution, and a validated 16-team/15-series postseason path.
 - Division-aware NBA series allocation with four games against every division opponent,
   6/4 four-game/three-game same-conference opponents, two games against every opposite-
@@ -149,6 +159,10 @@ promotion.
   prefix resume, no completed-cell replay, and hash receipts for checkpoints and references.
 - A direct 30-team executor running the canonical 1,230-game season, both conference play-ins,
   all 15 best-of-seven playoff series, and canonical six-metric quick-simulation summaries.
+- Concurrent same-round postseason scheduling with both play-in conferences and opening games
+  sharing dates, next rounds waiting for the latest feeder series, and chronological ledgers.
+- A predeclared 30-season full-engine plus 30-season aggregate holdout that passed the frozen
+  NBA reality and engine-consistency gates; its compact promotion receipt is versioned.
 - Full 30-team postseason continuity carrying regular-season fatigue and unresolved injuries,
   adding addressed playoff injuries, calendar recovery, availability/forfeit game ledgers,
   and auditable initial/final player states.
@@ -168,6 +182,8 @@ promotion.
 - Stable-seed multi-season franchise runs with a fully verified contiguous checkpoint prefix,
   per-call work budgets, crash-safe state-before-manifest ordering, zero completed-season
   replay, and completed-run no-op behavior.
+- Deterministic gzip franchise checkpoints with initial/latest/periodic retention anchors,
+  pruned-file metadata continuity, and read-time migration from artifact and runner schema 1.
 - League-state schema 4 persistence for Bird rights, trade exceptions, manager opponent memory,
   and optional 30-team conference/division alignment, with deterministic schema 1/2/3 migration.
 - Roster-safe per-game team resolution and opponent-specific white-box rotations throughout
@@ -183,35 +199,51 @@ promotion.
   counterfactuals, multi-seed robustness checks, and realism/regression gates.
 - Read-only artifact inventory, hash-verified archive planning, independent archive
   verification and restore, and draft retention-policy regression checks.
+- Local free-data reducers for team/player box scores, player identity crosswalk audits,
+  player usage/efficiency/minutes/shot-structure evaluation, and multi-seed aggregation.
+- A source-hash-bound draft obligation/freeze ledger v3 with seven-year Stepien risk auditing.
+- Four-round default three-team contract-condition negotiation trees integrated into franchise
+  clearing, with stale-offer, cap, draft-freeze, and canonical legality revalidation.
+- Source-pinned real-player quick-sim rosters with 451 NBA IDs, real names and team membership,
+  target-shaped usage/shot profiles, deterministic ten-player rotations, and a dedicated formal
+  macro holdout gate. Player-level full-trace calibration remains a separate unpassed boundary.
+- Layered static/unit/slow/franchise quality gates, bounded failure output with full logs,
+  execution-policy-safe Windows dispatch, compact governance/Git status JSON, and read-only
+  NBA quick-simulation/franchise artifact inspection commands.
 
 ## Validation
 
 - Ruff formatting and lint: passed.
 - mypy strict: passed.
-- pytest: 481 passed; one Windows symlink test skipped when link privileges are absent.
-- Coverage: 85%, meeting the required minimum of 85%.
+- Final WIP gate: 677 tests passed on 2026-08-09; formatting, lint, strict mypy, and the unchanged
+  85% branch-coverage threshold passed. The coverage run took about 37 minutes on the audit host.
+- The restored coverage comes from strict reality-data, player calibration, pace/holdout,
+  quick-sim resume, draft-obligation, and three-team negotiation tests; the threshold and source
+  measurement boundary were not weakened.
 - Runtime dependencies: Python standard library only.
 - Frozen `demo-1.4.0` audit: 10 core realism targets, 3 free-throw targets, and
   37 regression gates passed.
 - Linux and Windows run the same quality gate in GitHub Actions.
+- Every composed NBA season evaluates bilateral and three-team markets, clears the
+  higher-gain conflict-free plan, rebuilds traded rotations before tipoff, and carries
+  the independent cap ledger and traded draft assets through checkpoints.
 
 Run the complete local gate with:
 
 ```powershell
-.\tools.ps1 check
+.\tools.cmd check
 ```
 
 ## Known gaps
 
-- The 30-team `nba-franchise-v3` loop does not yet automatically schedule bilateral or
-  three-team trade markets, and its checkpoint state does not carry the separate cap ledger.
-  Those systems remain governed, callable manager-league entry points rather than stages of
-  the composed NBA franchise year.
 - Broader offensive vocabulary and stronger player-level usage calibration.
-- Multi-team and player-level real-data calibration beyond the current selected targets.
-- Advanced conditional-pick rules, seven-year Stepien edge cases, four-plus-round and
-  contract-dependent negotiation, checkpoint retention and schema migrations, causal tactical
-  experiments, human-approved promotion beyond Shadow mode, and fantasy-manager gameplay.
+- Player identity coverage is still below promotion thresholds: 53.62% of players and 67.09%
+  of minutes versus required 90% and 95%.
+- Promote the existing three-team-market v2 negotiation tree into the canonical franchise loop.
+- Connect the read-only draft obligation/freeze ledger v3 to transaction generation, execution,
+  settlement, and multi-season unfreezing.
+- Causal tactical experiments, human-approved promotion beyond Shadow mode, and
+  fantasy-manager gameplay.
 
 ## Repository boundary
 

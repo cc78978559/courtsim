@@ -11,7 +11,12 @@ from courtsim.domain.game import GameClockConfig, GameResult, validate_game_resu
 from courtsim.domain.game_serialization import game_result_from_dict, game_result_to_dict
 from courtsim.domain.plans import Lineup
 from courtsim.domain.serialization import SerializationError
-from courtsim.model.game_runtime import GameMatchups, GameTeam, sample_game
+from courtsim.model.game_runtime import (
+    GameMatchups,
+    GameTeam,
+    possession_duration_options,
+    sample_game,
+)
 from courtsim.model.interaction_compiler import DefensiveMatchups, Matchup, ProfileLineup
 from courtsim.model.trace_mode import TraceMode
 from courtsim.parameters import ModelParameters
@@ -363,6 +368,7 @@ def validate_season_result(
     result: SeasonResult,
     game_config: GameClockConfig,
     roster_rules: RosterRules | None = None,
+    allowed_possession_seconds: tuple[int, ...] | None = None,
 ) -> None:
     if (
         roster_rules is not None
@@ -407,7 +413,7 @@ def validate_season_result(
             ) or (ownership is None and player_id not in known_player_ids):
                 raise ValueError("away unavailable player is missing from final state")
         if record.result is not None:
-            validate_game_result(record.result, game_config)
+            validate_game_result(record.result, game_config, allowed_possession_seconds)
             if (
                 record.result.home_team_id != record.scheduled_game.home_team_id
                 or record.result.away_team_id != record.scheduled_game.away_team_id
@@ -428,8 +434,16 @@ def validate_season_result(
             raise ValueError("injury record does not match the season")
 
 
-def audit_season(result: SeasonResult, game_config: GameClockConfig) -> SeasonAudit:
-    validate_season_result(result, game_config)
+def audit_season(
+    result: SeasonResult,
+    game_config: GameClockConfig,
+    allowed_possession_seconds: tuple[int, ...] | None = None,
+) -> SeasonAudit:
+    validate_season_result(
+        result,
+        game_config,
+        allowed_possession_seconds=allowed_possession_seconds,
+    )
     return SeasonAudit(
         len(result.schedule.games),
         sum(record.result is not None for record in result.games),
@@ -733,7 +747,12 @@ def sample_season(
         roster_version=ROSTER_VERSION,
         roster_rules=roster_rules,
     )
-    validate_season_result(result, game_config, roster_rules)
+    validate_season_result(
+        result,
+        game_config,
+        roster_rules,
+        possession_duration_options(parameters),
+    )
     return result
 
 
@@ -879,7 +898,11 @@ def _integer_tuple(value: object, field: str) -> tuple[int, ...]:
     return tuple(value)
 
 
-def season_result_from_dict(value: object, game_config: GameClockConfig) -> SeasonResult:
+def season_result_from_dict(
+    value: object,
+    game_config: GameClockConfig,
+    allowed_possession_seconds: tuple[int, ...] | None = None,
+) -> SeasonResult:
     raw = _object(value, "season result")
     schema_version = _integer(raw, "schema_version")
     if schema_version not in {1, SEASON_SCHEMA_VERSION}:
@@ -960,7 +983,13 @@ def season_result_from_dict(value: object, game_config: GameClockConfig) -> Seas
         if forfeit_raw is not None and not isinstance(forfeit_raw, str):
             _fail("forfeit_team_id must be null or a string")
         nested = (
-            None if item["result"] is None else game_result_from_dict(item["result"], game_config)
+            None
+            if item["result"] is None
+            else game_result_from_dict(
+                item["result"],
+                game_config,
+                allowed_possession_seconds,
+            )
         )
         records.append(
             SeasonGameRecord(
@@ -1118,7 +1147,11 @@ def season_result_from_dict(value: object, game_config: GameClockConfig) -> Seas
         roster_rules,
     )
     try:
-        validate_season_result(result, game_config)
+        validate_season_result(
+            result,
+            game_config,
+            allowed_possession_seconds=allowed_possession_seconds,
+        )
     except ValueError as error:
         _fail(str(error))
     return result
@@ -1133,9 +1166,13 @@ def season_result_to_json(result: SeasonResult) -> str:
     )
 
 
-def season_result_from_json(payload: str, game_config: GameClockConfig) -> SeasonResult:
+def season_result_from_json(
+    payload: str,
+    game_config: GameClockConfig,
+    allowed_possession_seconds: tuple[int, ...] | None = None,
+) -> SeasonResult:
     try:
         value = json.loads(payload)
     except json.JSONDecodeError as error:
         raise SerializationError(f"invalid season JSON: {error.msg}") from error
-    return season_result_from_dict(value, game_config)
+    return season_result_from_dict(value, game_config, allowed_possession_seconds)

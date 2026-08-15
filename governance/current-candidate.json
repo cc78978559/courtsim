@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "status": "wip",
+  "engine_version": "0.55.0.dev0",
+  "base_release_engine_version": "0.54.0",
+  "capability_scope": "workspace-wip",
+  "base_release": {
+    "path": "governance/current-release.json",
+    "file_sha256": "f329af1f3937d23a981e6bd5e7af8acfd9fee7afe5791be2d2434805b0d87208"
+  },
+  "nba_franchise_runner": {
+    "version": "nba-franchise-runner-v5",
+    "manifest_schema": 3,
+    "path": "governance/nba-franchise-runner-v5.json",
+    "file_sha256": "55c79db8b292e2ecff643a00183137ab4dcbbc0eb02c916518fdc3c8aea1c4bb"
+  },
+  "long_holdout_inputs": {
+    "version": "nba-v6-long-holdout-inputs-v1",
+    "path": "experiments/manifests/nba-v6-long-holdout-inputs-v1.json",
+    "file_sha256": "8eaa1082807ca37d586fdbc67b6ba893030e5fbc36dc79dda88837f583c04ccb"
+  },
+  "long_holdout_parameters": {
+    "path": "experiments/parameters/pace-dev-short11-parameters.json",
+    "file_sha256": "0deb06c07e1d4a95a56ca9d01781740cfdd25e0a95b0991e4a2db3b423f90c0e"
+  },
+  "long_holdout_shot_profiles": {
+    "path": "experiments/inputs/nba-2024-25-team-shot-profiles-calibrated.json",
+    "file_sha256": "b9114f3247f2ce807065be40faf64633cfd49d8d5999bd692dddc675d4a13ead"
+  },
+  "long_holdout_team_strength": {
+    "path": "experiments/sources/nba-2024-25-team-strength-035-v1.json",
+    "file_sha256": "a0379d99dafa8faeafa2051d25d974ed301d59cc381196ee3f402842af5d607c"
+  },
+  "long_holdout_schema": {
+    "path": "data/model_schema_demo_v1_12.json",
+    "file_sha256": "a51ce2b630c215bc04e8d413620dcbb6213d9fb39ee50e2e90f78357df92c54f"
+  },
+  "long_holdout_lineup": {
+    "path": "examples/calibration_lineup_v1.json",
+    "file_sha256": "4cee166e79e82eb6c60614d156011eb5028e79be2e57590f330c21da4be4763c"
+  },
+  "capabilities": [
+    "artifact-retention-two-phase-commit",
+    "draft-obligation-transaction-enforcement",
+    "manager-tenure-aware-learning",
+    "mixed-bilateral-three-team-clearing",
+    "nba-source-pinned-real-player-rosters",
+    "three-team-market-v2-franchise-integration",
+    "three-team-substantive-counter-reject-negotiation"
+  ]
+}

@@ -8,7 +8,13 @@ from dataclasses import dataclass, replace
 from enum import IntEnum
 from typing import Any, NoReturn, cast
 
-from courtsim.cap_mechanics import CapLedger, CapMechanicsRules, evaluate_signing_salary
+from courtsim.cap_mechanics import (
+    CapLedger,
+    CapMechanicsRules,
+    evaluate_signing_salary,
+    record_bird_rights_signing,
+    remove_bird_rights,
+)
 from courtsim.domain.serialization import SerializationError
 from courtsim.rosters import RosterSnapshot
 
@@ -149,6 +155,9 @@ class MarketResult:
     initial_state: LeagueManagementState
     actions: tuple[MarketAction, ...]
     final_state: LeagueManagementState
+    initial_cap_ledger: CapLedger | None = None
+    final_cap_ledger: CapLedger | None = None
+    cap_rules: CapMechanicsRules | None = None
     version: str = FREE_AGENCY_VERSION
 
     def __post_init__(self) -> None:
@@ -359,16 +368,36 @@ def apply_market_plan(
         maximum_payroll=payroll_ceiling,
     )
     final = state
+    final_cap_ledger = cap_ledger
     for action in plan.actions:
         final = _apply_action(
             final,
             action,
             rules,
-            cap_ledger,
+            final_cap_ledger,
             cap_rules,
             maximum_payroll,
         )
-    return MarketResult(rules, state, plan.actions, final)
+        if final_cap_ledger is not None:
+            final_cap_ledger = (
+                remove_bird_rights(final_cap_ledger, frozenset({action.player_id}))
+                if action.kind is MarketActionKind.WAIVE
+                else record_bird_rights_signing(
+                    final_cap_ledger,
+                    team_id=action.team_id,
+                    player_id=action.player_id,
+                    annual_salary=action.annual_salary,
+                )
+            )
+    return MarketResult(
+        rules,
+        state,
+        plan.actions,
+        final,
+        cap_ledger,
+        final_cap_ledger,
+        cap_rules,
+    )
 
 
 def audit_market(
@@ -390,9 +419,14 @@ def audit_market(
         result.initial_state,
         MarketPlan(result.actions),
         result.rules,
+        cap_ledger=result.initial_cap_ledger,
+        cap_rules=result.cap_rules,
         maximum_payroll=maximum_payroll,
     )
-    if replayed.final_state != result.final_state:
+    if (
+        replayed.final_state != result.final_state
+        or replayed.final_cap_ledger != result.final_cap_ledger
+    ):
         raise ValueError("final management state does not derive from action ledger")
     payrolls = _payrolls(result.final_state)
     return ManagementAudit(
@@ -633,7 +667,7 @@ def market_result_from_dict(
         _state_from_dict(raw["initial_state"]),
         tuple(actions),
         _state_from_dict(raw["final_state"]),
-        _string(raw, "version"),
+        version=_string(raw, "version"),
     )
     if result.version != FREE_AGENCY_VERSION:
         _fail("unsupported market result version")

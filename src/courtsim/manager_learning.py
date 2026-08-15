@@ -145,6 +145,11 @@ class ManagerLearningState:
         if self.version != MANAGER_LEARNING_VERSION:
             raise ValueError("unsupported manager learning version")
 
+    @property
+    def tenure_start_season(self) -> int:
+        """First completed season observed by this manager in the current tenure."""
+        return self.last_completed_season - self.seasons_observed + 1
+
 
 @dataclass(frozen=True, slots=True)
 class OpponentRotationAdjustment:
@@ -349,6 +354,24 @@ def opponent_observation_totals_from_game(
     home = [1, away_score, home_score, 0, 0, 0, 0, 0]
     away = [1, home_score, away_score, 0, 0, 0, 0, 0]
     if result is not None:
+        if result.possessions_omitted:
+            home[3] = result.away_possessions
+            home[4] = result.home_possessions
+            away[3] = result.home_possessions
+            away[4] = result.away_possessions
+            team_by_player = {item.player_id: item.team_id for item in result.playing_time}
+            for aggregate in result.player_shot_zones:
+                shooting_team = team_by_player.get(aggregate.player_id)
+                observer = home if shooting_team == away_team_id else away
+                observer[5] += aggregate.attempts
+                if aggregate.zone is ShotZone.THREE:
+                    observer[6] += aggregate.attempts
+                elif aggregate.zone is ShotZone.RIM:
+                    observer[7] += aggregate.attempts
+            return (
+                OpponentObservationTotals(home_team_id, away_team_id, *home),
+                OpponentObservationTotals(away_team_id, home_team_id, *away),
+            )
         for possession in result.possessions:
             opponent_is_away = possession.offense_team_id == away_team_id
             observer = home if opponent_is_away else away

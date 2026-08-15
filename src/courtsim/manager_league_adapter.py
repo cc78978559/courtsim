@@ -101,6 +101,7 @@ from courtsim.manager_rotation import (
     generate_manager_rotation,
 )
 from courtsim.manager_trade import ManagerTradeRules
+from courtsim.mixed_trade_market import clear_mixed_trade_markets
 from courtsim.model.action_setup import TeamDefenseStrategy, TeamOffenseStrategy
 from courtsim.model.game_runtime import (
     GameMatchups,
@@ -156,16 +157,13 @@ from courtsim.season import (
 )
 from courtsim.three_team_market import (
     ThreeTeamMarketExecution,
-    ThreeTeamMarketPlan,
     ThreeTeamMarketRules,
     ThreeTeamMarketShadowResult,
     apply_three_team_market_plan,
     generate_three_team_market_shadow,
-    three_team_shadow_gain,
 )
 from courtsim.trade_market import (
     TradeMarketExecution,
-    TradeMarketPlan,
     TradeMarketRules,
     TradeMarketShadowResult,
     apply_trade_market_plan,
@@ -360,6 +358,8 @@ class CourtSimManagerLeagueAdapter:
                 trade_rules=self.trade_rules,
                 manager_rules=self.manager_trade_rules,
                 market_rules=self.trade_market_rules,
+                cap_ledger=state.cap_ledger,
+                cap_rules=cap_rules,
             )
             three_team_shadow = generate_three_team_market_shadow(
                 management=state.management,
@@ -370,16 +370,12 @@ class CourtSimManagerLeagueAdapter:
                 trade_rules=self.trade_rules,
                 manager_rules=self.manager_trade_rules,
                 market_rules=self.three_team_market_rules,
+                cap_ledger=state.cap_ledger,
+                cap_rules=cap_rules,
             )
-            bilateral_gain = _selected_bilateral_gain(trade_shadow)
-            three_team_gain = _selected_three_team_gain(three_team_shadow)
-            choose_three_team = (
-                bool(three_team_shadow.plan.offers) and three_team_gain > bilateral_gain
-            )
-            bilateral_plan = TradeMarketPlan(()) if choose_three_team else trade_shadow.plan
-            three_team_plan = (
-                three_team_shadow.plan if choose_three_team else ThreeTeamMarketPlan(())
-            )
+            clearing = clear_mixed_trade_markets(trade_shadow, three_team_shadow)
+            bilateral_plan = clearing.bilateral_plan
+            three_team_plan = clearing.three_team_plan
             trade_recommendations = len(bilateral_plan.offers) + len(three_team_plan.offers)
             trade_execution = apply_trade_market_plan(
                 state.management,
@@ -398,6 +394,7 @@ class CourtSimManagerLeagueAdapter:
                 self.trade_rules,
                 cap_ledger=trade_execution.final_cap_ledger,
                 cap_rules=cap_rules,
+                negotiations=three_team_shadow.negotiations,
             )
             state = replace(
                 state,
@@ -416,13 +413,7 @@ class CourtSimManagerLeagueAdapter:
                 three_team_shadow,
                 three_team_execution,
             )
-            trade_clearing_choice = (
-                "three-team"
-                if choose_three_team
-                else "bilateral"
-                if bilateral_plan.offers
-                else "none"
-            )
+            trade_clearing_choice = clearing.choice
             trade_ledger = asdict(trade_shadow.ledger)
             three_team_ledger = asdict(three_team_shadow.ledger)
 
@@ -674,6 +665,8 @@ def _three_team_market_audit(
             evaluation.shadow.approved for evaluation in shadow.evaluations
         ),
         "selected_offers": [asdict(offer) for offer in execution.plan.offers],
+        "negotiations": [asdict(tree) for tree in shadow.negotiations],
+        "accepted_node_ids": list(execution.accepted_node_ids),
         "evaluations": [
             {
                 "kind": evaluation.kind,
@@ -698,24 +691,6 @@ def _three_team_market_audit(
         ],
         "execution_audits": [asdict(audit) for audit in execution.audits],
     }
-
-
-def _selected_bilateral_gain(shadow: TradeMarketShadowResult) -> float:
-    selected = {offer.trade_id for offer in shadow.plan.offers}
-    return sum(
-        sum(approval.rational_gain or 0.0 for approval in evaluation.shadow.approvals)
-        for evaluation in shadow.evaluations
-        if evaluation.shadow.offer.trade_id in selected
-    )
-
-
-def _selected_three_team_gain(shadow: ThreeTeamMarketShadowResult) -> float:
-    selected = {offer.trade_id for offer in shadow.plan.offers}
-    return sum(
-        three_team_shadow_gain(evaluation.shadow)
-        for evaluation in shadow.evaluations
-        if evaluation.shadow.offer.trade_id in selected
-    )
 
 
 def league_state_to_json(state: CourtSimLeagueState) -> str:

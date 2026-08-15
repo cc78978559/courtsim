@@ -11,6 +11,7 @@ from courtsim.domain.enums import (
     GameEndReason,
     LateGameDefenseMode,
     LateGameOffenseMode,
+    ShotZone,
     SubstitutionReason,
 )
 from courtsim.domain.game import (
@@ -19,12 +20,19 @@ from courtsim.domain.game import (
     GameResult,
     PlayerFatigueSnapshot,
     PlayerPlayingTime,
+    PlayerShotZoneStat,
     SubstitutionRecord,
     validate_game_result,
 )
 from courtsim.domain.plans import Lineup, validate_lineup
 from courtsim.domain.player import PlayerProfile
-from courtsim.domain.results import offense_retains_ball
+from courtsim.domain.results import (
+    BlockedShotSegmentResult,
+    MadeShotSegmentResult,
+    MissedShotSegmentResult,
+    ShootingFoulSegmentResult,
+    offense_retains_ball,
+)
 from courtsim.model.action_setup import TeamDefenseStrategy, TeamOffenseStrategy
 from courtsim.model.interaction_compiler import (
     DefensiveMatchups,
@@ -408,6 +416,7 @@ def sample_game(
     starting_home_lineup = home.lineup
     starting_away_lineup = away.lineup
     stat_totals: dict[tuple[int, StatCode], int] = {}
+    shot_zone_totals: dict[tuple[int, ShotZone], list[int]] = {}
     records: list[GamePossessionRecord] = []
     samples: list[PossessionSample] = []
     substitutions: list[SubstitutionRecord] = []
@@ -416,6 +425,7 @@ def sample_game(
     period = 1
     clock = config.period_seconds
     possession_index = 0
+    team_possession_totals = {home.team_id: 0, away.team_id: 0}
     end_reason = GameEndReason.REGULATION
     team_fouls = {home.team_id: 0, away.team_id: 0}
     final_two_minute_fouls = {home.team_id: 0, away.team_id: 0}
@@ -552,6 +562,7 @@ def sample_game(
             force_intentional_foul=intentional_foul,
             trace_mode=trace_mode,
         )
+        team_possession_totals[offense.team_id] += 1
         team_fouls[defense.team_id] += sampled.defensive_fouls_committed
         if rules is not None and clock <= rules.final_two_minute_seconds:
             final_two_minute_fouls[defense.team_id] += sampled.defensive_fouls_committed
@@ -574,29 +585,48 @@ def sample_game(
         else:
             possession_seconds = normal_possession_seconds
         clock_end = max(0, clock - possession_seconds)
-        records.append(
-            GamePossessionRecord(
-                possession_index,
-                period,
-                clock,
-                clock_end,
-                offense.team_id,
-                defense.team_id,
-                sampled.result,
-                offense.lineup,
-                defense.lineup,
-                _fatigue_snapshots(
+        if trace_mode is not TraceMode.PLAYER_AGGREGATES:
+            records.append(
+                GamePossessionRecord(
+                    possession_index,
+                    period,
+                    clock,
+                    clock_end,
+                    offense.team_id,
+                    defense.team_id,
+                    sampled.result,
                     offense.lineup,
-                    fatigue,
-                    fatigue_config is not None,
-                ),
-                _fatigue_snapshots(
                     defense.lineup,
-                    fatigue,
-                    fatigue_config is not None,
-                ),
+                    _fatigue_snapshots(
+                        offense.lineup,
+                        fatigue,
+                        fatigue_config is not None,
+                    ),
+                    _fatigue_snapshots(
+                        defense.lineup,
+                        fatigue,
+                        fatigue_config is not None,
+                    ),
+                )
             )
-        )
+        for segment in sampled.result.segments:
+            if not isinstance(
+                segment,
+                (
+                    MadeShotSegmentResult,
+                    MissedShotSegmentResult,
+                    BlockedShotSegmentResult,
+                    ShootingFoulSegmentResult,
+                ),
+            ) or (isinstance(segment, ShootingFoulSegmentResult) and not segment.field_goal_made):
+                continue
+            key = (segment.selection.finisher_id, segment.zone)
+            totals = shot_zone_totals.setdefault(key, [0, 0])
+            totals[0] += 1
+            if isinstance(segment, MadeShotSegmentResult) or (
+                isinstance(segment, ShootingFoulSegmentResult) and segment.field_goal_made
+            ):
+                totals[1] += 1
         actual_duration = clock - clock_end
         for team in (offense, defense):
             for player_id in team.lineup:
@@ -622,8 +652,8 @@ def sample_game(
         score[offense.team_id] += attribution.score_delta
         score[defense.team_id] += attribution.opponent_score_delta
         for delta in attribution.player_deltas:
-            key = (delta.player_id, delta.stat)
-            stat_totals[key] = stat_totals.get(key, 0) + delta.amount
+            stat_key = (delta.player_id, delta.stat)
+            stat_totals[stat_key] = stat_totals.get(stat_key, 0) + delta.amount
             if delta.stat is StatCode.PF:
                 player_fouls[delta.player_id] = player_fouls.get(delta.player_id, 0) + delta.amount
         if not sampled.result.completed:
@@ -734,6 +764,15 @@ def sample_game(
             else None
         ),
         fatigue_config.version if fatigue_config is not None else None,
+        tuple(
+            PlayerShotZoneStat(player_id, zone, values[0], values[1])
+            for (player_id, zone), values in sorted(
+                shot_zone_totals.items(), key=lambda item: (item[0][0], int(item[0][1]))
+            )
+        ),
+        trace_mode is TraceMode.PLAYER_AGGREGATES,
+        team_possession_totals[home.team_id],
+        team_possession_totals[away.team_id],
     )
     validate_game_result(result, config, possession_duration_options(parameters))
     return GameSample(result, tuple(samples))

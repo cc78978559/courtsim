@@ -1,0 +1,33 @@
+{
+  "manifest_version": 1,
+  "manifest_id": "nba-v6-long-holdout-inputs-v1",
+  "status": "wip-candidate",
+  "inputs": [
+    {
+      "role": "full-engine-parameters",
+      "path": "experiments/parameters/pace-dev-short11-parameters.json",
+      "sha256": "0deb06c07e1d4a95a56ca9d01781740cfdd25e0a95b0991e4a2db3b423f90c0e"
+    },
+    {
+      "role": "team-shot-profiles",
+      "path": "experiments/inputs/nba-2024-25-team-shot-profiles-calibrated.json",
+      "sha256": "b9114f3247f2ce807065be40faf64633cfd49d8d5999bd692dddc675d4a13ead"
+    },
+    {
+      "role": "team-strength",
+      "path": "experiments/sources/nba-2024-25-team-strength-035-v1.json",
+      "sha256": "a0379d99dafa8faeafa2051d25d974ed301d59cc381196ee3f402842af5d607c"
+    },
+    {
+      "role": "model-schema",
+      "path": "data/model_schema_demo_v1_12.json",
+      "sha256": "a51ce2b630c215bc04e8d413620dcbb6213d9fb39ee50e2e90f78357df92c54f"
+    },
+    {
+      "role": "lineup-template",
+      "path": "examples/calibration_lineup_v1.json",
+      "sha256": "4cee166e79e82eb6c60614d156011eb5028e79be2e57590f330c21da4be4763c"
+    }
+  ],
+  "outputs": []
+}

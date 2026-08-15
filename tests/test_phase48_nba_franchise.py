@@ -1,3 +1,5 @@
+import json
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import cast
 
@@ -5,12 +7,15 @@ import pytest
 from test_game_runtime import PARAMETERS, player
 from test_phase12_manager_league_adapter import career_player
 
+from courtsim.cap_mechanics import CapLedger, TradeException
 from courtsim.career import CareerStatus, DraftRules
+from courtsim.cli import main
 from courtsim.domain.game import GameClockConfig
 from courtsim.domain.plans import Lineup
 from courtsim.draft_assets import DraftAssetLedger
 from courtsim.management import ContractRules, LeagueManagementState, PlayerContract
 from courtsim.manager_ai import ManagerProfile
+from courtsim.manager_learning import ManagerLearningState
 from courtsim.model.game_runtime import GameTeam
 from courtsim.model.interaction_compiler import ProfileLineup
 from courtsim.nba_franchise import (
@@ -23,13 +28,20 @@ from courtsim.nba_franchise_artifacts import (
     write_nba_franchise_checkpoint,
 )
 from courtsim.nba_franchise_runner import (
+    NBAFranchiseRetentionPolicy,
     NBAFranchiseRunSpec,
+    inspect_nba_franchise_manifest,
+    nba_franchise_execution_config_sha256,
     run_nba_franchise_checkpoint,
 )
 from courtsim.nba_league import NBAConferenceAlignment
 from courtsim.prospects import ProspectGenerationRules
 from courtsim.rosters import RosterSnapshot
 from courtsim.season import SeasonConfig
+from courtsim.three_team_market import ThreeTeamMarketRules
+from courtsim.trade_market import TradeMarketRules
+
+pytestmark = [pytest.mark.slow, pytest.mark.nba, pytest.mark.franchise]
 
 
 def _state() -> tuple[NBAFranchiseState, dict[str, ManagerProfile], ContractRules]:
@@ -82,13 +94,37 @@ def _state() -> tuple[NBAFranchiseState, dict[str, ManagerProfile], ContractRule
 
 def test_franchise_season_composes_into_a_second_complete_season(
     tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     state, profiles, contract_rules = _state()
+    state = replace(
+        state,
+        cap_ledger=CapLedger(
+            trade_exceptions=(TradeException(1, "T01", 500_000, 2030),),
+            next_exception_id=2,
+        ),
+    )
     game_config = GameClockConfig(1, 5, 5, 5, 8, True)
     draft_rules = DraftRules(
         rounds=1,
         rookie_salary=1_000_000,
         rookie_contract_years=2,
+    )
+    season_config = SeasonConfig(injury_probability_bps=0)
+    bilateral_rules = TradeMarketRules(
+        maximum_candidates_per_pair=1,
+        generate_pick_counteroffers=False,
+        generate_player_for_pick_offers=False,
+        generate_two_for_one_offers=False,
+        maximum_round_three_candidates=1,
+        generate_round_three_counteroffers=False,
+    )
+    three_team_rules = ThreeTeamMarketRules(
+        maximum_candidates_per_trio=2,
+        maximum_cyclic_candidates_per_trio=1,
+        maximum_hub_candidates_per_trio=1,
+        search_pick_compensation=False,
+        maximum_compensation_picks=1,
     )
 
     def execute(
@@ -103,10 +139,25 @@ def test_franchise_season_composes_into_a_second_complete_season(
             profiles=profiles,
             contract_rules=contract_rules,
             draft_rules=draft_rules,
-            season_config=SeasonConfig(injury_probability_bps=0),
+            season_config=season_config,
+            trade_market_rules=bilateral_rules,
+            three_team_market_rules=three_team_rules,
         )
 
-    spec = NBAFranchiseRunSpec("league-run", 101, 2)
+    config_sha256 = nba_franchise_execution_config_sha256(
+        {
+            "parameter_hash": PARAMETERS.parameter_hash,
+            "game_config": asdict(game_config),
+            "profiles": {team_id: asdict(profile) for team_id, profile in profiles.items()},
+            "contract_rules": asdict(contract_rules),
+            "draft_rules": asdict(draft_rules),
+            "season_config": asdict(season_config),
+            "trade_market_rules": asdict(bilateral_rules),
+            "three_team_market_rules": asdict(three_team_rules),
+        }
+    )
+    spec = NBAFranchiseRunSpec("league-run", 101, 2, config_sha256)
+    retention = NBAFranchiseRetentionPolicy(keep_last=1, keep_every=5, compress_after=1)
     first_run = run_nba_franchise_checkpoint(
         spec,
         state,
@@ -114,12 +165,19 @@ def test_franchise_season_composes_into_a_second_complete_season(
         execute,
         tmp_path / "run",
         maximum_new_seasons=1,
+        retention_policy=retention,
     )
     assert first_run.completed_before == 0
     assert first_run.completed_after == 1
     assert not first_run.complete
     assert len(first_run.executions) == 1
+    assert (tmp_path / "run" / "season-00000.json.gz").is_file()
     first = first_run.executions[0]
+    assert first.trade_clearing_choice in {"none", "bilateral", "three-team", "mixed"}
+    assert first.bilateral_trade_market.evaluations
+    assert first.three_team_trade_market.evaluations
+    assert first.bilateral_trade_execution.initial_cap_ledger == state.cap_ledger
+    assert first.final_state.cap_ledger.trade_exceptions == state.cap_ledger.trade_exceptions
     assert first.final_state.management.season_year == 2030
     assert first.final_state.completed_seasons == 1
     assert first.simulation.matchup_team_count == 0
@@ -178,10 +236,13 @@ def test_franchise_season_composes_into_a_second_complete_season(
     assert second_run.completed_after == 2
     assert second_run.complete
     assert len(second_run.executions) == 1
+    assert not (tmp_path / "run" / "season-00001.json").exists()
+    assert (tmp_path / "run" / "season-00002.json").is_file()
     second = second_run.executions[0]
     assert second.initial_state == first.final_state
     assert second.final_state.management.season_year == 2031
     assert second.final_state.completed_seasons == 2
+    assert second.final_state.cap_ledger.trade_exceptions == ()
     assert second.simulation.matchup_team_count == 870
     assert all(
         learning.last_completed_season == 2030
@@ -230,12 +291,22 @@ def test_franchise_season_composes_into_a_second_complete_season(
     assert completed_run.completed_after == 2
     assert completed_run.complete
     assert completed_run.executions == ()
+    inspection = inspect_nba_franchise_manifest(tmp_path / "run" / "manifest.json")
+    assert inspection.run_id == spec.run_id
+    assert inspection.completed_seasons == 2
+    assert inspection.target_seasons == 2
+    assert inspection.complete
+    assert inspection.retained_checkpoints == 2
+    assert inspection.compressed_checkpoints == 1
+    assert inspection.pruned_checkpoints == 1
+    assert main(["nba-franchise-status", str(tmp_path / "run" / "manifest.json")]) == 0
+    assert json.loads(capsys.readouterr().out)["complete"] is True
 
 
 def test_nba_franchise_rejects_nonstandard_prospect_class_size() -> None:
     state, profiles, contract_rules = _state()
 
-    with pytest.raises(ValueError, match="thirty-player prospect class"):
+    with pytest.raises(ValueError, match="prospect class must cover every configured draft pick"):
         execute_nba_franchise_season(
             state,
             seed=101,
@@ -246,3 +317,25 @@ def test_nba_franchise_rejects_nonstandard_prospect_class_size() -> None:
             draft_rules=DraftRules(rounds=1),
             prospect_rules=ProspectGenerationRules(class_size=29),
         )
+
+
+def test_nba_franchise_accepts_replacement_manager_with_shorter_tenure() -> None:
+    state, _, _ = _state()
+    management = replace(state.management, season_year=2032)
+    learning = tuple(
+        ManagerLearningState(
+            "replacement-T01" if roster.team_id == "T01" else f"manager-{roster.team_id}",
+            roster.team_id,
+            2031,
+            1 if roster.team_id == "T01" else 3,
+        )
+        for roster in management.rosters
+    )
+    resumed = replace(
+        state,
+        management=management,
+        completed_seasons=3,
+        manager_learning=learning,
+    )
+    assert resumed.manager_learning[0].tenure_start_season == 2031
+    assert resumed.manager_learning[1].tenure_start_season == 2029

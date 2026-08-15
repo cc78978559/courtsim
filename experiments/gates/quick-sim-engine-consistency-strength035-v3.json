@@ -1,0 +1,40 @@
+{
+  "version": "quick-sim-consistency-gate-v3",
+  "gate_id": "full-season-engine-consistency-strength035-v3",
+  "frozen_at": "2026-08-02",
+  "minimum_paired_seasons": 5,
+  "forbidden_master_seeds": [20260920, 20260921, 20261010, 20261011, 20261020, 20261021, 20261022, 20261030, 20261031, 20261101, 20261110],
+  "required_executor_version": {
+    "aggregate": "nba-aggregate-quick-sim-v1",
+    "full_engine": "nba-quick-sim-executor-v6"
+  },
+  "required_runner_version": {
+    "aggregate": "nba-aggregate-quick-sim-runner-v1",
+    "full_engine": "nba-quick-sim-runner-v1"
+  },
+  "required_input_sha256": {
+    "aggregate": {
+      "aggregate_parameters": "9a4d527e96aba70b1eafbb3759df00437348cefb812eda273c7e3176d379db27",
+      "team_strength": "a0379d99dafa8faeafa2051d25d974ed301d59cc381196ee3f402842af5d607c"
+    },
+    "full_engine": {
+      "lineup": "4cee166e79e82eb6c60614d156011eb5028e79be2e57590f330c21da4be4763c",
+      "parameters": "dd559b9fff5bc9a8c928d7cb725ba296b4e7b14b9aaead7bfd02485a4f19014d",
+      "schema": "a51ce2b630c215bc04e8d413620dcbb6213d9fb39ee50e2e90f78357df92c54f",
+      "shot_profiles": "bc336297dde3c6be85957c0e9003f21dc969312d23d69fe01b535c1417ca42fb",
+      "team_strength": "a0379d99dafa8faeafa2051d25d974ed301d59cc381196ee3f402842af5d607c"
+    }
+  },
+  "maximum_mae": {
+    "win-rate-stddev": 0.025,
+    "pace-possessions-per-team": 0.75,
+    "offensive-rating": 1.0,
+    "point-differential-stddev": 1.5
+  },
+  "maximum_absolute_mean_error": {
+    "playoff-upset-rate": 0.15,
+    "champion-seed-mean": 1.5
+  },
+  "minimum_mean_team_rank_spearman": 0.75,
+  "methodology": "Frozen before the v6 five-season holdout; pins both executor and runner versions."
+}

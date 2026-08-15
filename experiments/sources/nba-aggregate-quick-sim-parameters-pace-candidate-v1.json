@@ -1,0 +1,20 @@
+{
+  "version": "nba-aggregate-quick-sim-parameters-v1",
+  "source": {
+    "path": "../../data/baselines/model-audit-pace-candidate-v1.json",
+    "sha256": "f1c9b419f002a1f9e0925a6f50192a5700a7a1e7f12af36d4d4bb84b0a1d3b2e"
+  },
+  "base_pace": 98.26666666666665,
+  "base_offensive_rating": 116.80731701505296,
+  "team_score_standard_deviation": 13.207185630019561,
+  "pace_standard_deviation": 4.0,
+  "home_advantage_points": 2.2,
+  "rating_offset_margin_points": 1.3333333333333333,
+  "methodology": {
+    "base_metrics": "pre-registered 180-game full-engine pace holdout candidate",
+    "rating_offset_margin_points": "unchanged frozen inverse 0.75 multiplier",
+    "pace_standard_deviation": "unchanged explicit design constant",
+    "home_advantage_points": "unchanged explicit design constant; sensitivity audited",
+    "score_sampling": "unchanged independent total and margin normals"
+  }
+}
