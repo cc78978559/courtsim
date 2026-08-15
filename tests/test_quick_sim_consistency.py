@@ -75,6 +75,20 @@ def test_consistency_report_compares_team_rank_order_when_available() -> None:
     }
 
 
+def test_consistency_report_compares_home_win_rate_when_available() -> None:
+    aggregate = {
+        1: QuickSimSeasonSummary("1", 30, 1230, 0.14, 99.0, 115.0, 4.5, 0.35, 2, None, 0.60)
+    }
+    full = {1: QuickSimSeasonSummary("1", 30, 1230, 0.14, 99.0, 115.0, 4.5, 0.35, 2, None, 0.55)}
+    report = compare_quick_sim_engines(aggregate, full)
+    assert report["home_advantage"] == {
+        "available_seasons": 1,
+        "aggregate_mean_home_win_rate": 0.60,
+        "full_engine_mean_home_win_rate": 0.55,
+        "mae": pytest.approx(0.05),
+    }
+
+
 def test_frozen_consistency_gate_requires_unseen_seed_metrics_and_ranks() -> None:
     ordered = tuple(f"team-{index:02d}" for index in range(30))
     aggregate = {seed: _summary(str(seed), 99.0, rank_order=ordered) for seed in (1, 2, 3)}

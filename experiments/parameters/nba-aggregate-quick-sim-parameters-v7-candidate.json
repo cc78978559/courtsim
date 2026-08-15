@@ -1,0 +1,21 @@
+{
+  "version": "nba-aggregate-quick-sim-parameters-v1",
+  "source": {
+    "path": "../../data/baselines/model-audit-v7-real-player-dev-v1.json",
+    "sha256": "3b6ddb8bcbf545ce24a3b1e4045c0e7615accdbcd62fe382901f3e4b85a63d00"
+  },
+  "base_pace": 98.6,
+  "base_offensive_rating": 116.25,
+  "team_score_standard_deviation": 14.0,
+  "pace_standard_deviation": 4.0,
+  "home_advantage_points": 1.0,
+  "rating_offset_margin_points": 3.2,
+  "methodology": {
+    "base_pace": "unchanged frozen full-season development baseline",
+    "base_offensive_rating": "rounded v7 real-player full-engine development mean",
+    "team_score_standard_deviation": "unchanged frozen full-season development baseline",
+    "rating_offset_margin_points": "development-only scale correction for full-engine point-differential dispersion",
+    "pace_standard_deviation": "unchanged explicit design constant",
+    "home_advantage_points": "development-only correction for v7 full-engine home win rate"
+  }
+}

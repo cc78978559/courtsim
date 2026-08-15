@@ -82,6 +82,12 @@ from courtsim.analysis.nba_player_evaluation import (
     evaluate_nba_player_audit_files,
     evaluate_nba_player_reality_gate_files,
 )
+from courtsim.analysis.nba_player_holdout import (
+    NbaPlayerHoldoutError,
+    evaluate_nba_player_holdout,
+    load_nba_player_holdout_gate,
+    nba_player_holdout_from_dict,
+)
 from courtsim.analysis.nba_player_identity import (
     NbaPlayerIdentityError,
     augment_nba_player_crosswalk_payload,
@@ -379,6 +385,13 @@ def _parser() -> argparse.ArgumentParser:
     nba_player_gate.add_argument("evaluation", type=Path)
     nba_player_gate.add_argument("audit", type=Path)
     nba_player_gate.add_argument("output", type=Path)
+    nba_player_holdout_gate = subparsers.add_parser(
+        "nba-player-holdout-gate",
+        help="evaluate a complete thirty-season compact player holdout",
+    )
+    nba_player_holdout_gate.add_argument("checkpoint", type=Path)
+    nba_player_holdout_gate.add_argument("gate", type=Path)
+    nba_player_holdout_gate.add_argument("output", type=Path)
     pace_clock_audit = subparsers.add_parser(
         "pace-clock-audit",
         help="decompose possession clock use from a verified full-trace model bundle",
@@ -433,7 +446,11 @@ def _parser() -> argparse.ArgumentParser:
     quick_sim_run.add_argument(
         "--executor-version",
         default="nba-quick-sim-executor-v6",
-        choices=("nba-quick-sim-executor-v5", "nba-quick-sim-executor-v6"),
+        choices=(
+            "nba-quick-sim-executor-v5",
+            "nba-quick-sim-executor-v6",
+            "nba-quick-sim-executor-v7",
+        ),
     )
     quick_sim_run.add_argument("--periods", type=int, default=4)
     quick_sim_run.add_argument("--period-seconds", type=int, default=720)
@@ -1139,6 +1156,31 @@ def main(argv: list[str] | None = None) -> int:
                 )
             )
             return 0 if player_gate_report["passed"] is True else 16
+
+        if arguments.command == "nba-player-holdout-gate":
+            player_holdout = nba_player_holdout_from_dict(
+                json.loads(arguments.checkpoint.read_text(encoding="utf-8"))
+            )
+            player_holdout_thresholds = load_nba_player_holdout_gate(
+                json.loads(arguments.gate.read_text(encoding="utf-8"))
+            )
+            player_holdout_report = evaluate_nba_player_holdout(
+                player_holdout, player_holdout_thresholds
+            )
+            write_json(arguments.output, player_holdout_report)
+            print(
+                json.dumps(
+                    {
+                        "output": str(arguments.output),
+                        "passed": player_holdout_report["passed"],
+                        "seasons": player_holdout_report["seasons"],
+                        "version": player_holdout_report["version"],
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0 if player_holdout_report["passed"] is True else 17
 
         if arguments.command == "pace-clock-audit":
             pace_report = build_pace_audit_from_bundle(arguments.manifest)
@@ -1982,6 +2024,7 @@ def main(argv: list[str] | None = None) -> int:
         NbaDataPipelineError,
         NbaPlayerIdentityError,
         NbaPlayerEvaluationError,
+        NbaPlayerHoldoutError,
         NbaPlayerTargetError,
         NbaQuickSimRunnerError,
         NbaRealityError,

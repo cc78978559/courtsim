@@ -27,8 +27,10 @@
 - Reallocate the unchanged 1,230-game matchup matrix across 164 game dates in a 174-day season,
   with a separate seven-day All-Star break and hard daily/team rest-distribution gates.
 - Add possession-free `PLAYER_AGGREGATES` traces, probabilistic 11-15 player rotations with
-  low-sample shrinkage, and a failing player-level formal gate for minutes, usage, efficiency,
-  shot structure, and zero-minute coverage.
+  low-sample shrinkage, plus a resumable hash-chained player holdout and non-zero formal gate for
+  minutes, usage, efficiency, shot structure, and zero-minute coverage.
+- Freeze the unpromoted v7 real-player candidate, its development-only aggregate calibration,
+  disjoint 30-season holdout identity, and paired macro/player/engine gate contracts.
 
 ## [0.52.0] - 2026-07-26
 

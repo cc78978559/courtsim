@@ -3,11 +3,18 @@ from __future__ import annotations
 import json
 from collections.abc import Callable, Iterable
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from pytest import MonkeyPatch
 
 from courtsim.analysis import nba_quick_sim_runner as runner
+from courtsim.analysis.nba_player_aggregates import NBAPlayerSeasonAggregate
+from courtsim.analysis.nba_player_targets import (
+    NBAPlayerSourceReceipt,
+    NBAPlayerTarget,
+    NBAPlayerTargetSet,
+)
 from courtsim.analysis.nba_quick_sim_executor import (
     NBA_QUICK_SIM_EXECUTOR_VERSION,
 )
@@ -20,8 +27,64 @@ SHOT_PROFILE_FIXTURE = ROOT / "tests" / "fixtures" / "nba-team-shot-profiles-min
 
 
 class _FakeExecutor:
+    player_targets = None
+
     def __call__(self, season_id: str, _seed: int) -> QuickSimSeasonSummary:
         return QuickSimSeasonSummary(season_id, 30, 1230, 0.14, 101.0, 113.0, 5.0, 0.4, 1)
+
+
+def _player_targets() -> NBAPlayerTargetSet:
+    return NBAPlayerTargetSet(
+        "players-v1",
+        "2024-25",
+        "fixture",
+        1,
+        1.0,
+        (NBAPlayerSourceReceipt("box", "box.json", "a" * 64),),
+        (
+            NBAPlayerTarget(
+                100,
+                "Player",
+                "1",
+                82,
+                24.0,
+                0.2,
+                0.6,
+                0.1,
+                (0.4, 0.2, 0.4),
+                (0.7, 0.4, 0.38),
+            ),
+        ),
+    )
+
+
+class _PlayerFakeExecutor:
+    player_targets = _player_targets()
+
+    def execute(self, season_id: str, _seed: int) -> SimpleNamespace:
+        aggregate = NBAPlayerSeasonAggregate(
+            "Atlanta Hawks",
+            100,
+            82,
+            82,
+            82 * 24 * 60,
+            0.2,
+            0.6,
+            0.1,
+            (0.4, 0.2, 0.4),
+            (0.7, 0.4, 0.38),
+            1,
+            1,
+            1,
+            1,
+            1,
+            1.0,
+            1.0,
+        )
+        return SimpleNamespace(
+            summary=QuickSimSeasonSummary(season_id, 30, 1230, 0.14, 101.0, 113.0, 5.0, 0.4, 1),
+            player_aggregates=(aggregate,),
+        )
 
 
 class _InlinePool:
@@ -88,9 +151,8 @@ def _run(
     monkeypatch: MonkeyPatch,
     **overrides: object,
 ) -> dict[str, object]:
-    monkeypatch.setattr(
-        runner, "_build_executor", lambda _files, _config, _version: _FakeExecutor()
-    )
+    fake_executor = overrides.pop("_fake_executor", _FakeExecutor())
+    monkeypatch.setattr(runner, "_build_executor", lambda _files, _config, _version: fake_executor)
     options: dict[str, object] = {
         "schema_path": ROOT / "data" / "model_schema_demo_v1_12.json",
         "parameters_path": ROOT / "data" / "model_parameters_demo_1.4.0.json",
@@ -127,13 +189,50 @@ def test_runner_pins_optional_real_player_roster_input(
 ) -> None:
     roster = tmp_path / "player-rosters.json"
     roster.write_text("{}", encoding="utf-8")
-    payload = _run(tmp_path, monkeypatch, player_roster_path=roster)
+    monkeypatch.setattr(runner, "ProcessPoolExecutor", _InlinePool)
+    payload = _run(
+        tmp_path,
+        monkeypatch,
+        player_roster_path=roster,
+        workers=2,
+        _fake_executor=_PlayerFakeExecutor(),
+    )
     configuration = payload["configuration"]
     assert isinstance(configuration, dict)
     inputs = configuration["inputs"]
     assert isinstance(inputs, dict)
     assert inputs["player_rosters"]["filename"] == roster.name
     assert configuration["trace_mode"] == "player-aggregates"
+    player_checkpoint = payload["player_checkpoint"]
+    assert isinstance(player_checkpoint, dict)
+    assert player_checkpoint["completed_seasons"] == 1
+
+
+def test_player_runner_rolls_back_pair_after_manifest_crash(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    roster = tmp_path / "player-rosters.json"
+    roster.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(runner, "ProcessPoolExecutor", _InlinePool)
+    options = {
+        "player_roster_path": roster,
+        "workers": 2,
+        "seasons": 2,
+        "maximum_new_seasons": 1,
+        "_fake_executor": _PlayerFakeExecutor(),
+    }
+    _run(tmp_path, monkeypatch, **options)
+    manifest = tmp_path / "serial.manifest.json"
+    committed_manifest = manifest.read_text(encoding="utf-8")
+    _run(tmp_path, monkeypatch, **options)
+    manifest.write_text(committed_manifest, encoding="utf-8")
+
+    payload = _run(tmp_path, monkeypatch, **options)
+
+    checkpoint = payload["checkpoint"]
+    player_checkpoint = payload["player_checkpoint"]
+    assert isinstance(checkpoint, dict) and checkpoint["completed_seasons"] == 2
+    assert isinstance(player_checkpoint, dict) and player_checkpoint["completed_seasons"] == 2
 
 
 @pytest.mark.parametrize(

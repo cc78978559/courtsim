@@ -2,19 +2,21 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import replace
 from typing import cast
 
 from courtsim.analysis.nba_player_calibration import classify_player_role
 from courtsim.analysis.nba_player_targets import NBAPlayerTarget, NBAPlayerTargetSet
 from courtsim.domain.plans import Lineup
-from courtsim.domain.player import PlayerProfile, ShotZoneMix
+from courtsim.domain.player import PlayerProfile, PlayRoleMix, ShotZoneMix
 from courtsim.model.game_runtime import GameTeam
 from courtsim.model.interaction_compiler import ProfileLineup
 from courtsim.randomness import derive_seed
 from courtsim.rotations import RotationPlan, RotationStint
 
 NBA_REAL_ROSTER_VERSION = "nba-real-roster-v1"
+_ZONE_BASELINE_RATING_OFFSETS = (12, -24, 12)
 
 ESPN_TEAM_NAMES = {
     "1": "Atlanta Hawks",
@@ -79,8 +81,31 @@ def build_nba_real_roster_teams(
         if len(target_players) < 10:
             raise NbaRealRosterError("real NBA roster requires ten eligible players per team")
         target_players = target_players[:15]
+        team_usage = _weighted_mean(
+            tuple(
+                (item.usage_rate, item.games_played * item.minutes_per_game)
+                for item in target_players
+            )
+        )
+        team_zone_shares = cast(
+            tuple[float, float, float],
+            tuple(
+                _weighted_mean(
+                    tuple(
+                        (item.shot_zone_shares[zone_index], item.field_goal_attempt_share)
+                        for item in target_players
+                    )
+                )
+                for zone_index in range(3)
+            ),
+        )
         profiles = tuple(
-            _target_profile(target, templates[index % len(templates)])
+            _target_profile(
+                target,
+                templates[index % len(templates)],
+                team_usage,
+                team_zone_shares,
+            )
             for index, target in enumerate(target_players)
         )
         rotation_profiles = profiles[:10]
@@ -178,23 +203,26 @@ def build_nba_real_game_team(
     )
 
 
-def _target_profile(target: NBAPlayerTarget, template: PlayerProfile) -> PlayerProfile:
-    rim_share, mid_share, three_share = target.shot_zone_shares
+def _target_profile(
+    target: NBAPlayerTarget,
+    template: PlayerProfile,
+    team_usage: float,
+    team_zone_shares: tuple[float, float, float],
+) -> PlayerProfile:
     rim_pct, mid_pct, three_pct = target.shot_zone_percentages
     abilities = replace(
         template.abilities,
-        rim_finishing=_percentage_rating(rim_pct),
-        midrange_shooting=_percentage_rating(mid_pct),
-        three_point_shooting=_percentage_rating(three_pct),
+        rim_finishing=_percentage_rating(rim_pct, -30),
+        midrange_shooting=_percentage_rating(mid_pct, -5),
+        three_point_shooting=_percentage_rating(three_pct, 10),
     )
     tendencies = replace(
         template.tendencies,
-        offensive_involvement=_rating(target.usage_rate * 250),
-        shoot_vs_pass=_rating(target.usage_rate * 220),
+        offensive_involvement=_relative_usage_rating(target.usage_rate, team_usage),
+        play_role_mix=PlayRoleMix(50, 50, 50, 50, 50),
+        shoot_vs_pass=50,
         shot_zone_mix=ShotZoneMix(
-            _rating(rim_share * 100),
-            _rating(mid_share * 100),
-            _rating(three_share * 100),
+            *_relative_zone_ratings(target.shot_zone_shares, team_zone_shares)
         ),
     )
     return replace(
@@ -263,8 +291,35 @@ def _shrunk_value(value: float, league_mean: float, sample_games: int) -> float:
     return reliability * value + (1.0 - reliability) * league_mean
 
 
-def _percentage_rating(value: float) -> int:
-    return _rating(40 + (value - 0.25) * 160)
+def _percentage_rating(value: float, offset: float = 0.0) -> int:
+    return _rating(40 + (value - 0.25) * 160 + offset)
+
+
+def _relative_usage_rating(value: float, baseline: float) -> int:
+    return _rating(50 + 18 * math.log(max(value, 0.01) / max(baseline, 0.01)) / 0.35)
+
+
+def _relative_zone_ratings(
+    shares: tuple[float, float, float],
+    baselines: tuple[float, float, float],
+) -> tuple[int, int, int]:
+    contrasts = tuple(
+        math.log(max(share, 0.005) / max(baseline, 0.005))
+        for share, baseline in zip(shares, baselines, strict=True)
+    )
+    mean = math.fsum(contrasts) / len(contrasts)
+    return cast(
+        tuple[int, int, int],
+        tuple(
+            _rating(50 + 15 * (contrast - mean) / 0.75 + offset)
+            for contrast, offset in zip(contrasts, _ZONE_BASELINE_RATING_OFFSETS, strict=True)
+        ),
+    )
+
+
+def _weighted_mean(values: tuple[tuple[float, float], ...]) -> float:
+    total = math.fsum(weight for _, weight in values)
+    return math.fsum(value * weight for value, weight in values) / total
 
 
 def _rating(value: float) -> int:

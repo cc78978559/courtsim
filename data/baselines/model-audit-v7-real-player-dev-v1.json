@@ -1,0 +1,27 @@
+{
+  "candidate": true,
+  "development_only": true,
+  "completed_full_seasons": 3,
+  "mean_team_possessions": 98.6,
+  "points_per_100_possessions": 116.25,
+  "team_score_stddev": 14.0,
+  "rating_offset_margin_points": 3.2,
+  "methodology": "Rounded parameters selected from the disjoint v7 real-player development batch; requires frozen holdout validation.",
+  "development_batch": {
+    "batch_id": "dev-v7-real-players-008",
+    "master_seed": 20270112,
+    "batch_sha256": "24ae3b7ef3de3db414873a14799cbbdc04ec6784a8425f554b6301c74f768c73",
+    "file_sha256": "b66e229bb9385b87e7e28a195cbba76352a518794679389512606119e21af066"
+  },
+  "forbidden_holdout_master_seeds": [
+    20270110,
+    20270111,
+    20270112
+  ],
+  "parameter_selection": {
+    "base_pace": "Rounded development full-engine mean.",
+    "base_offensive_rating": "Rounded development full-engine mean.",
+    "team_score_stddev": "Retained prior frozen full-season value.",
+    "rating_offset_margin_points": "Rounded point-differential dispersion scale correction."
+  }
+}

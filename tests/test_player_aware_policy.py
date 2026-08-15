@@ -137,6 +137,22 @@ def test_zone_tendency_changes_zone_but_not_make_skill() -> None:
 
     assert three_share(three_pref) > three_share(rim_pref)
 
+    def initiator_route_share(release: PlayerProfile) -> float:
+        offense = (player(1), release, player(3), player(4), player(5))
+        options = prepared(offense).route_options(PLAN, Coverage.BASE, INTERACTION)
+        total = sum(option.weight for option in options)
+        return next(
+            option.weight / total
+            for option in options
+            if option.value is FinisherRoute.INITIATOR_SELF
+        )
+
+    rim_release = replace(
+        rim_pref, player_id=2, name="Player 2", nominal_role_tags=("RIM_FINISHER",)
+    )
+    three_release = replace(three_pref, player_id=2, name="Player 2", nominal_role_tags=("SPACER",))
+    assert initiator_route_share(rim_release) > initiator_route_share(three_release)
+
 
 def test_three_point_skill_changes_make_but_not_zone_options() -> None:
     low = replace(

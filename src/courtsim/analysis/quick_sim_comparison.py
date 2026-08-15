@@ -39,6 +39,7 @@ class QuickSimSeasonSummary:
     playoff_upset_rate: float | None
     champion_seed: int | None
     team_rank_order: tuple[str, ...] | None = None
+    home_win_rate: float | None = None
 
     def __post_init__(self) -> None:
         if not self.season_id.strip() or self.team_count < 2 or self.games < 1:
@@ -63,6 +64,8 @@ class QuickSimSeasonSummary:
             or any(not team_id.strip() for team_id in self.team_rank_order)
         ):
             raise ValueError("quick-sim team rank order must contain every unique team")
+        if self.home_win_rate is not None and not 0 <= self.home_win_rate <= 1:
+            raise ValueError("quick-sim home win rate is invalid")
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,6 +185,9 @@ def summarize_quick_sim_season(
         if record.result is not None
     )
     points = sum(record.home_score + record.away_score for record in completed)
+    home_win_rate = sum(record.home_score > record.away_score for record in completed) / len(
+        completed
+    )
     upset_rate, champion_seed = _postseason_metrics(postseason)
     return QuickSimSeasonSummary(
         season_id,
@@ -194,6 +200,7 @@ def summarize_quick_sim_season(
         upset_rate,
         champion_seed,
         tuple(row.team_id for row in season.standings),
+        home_win_rate,
     )
 
 

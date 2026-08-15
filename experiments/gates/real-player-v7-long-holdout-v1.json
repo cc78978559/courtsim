@@ -1,0 +1,14 @@
+{
+  "version": "real-player-v7-long-holdout-v1",
+  "candidate_id": "nba-quick-sim-executor-v7",
+  "frozen_at": "2026-08-15",
+  "development_master_seeds": [20270110, 20270111, 20270112],
+  "batch_id": "long-holdout-v7-real-players-001",
+  "master_seed": 20270210,
+  "seasons": 30,
+  "workers": 3,
+  "decision_point": "only after all 30 full-engine and all 30 paired aggregate seasons complete",
+  "interim_policy": "inspect checkpoint health only; do not change code, inputs, thresholds, sample size or stopping time",
+  "promotion_rule": "reality, player and aggregate/full-engine consistency gates must all pass",
+  "supersedes_candidate": "nba-quick-sim-executor-v6"
+}

@@ -9,6 +9,14 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any, cast
 
+from courtsim.analysis.nba_player_holdout import (
+    NBAPlayerHoldoutBatch,
+    NBAPlayerHoldoutCell,
+    append_nba_player_holdout_cells,
+    build_nba_player_holdout_cell,
+    nba_player_holdout_from_dict,
+    nba_player_holdout_to_dict,
+)
 from courtsim.analysis.nba_player_targets import load_nba_player_target_set
 from courtsim.analysis.nba_quick_sim_executor import (
     NBA_QUICK_SIM_EXECUTOR_VERSION,
@@ -43,6 +51,7 @@ from courtsim.parameters import load_model_parameters
 from courtsim.randomness import derive_seed
 
 NBA_QUICK_SIM_RUNNER_VERSION = "nba-quick-sim-runner-v1"
+NBA_QUICK_SIM_CANDIDATE_RUNNER_VERSION = "nba-quick-sim-runner-v2"
 _WORKER_EXECUTOR: NBAQuickSimExecutor | None = None
 
 
@@ -95,8 +104,13 @@ def run_nba_quick_sim_batch(
         role: {"filename": path.name, "sha256": sha256_file(path), "bytes": path.stat().st_size}
         for role, path in files.items()
     }
+    runner_version = (
+        NBA_QUICK_SIM_CANDIDATE_RUNNER_VERSION
+        if "player_rosters" in files
+        else NBA_QUICK_SIM_RUNNER_VERSION
+    )
     configuration: dict[str, object] = {
-        "runner_version": NBA_QUICK_SIM_RUNNER_VERSION,
+        "runner_version": runner_version,
         "executor_version": executor_version,
         "batch": {
             "batch_id": batch_id,
@@ -123,11 +137,22 @@ def run_nba_quick_sim_batch(
     configuration_sha256 = _digest(configuration)
     manifest_file = Path(manifest_path).resolve()
     checkpoint_file = Path(checkpoint_path).resolve()
-    _verify_resume_manifest(manifest_file, checkpoint_file, configuration_sha256)
+    player_checkpoint_file = (
+        checkpoint_file.with_name(f"{checkpoint_file.stem}-players.json")
+        if "player_rosters" in files
+        else None
+    )
+    _verify_resume_manifest(
+        manifest_file,
+        checkpoint_file,
+        configuration_sha256,
+        runner_version,
+        player_checkpoint_file,
+    )
 
     executor = _build_executor(files, game_config, executor_version)
     spec = QuickSimBatchSpec(batch_id, master_seed, seasons)
-    if workers == 1:
+    if workers == 1 and player_checkpoint_file is None:
         result, receipt = run_quick_sim_checkpoint(
             spec,
             executor,
@@ -144,14 +169,29 @@ def run_nba_quick_sim_batch(
         write_json(manifest_file, payload)
         return payload
 
+    committed_artifacts = manifest_file.is_file()
     previous = (
         quick_sim_batch_from_json(checkpoint_file.read_text(encoding="utf-8"))
-        if checkpoint_file.is_file()
+        if committed_artifacts and checkpoint_file.is_file()
         else None
     )
     if previous is not None and previous.spec != spec:
         raise NbaQuickSimRunnerError("parallel quick-sim checkpoint spec differs")
     completed = len(previous.cells) if previous is not None else 0
+    targets = getattr(executor, "player_targets", None)
+    player_batch = (
+        nba_player_holdout_from_dict(json.loads(player_checkpoint_file.read_text(encoding="utf-8")))
+        if committed_artifacts
+        and player_checkpoint_file is not None
+        and player_checkpoint_file.is_file()
+        else None
+    )
+    if player_checkpoint_file is not None and (
+        targets is None
+        or (player_batch is not None and len(player_batch.cells) != completed)
+        or (player_batch is None and completed != 0)
+    ):
+        raise NbaQuickSimRunnerError("player holdout checkpoint differs from team checkpoint")
     remaining = seasons - completed
     budget = remaining if maximum_new_seasons is None else min(remaining, maximum_new_seasons)
     path_items = tuple((role, str(path)) for role, path in sorted(files.items()))
@@ -171,7 +211,30 @@ def run_nba_quick_sim_batch(
                 )
                 for index in range(start, start + wave_size)
             )
-            summaries = tuple(pool.map(_execute_worker_task, tasks))
+            if player_checkpoint_file is not None:
+                player_tasks = tuple(
+                    (start + offset, season_id, seed)
+                    for offset, (season_id, seed) in enumerate(tasks)
+                )
+                player_results = tuple(pool.map(_execute_worker_player_task, player_tasks))
+                summaries = tuple(item[0] for item in player_results)
+                assert targets is not None
+                player_batch = append_nba_player_holdout_cells(
+                    batch_id=batch_id,
+                    master_seed=master_seed,
+                    seasons=seasons,
+                    targets=targets,
+                    cells=tuple(item[1] for item in player_results),
+                    previous=player_batch,
+                )
+                _backup_committed_pair(
+                    manifest_file,
+                    checkpoint_file,
+                    player_checkpoint_file,
+                )
+                write_json(player_checkpoint_file, nba_player_holdout_to_dict(player_batch))
+            else:
+                summaries = tuple(pool.map(_execute_worker_task, tasks))
             parallel_result = append_precomputed_quick_sim_summaries(
                 spec, summaries, previous=parallel_result
             )
@@ -185,6 +248,8 @@ def run_nba_quick_sim_batch(
                 checkpoint_file,
                 parallel_result,
                 sha256_file(checkpoint_file),
+                player_checkpoint_file,
+                player_batch,
             )
             write_json(manifest_file, payload)
             budget -= wave_size
@@ -196,6 +261,8 @@ def run_nba_quick_sim_batch(
         checkpoint_file,
         parallel_result,
         sha256_file(checkpoint_file),
+        player_checkpoint_file,
+        player_batch,
     )
 
 
@@ -205,9 +272,15 @@ def _manifest_payload(
     checkpoint_file: Path,
     result: QuickSimBatchResult,
     file_sha256: str,
+    player_checkpoint_file: Path | None = None,
+    player_batch: NBAPlayerHoldoutBatch | None = None,
 ) -> dict[str, object]:
-    return {
-        "version": NBA_QUICK_SIM_RUNNER_VERSION,
+    payload: dict[str, object] = {
+        "version": (
+            NBA_QUICK_SIM_CANDIDATE_RUNNER_VERSION
+            if player_checkpoint_file is not None
+            else NBA_QUICK_SIM_RUNNER_VERSION
+        ),
         "configuration_sha256": configuration_sha256,
         "configuration": configuration,
         "checkpoint": {
@@ -218,6 +291,17 @@ def _manifest_payload(
             "complete": result.complete,
         },
     }
+    if player_checkpoint_file is not None:
+        if player_batch is None or not player_checkpoint_file.is_file():
+            raise NbaQuickSimRunnerError("player holdout checkpoint is missing")
+        payload["player_checkpoint"] = {
+            "path": player_checkpoint_file.name,
+            "sha256": sha256_file(player_checkpoint_file),
+            "batch_sha256": player_batch.batch_sha256,
+            "completed_seasons": len(player_batch.cells),
+            "complete": player_batch.complete,
+        }
+    return payload
 
 
 def _build_executor(
@@ -269,9 +353,31 @@ def _execute_worker_task(task: tuple[str, int]) -> QuickSimSeasonSummary:
     return _WORKER_EXECUTOR(*task)
 
 
-def _verify_resume_manifest(manifest: Path, checkpoint: Path, configuration_sha256: str) -> None:
+def _execute_worker_player_task(
+    task: tuple[int, str, int],
+) -> tuple[QuickSimSeasonSummary, NBAPlayerHoldoutCell]:
+    if _WORKER_EXECUTOR is None or _WORKER_EXECUTOR.player_targets is None:
+        raise NbaQuickSimRunnerError("player holdout worker was not initialized")
+    season_index, season_id, seed = task
+    execution = _WORKER_EXECUTOR.execute(season_id, seed)
+    return execution.summary, build_nba_player_holdout_cell(
+        season_index,
+        season_id,
+        seed,
+        execution.player_aggregates,
+        _WORKER_EXECUTOR.player_targets,
+    )
+
+
+def _verify_resume_manifest(
+    manifest: Path,
+    checkpoint: Path,
+    configuration_sha256: str,
+    runner_version: str = NBA_QUICK_SIM_RUNNER_VERSION,
+    player_checkpoint: Path | None = None,
+) -> None:
     if not manifest.exists():
-        if checkpoint.exists():
+        if checkpoint.exists() and player_checkpoint is None:
             raise NbaQuickSimRunnerError("checkpoint exists without its run manifest")
         return
     try:
@@ -281,15 +387,72 @@ def _verify_resume_manifest(manifest: Path, checkpoint: Path, configuration_sha2
     if not isinstance(raw, dict):
         raise NbaQuickSimRunnerError("quick-sim run manifest must be an object")
     value = cast(dict[str, Any], raw)
-    if value.get("version") != NBA_QUICK_SIM_RUNNER_VERSION:
+    if value.get("version") != runner_version:
         raise NbaQuickSimRunnerError("quick-sim run manifest version differs")
     if value.get("configuration_sha256") != configuration_sha256:
         raise NbaQuickSimRunnerError("quick-sim resume configuration differs")
     checkpoint_record = value.get("checkpoint")
     if not isinstance(checkpoint_record, dict) or not checkpoint.is_file():
         raise NbaQuickSimRunnerError("quick-sim resume checkpoint is missing")
+    player_record = value.get("player_checkpoint")
+    if player_checkpoint is not None:
+        if isinstance(player_record, dict) and (
+            checkpoint_record.get("sha256") != sha256_file(checkpoint)
+            or not player_checkpoint.is_file()
+            or player_record.get("sha256") != sha256_file(player_checkpoint)
+        ):
+            _restore_committed_pair(
+                checkpoint,
+                cast(str, checkpoint_record.get("sha256")),
+                player_checkpoint,
+                cast(str, player_record.get("sha256")),
+            )
+        if (
+            not isinstance(player_record, dict)
+            or not player_checkpoint.is_file()
+            or player_record.get("sha256") != sha256_file(player_checkpoint)
+        ):
+            raise NbaQuickSimRunnerError("player holdout resume checkpoint differs")
+    elif player_record is not None:
+        raise NbaQuickSimRunnerError("unexpected player holdout checkpoint")
     if checkpoint_record.get("sha256") != sha256_file(checkpoint):
         raise NbaQuickSimRunnerError("quick-sim resume checkpoint hash differs")
+
+
+def _rollback_path(path: Path) -> Path:
+    return path.with_name(f"{path.stem}.rollback.json")
+
+
+def _backup_committed_pair(manifest: Path, checkpoint: Path, player_checkpoint: Path) -> None:
+    if not manifest.is_file() or not checkpoint.is_file() or not player_checkpoint.is_file():
+        return
+    write_json(_rollback_path(checkpoint), json.loads(checkpoint.read_text(encoding="utf-8")))
+    write_json(
+        _rollback_path(player_checkpoint),
+        json.loads(player_checkpoint.read_text(encoding="utf-8")),
+    )
+
+
+def _restore_committed_pair(
+    checkpoint: Path,
+    checkpoint_sha256: str,
+    player_checkpoint: Path,
+    player_sha256: str,
+) -> None:
+    checkpoint_rollback = _rollback_path(checkpoint)
+    player_rollback = _rollback_path(player_checkpoint)
+    if (
+        not checkpoint_rollback.is_file()
+        or not player_rollback.is_file()
+        or sha256_file(checkpoint_rollback) != checkpoint_sha256
+        or sha256_file(player_rollback) != player_sha256
+    ):
+        return
+    write_json(checkpoint, json.loads(checkpoint_rollback.read_text(encoding="utf-8")))
+    write_json(
+        player_checkpoint,
+        json.loads(player_rollback.read_text(encoding="utf-8")),
+    )
 
 
 def _build_teams(

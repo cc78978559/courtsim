@@ -12,7 +12,8 @@ This is the current low-context handoff for the NBA franchise branch. It superse
 - Frozen engine package: `0.54.0`
 - WIP candidate package: `0.55.0.dev0`
 - Frozen release registry format: `55`
-- Quick simulator: `nba-quick-sim-executor-v6`
+- Frozen quick simulator: `nba-quick-sim-executor-v6`
+- WIP quick-sim candidate: `nba-quick-sim-executor-v7`
 - Franchise: `nba-franchise-v6`
 - Franchise artifact: `nba-franchise-artifact-v4`
 - WIP franchise runner: `nba-franchise-runner-v5` / manifest schema 3
@@ -32,8 +33,11 @@ not alter the frozen release registry.
 Current readiness: **remote WIP backup, not a release**. The branch contains the post-v6 calendar,
 offseason, obligation, Bird-rights, retention, Finals, three-team negotiation, and real-roster
 integration work. It has not been merged, tagged, or promoted in `governance/current-release.json`.
-The final WIP gate collected and passed 687 tests; formatting, lint, strict mypy, and the unchanged
-85% coverage threshold also passed. The coverage-instrumented full gate took about 37 minutes.
+The last published WIP gate collected and passed 687 tests; formatting, lint, strict mypy, and the
+unchanged 85% coverage threshold also passed. Local v7 development subsequently passed 689 tests
+with the Hypothesis property-test excluded because the original CPython 3.11 installation vanished
+mid-run; this is development evidence only. A fresh clean-checkout `tools.cmd check`, package smoke,
+and remote CI remain mandatory before the v7 receipt can be considered.
 
 Run from a clean source tree after the complete local gate passes:
 
@@ -136,6 +140,12 @@ Implemented on this WIP branch but not promoted as a release:
 - the real-roster macro holdout gate is frozen but has not yet completed a new 30-season run; the
   player formal gate is implemented but still requires a multi-seed holdout receipt before the
   player calibration boundary can be promoted.
+
+The v7 candidate freezes one disjoint 30-season master seed and a paired aggregate batch in
+`experiments/gates/real-player-v7-long-holdout-v1.json`. Exact resume and gate commands are in
+`docs/v7-long-holdout-runbook.md`. Do not inspect interim metrics, tune after the run starts, edit
+the historical v6 receipt, merge, tag, or publish a release. A new receipt may mark v6 evidence as
+superseded for current semantics only after every frozen v7 gate passes.
 
 ## Minimal reading order
 

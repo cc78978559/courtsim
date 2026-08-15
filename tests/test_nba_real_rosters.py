@@ -53,6 +53,12 @@ def test_real_rosters_preserve_identity_and_balance_rotation_minutes() -> None:
     assert len({player_id for team in teams for player_id in team.roster_order}) == 450
     assert all(len(team.roster_order) == 15 for team in teams)
     assert teams[0].roster_profiles[0].name == "Real Player 1-1"
+    first_team = teams[0].roster_profiles
+    assert (
+        first_team[0].tendencies.offensive_involvement
+        > first_team[-1].tendencies.offensive_involvement
+    )
+    assert {player.tendencies.play_role_mix.handler for player in first_team} == {50}
     for team in teams:
         assert team.rotation_plan is not None
         assert len(team.rotation_plan.stints) == 16

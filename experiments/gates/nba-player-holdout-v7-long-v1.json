@@ -1,0 +1,17 @@
+{
+  "version": "nba-player-holdout-gate-v1",
+  "gate_id": "nba-player-holdout-v7-long-v1",
+  "frozen_at": "2026-08-15",
+  "minimum_seasons": 30,
+  "forbidden_master_seeds": [20260920, 20260921, 20261010, 20261011, 20261020, 20261021, 20261022, 20261030, 20261031, 20261101, 20261110, 20261120, 20261210, 20270110, 20270111, 20270112],
+  "batch_id_prefix": "long-holdout-v7-real-players-",
+  "target_id": "nba-2024-25-player-realism-v1",
+  "target_season": "2024-25",
+  "maximums": {
+    "minutes_mae": 6.0,
+    "usage_mae": 0.06,
+    "true_shooting_mae": 0.08,
+    "shot_structure_mae": 0.08,
+    "zero_minute_rate": 0.10
+  }
+}

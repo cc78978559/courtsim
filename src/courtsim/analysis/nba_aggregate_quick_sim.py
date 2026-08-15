@@ -117,6 +117,7 @@ class NBAAggregateQuickSimExecutor:
         }
         total_points = 0
         total_team_possessions = 0.0
+        home_wins = 0
         for game in schedule.games:
             home_score, away_score, pace = self._game(
                 season_id,
@@ -128,6 +129,7 @@ class NBAAggregateQuickSimExecutor:
             )
             total_points += home_score + away_score
             total_team_possessions += 2 * pace
+            home_wins += int(home_score > away_score)
             home = records[game.home_team_id]
             away = records[game.away_team_id]
             home["wins" if home_score > away_score else "losses"] += 1
@@ -176,6 +178,7 @@ class NBAAggregateQuickSimExecutor:
             upsets / len(postseason.series),
             seed_by_team[postseason.champion_team_id],
             rank_order,
+            home_wins / len(schedule.games),
         )
         return NBAAggregateQuickSimExecution(season_id, standings, postseason, summary)
 

@@ -59,9 +59,14 @@ from courtsim.season import (
 )
 
 NBA_QUICK_SIM_EXECUTOR_VERSION = "nba-quick-sim-executor-v6"
+NBA_QUICK_SIM_EXECUTOR_CANDIDATE_VERSION = "nba-quick-sim-executor-v7"
 NBA_QUICK_SIM_EXECUTOR_LEGACY_VERSION = "nba-quick-sim-executor-v5"
 NBA_QUICK_SIM_EXECUTOR_VERSIONS = frozenset(
-    {NBA_QUICK_SIM_EXECUTOR_VERSION, NBA_QUICK_SIM_EXECUTOR_LEGACY_VERSION}
+    {
+        NBA_QUICK_SIM_EXECUTOR_VERSION,
+        NBA_QUICK_SIM_EXECUTOR_CANDIDATE_VERSION,
+        NBA_QUICK_SIM_EXECUTOR_LEGACY_VERSION,
+    }
 )
 
 
@@ -269,7 +274,7 @@ class NBAQuickSimExecutor:
             game_rest_days=self.playoff_game_rest_days,
             executor_version=self.version,
         )
-        concurrent_postseason = self.version == NBA_QUICK_SIM_EXECUTOR_VERSION
+        concurrent_postseason = self.version != NBA_QUICK_SIM_EXECUTOR_LEGACY_VERSION
         if concurrent_postseason:
             play_in_start = runtime.day
             east_play_in = _sample_play_in(
@@ -590,7 +595,7 @@ class _PostseasonRuntime:
             tuple(self.injuries),
             (
                 tuple(sorted(self.games, key=lambda game: (game.day, game.game_index)))
-                if self.executor_version == NBA_QUICK_SIM_EXECUTOR_VERSION
+                if self.executor_version != NBA_QUICK_SIM_EXECUTOR_LEGACY_VERSION
                 else tuple(self.games)
             ),
             tuple(sorted(self.player_seconds.items())),

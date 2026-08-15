@@ -43,6 +43,16 @@ ProfileLineup = tuple[
     PlayerProfile,
     PlayerProfile,
 ]
+_NBA_REAL_ROLE_TAGS = frozenset(
+    {
+        "PRIMARY_CREATOR",
+        "SECONDARY_CREATOR",
+        "RIM_FINISHER",
+        "SPACER",
+        "CONNECTOR",
+        "BENCH_SPECIALIST",
+    }
+)
 
 
 def _node(parameters: ModelParameters, name: str) -> Mapping[str, Any]:
@@ -59,6 +69,40 @@ def _feature_weight(parameters: ModelParameters, node: str, feature: str, class_
 
 def _coefficient(parameters: ModelParameters, node: str, field: str) -> float:
     return float(_node(parameters, node)[field])
+
+
+def _mean_route_zone_fit(
+    parameters: ModelParameters,
+    plan: OffensivePlan,
+    route: FinisherRoute,
+    profiles: tuple[PlayerProfile, ...],
+) -> float:
+    real_profiles = tuple(
+        profile for profile in profiles if set(profile.nominal_role_tags) & _NBA_REAL_ROLE_TAGS
+    )
+    if not real_profiles:
+        return 1.0
+    table = cast(
+        Mapping[str, Mapping[str, float]],
+        _node(parameters, "shot_zone")["base_probabilities"],
+    )
+    weights = table[f"{plan.family.name}|{route.name}"]
+    total = math.fsum(weights.values())
+    loading = parameters.schema.zone_tendency_loading
+    fits = []
+    for profile in real_profiles:
+        mix = profile.tendencies.shot_zone_mix
+        biases = dict(
+            zip(ShotZone, centered_mix_bias((mix.rim, mix.midrange, mix.three)), strict=True)
+        )
+        fits.append(
+            math.fsum(
+                weight * math.exp(loading * biases[ShotZone[zone]])
+                for zone, weight in weights.items()
+            )
+            / total
+        )
+    return math.fsum(fits) / len(fits)
 
 
 def _profile_map(profiles: ProfileLineup) -> dict[int, PlayerProfile]:
@@ -287,7 +331,25 @@ class PlayerAwareCompiledPolicy(SegmentProbabilityPolicy):
         coverage: Coverage,
         interaction: InteractionState,
     ) -> tuple[ProbabilityOption[FinisherRoute], ...]:
-        return self._base.route_options(plan, coverage, interaction)
+        base = self._base.route_options(plan, coverage, interaction)
+        return tuple(
+            ProbabilityOption(
+                option.id,
+                option.value,
+                option.weight
+                * _mean_route_zone_fit(
+                    self.parameters,
+                    plan,
+                    option.value,
+                    tuple(
+                        self._offense[candidate.finisher_id]
+                        for candidate in interaction.finisher_candidates
+                        if candidate.route is option.value
+                    ),
+                ),
+            )
+            for option in base
+        )
 
     def finisher_options(
         self,

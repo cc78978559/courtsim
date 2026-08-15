@@ -274,6 +274,8 @@ def _summary_to_dict(summary: QuickSimSeasonSummary) -> dict[str, object]:
     }
     if summary.team_rank_order is not None:
         payload["team_rank_order"] = list(summary.team_rank_order)
+    if summary.home_win_rate is not None:
+        payload["home_win_rate"] = summary.home_win_rate
     return payload
 
 
@@ -289,7 +291,8 @@ def _summary_from_dict(raw: dict[object, object]) -> QuickSimSeasonSummary:
         "playoff_upset_rate",
         "champion_seed",
     }
-    if set(raw) not in (required, required | {"team_rank_order"}):
+    optional = {"team_rank_order", "home_win_rate"}
+    if not required <= set(raw) or not set(raw) <= required | optional:
         raise QuickSimBatchError("invalid quick-sim summary keys")
     upset = raw["playoff_upset_rate"]
     champion = raw["champion_seed"]
@@ -312,6 +315,11 @@ def _summary_from_dict(raw: dict[object, object]) -> QuickSimSeasonSummary:
         None if upset is None else _require_number(upset, "playoff_upset_rate"),
         None if champion is None else _require_int(champion, "champion_seed"),
         rank_order,
+        (
+            None
+            if raw.get("home_win_rate") is None
+            else _require_number(raw["home_win_rate"], "home_win_rate")
+        ),
     )
 
 

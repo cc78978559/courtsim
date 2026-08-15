@@ -158,6 +158,14 @@ def test_compact_player_aggregates_feed_formal_gate() -> None:
     assert failed["passed"] is False
     checks = cast(list[dict[str, Any]], failed["checks"])
     assert next(item for item in checks if item["metric"] == "zero_minute_rate")["passed"] is False
+    zero_metrics = {
+        item["metric"]: item
+        for item in cast(
+            list[dict[str, Any]], evaluate_nba_player_audit(zero_audit, targets)["metrics"]
+        )
+    }
+    assert zero_metrics["minutes_per_game"]["eligible_players"] == 1
+    assert zero_metrics["usage_rate"]["eligible_players"] == 0
 
 
 def test_identity_loader_requires_explicit_courtsim_assignment(tmp_path: Path) -> None:

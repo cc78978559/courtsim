@@ -295,18 +295,29 @@ def evaluate_nba_player_audit(
         observed = audited[target.nba_player_id]
         target_values = _target_values(target)
         observed_values = _observed_values(observed)
+        active = _number(observed.get("minutes"), "minutes") > 0.0
         errors = {}
         for metric in _METRICS:
             error = observed_values[metric] - target_values[metric]
-            squared[metric].append(error * error)
-            absolute[metric].append(abs(error))
+            if metric == "minutes_per_game" or active:
+                squared[metric].append(error * error)
+                absolute[metric].append(abs(error))
             errors[metric] = round(error, 12)
         rows.append({"nba_player_id": target.nba_player_id, "errors": errors})
     metrics = [
         {
             "metric": metric,
-            "rmse": round(math.sqrt(math.fsum(squared[metric]) / len(rows)), 12),
-            "mae": round(math.fsum(absolute[metric]) / len(rows), 12),
+            "eligible_players": len(absolute[metric]),
+            "rmse": round(
+                math.sqrt(math.fsum(squared[metric]) / len(squared[metric]))
+                if squared[metric]
+                else 0.0,
+                12,
+            ),
+            "mae": round(
+                math.fsum(absolute[metric]) / len(absolute[metric]) if absolute[metric] else 0.0,
+                12,
+            ),
         }
         for metric in _METRICS
     ]

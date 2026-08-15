@@ -98,6 +98,37 @@ def compare_quick_sim_engines(
             "passed": gate_passed,
         }
         promotion_ready = gate_passed
+    paired_home_rates = [
+        (aggregate[seed].home_win_rate, full_engine[seed].home_win_rate) for seed in seeds
+    ]
+    home_advantage = {
+        "available_seasons": sum(
+            left is not None and right is not None for left, right in paired_home_rates
+        ),
+        "aggregate_mean_home_win_rate": (
+            fmean(
+                left for left, right in paired_home_rates if left is not None and right is not None
+            )
+            if any(left is not None and right is not None for left, right in paired_home_rates)
+            else None
+        ),
+        "full_engine_mean_home_win_rate": (
+            fmean(
+                right for left, right in paired_home_rates if left is not None and right is not None
+            )
+            if any(left is not None and right is not None for left, right in paired_home_rates)
+            else None
+        ),
+        "mae": (
+            fmean(
+                abs(left - right)
+                for left, right in paired_home_rates
+                if left is not None and right is not None
+            )
+            if any(left is not None and right is not None for left, right in paired_home_rates)
+            else None
+        ),
+    }
     return {
         "schema_version": 1,
         "version": QUICK_SIM_CONSISTENCY_VERSION,
@@ -115,6 +146,7 @@ def compare_quick_sim_engines(
             "values": rank_correlations,
         },
         "metrics": metrics,
+        "home_advantage": home_advantage,
     }
 
 

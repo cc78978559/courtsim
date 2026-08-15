@@ -18,7 +18,8 @@
 - 正式发布清单：`governance/current-release.json`
 - NBA 核心目标：`experiments/nba-2024-25-regular-season-core-v1.json`
 - NBA 罚球目标：`experiments/nba-2024-25-regular-season-free-throws-v1.json`
-- 30 队快速模拟：`nba-quick-sim-executor-v6`
+- 30 队快速模拟：冻结 release 为 `nba-quick-sim-executor-v6`；当前 WIP 候选为
+  `nba-quick-sim-executor-v7`，尚须完成 30+30 未见种子现实晋级。
 - 交易和工资帽完整赛季循环：`nba-franchise-v6`
 - 压缩且可迁移的原子存档：`nba-franchise-artifact-v4`
 - 带保留策略的多赛季恢复运行器：WIP 为 `nba-franchise-runner-v5` / schema 3；
@@ -145,6 +146,8 @@ OFF_BALL_ACTION
 它不会修改系统 PowerShell 执行策略；下方历史命令仍可经 `tools.ps1` 调用。
 大型校准运行不进入默认门禁，参数或概率结构改变后必须手动生成独立种子审计。
 版本轴、人工晋级和回退规则见 `docs/versioning-and-promotion-v1.md`。
+v7 的冻结输入、断点续跑及三项正式门禁见 `docs/v7-long-holdout-runbook.md`；在回执完成前，
+不得替换阈值、参数、种子、样本量或旧 v6 治理记录。
 
 只需要分布指标时可以使用：
 
