@@ -1,0 +1,110 @@
+{
+  "version": "quick-sim-candidate-receipt-v1",
+  "candidate_id": "nba-quick-sim-executor-v7",
+  "decided_at": "2026-08-15",
+  "decision": "candidate-pass",
+  "release_status": "wip-not-promoted",
+  "local_promotion_ready": true,
+  "remote_ci": {
+    "required": true,
+    "status": "passed",
+    "workflow": "CI",
+    "run_id": 31888541136,
+    "url": "https://github.com/cc78978559/courtsim/actions/runs/31888541136",
+    "head_sha": "4081f97672c9b7d81b63b798b4f457b667a65d0b",
+    "jobs": {
+      "ubuntu-quality": "passed",
+      "windows-quality": "passed",
+      "package-smoke": "passed"
+    }
+  },
+  "supersedes": {
+    "candidate_id": "nba-quick-sim-executor-v6",
+    "scope": "candidate evidence for current quick-simulation semantics",
+    "historical_receipt_path": "experiments/promotion/nba-quick-sim-executor-v6.json",
+    "historical_receipt_immutable": true,
+    "release_registry_unchanged": true,
+    "frozen_v6_release_remains_active": true
+  },
+  "source": {
+    "branch": "agent/integrate-trade-cap-season",
+    "freeze_commit": "4081f97672c9b7d81b63b798b4f457b667a65d0b",
+    "package_version": "0.55.0.dev0"
+  },
+  "batch": {
+    "batch_id": "long-holdout-v7-real-players-001",
+    "master_seed": 20270210,
+    "paired_seasons": 30,
+    "full_engine_batch_sha256": "b578f137e00dcfaf1ce2bb0abf9a876e33bd367900a0e4ced92ac0e152040a81",
+    "aggregate_batch_sha256": "bad01f61e017631cb9a20eb4a192ff8354aa1e282cc0f6b4f88e52efbe0ffb46",
+    "player_batch_sha256": "75555c72a8136b096e036624a14a292005f77157b26941dfd91eb6fe9bcb3aa1"
+  },
+  "frozen_design": {
+    "path": "experiments/gates/real-player-v7-long-holdout-v1.json",
+    "sha256": "c69244c17cc3810fb69875e6c1931a7706c641e54ba0081b0b07504583148a4c"
+  },
+  "reality_gate": {
+    "gate_id": "nba-full-engine-player-reality-v7-long-v1",
+    "gate_path": "experiments/gates/nba-full-engine-player-reality-v7-long-v1.json",
+    "gate_sha256": "2d45fb8194bf8f8b47792c9a0ea4a4fd343f78543475727c2a724ac236c8e7e7",
+    "report_sha256": "053623367394b4a486ff8eca5b96dc70e10898e0b74af4a7bc64cbc6b669d4cf",
+    "passed": true,
+    "metrics": {
+      "win-rate-stddev": 0.12973213566172756,
+      "pace-possessions-per-team": 98.57055555555556,
+      "offensive-rating": 116.43860491988839,
+      "point-differential-stddev": 6.471976764810277,
+      "playoff-upset-rate": 0.3622222222222222,
+      "champion-seed-mean": 2.1666666666666665
+    }
+  },
+  "player_gate": {
+    "gate_id": "nba-player-holdout-v7-long-v1",
+    "gate_path": "experiments/gates/nba-player-holdout-v7-long-v1.json",
+    "gate_sha256": "064b8a33299fb06d64ce1e572058b82711563ac67c253c867e0e73c1f4178177",
+    "report_sha256": "b22037f1dc9fc848f2ae3a66b69a5ed2b71e01551881d7c9c2419e2b689ac066",
+    "passed": true,
+    "metrics": {
+      "minutes-mae": 3.208387622457,
+      "usage-mae": 0.046528106631,
+      "true-shooting-mae": 0.037574791605,
+      "shot-structure-mae": 0.07258553842066667,
+      "zero-minute-rate": 0.07760532150776053,
+      "mean-rotation-coverage": 0.6954962085678549
+    }
+  },
+  "consistency_gate": {
+    "gate_id": "quick-sim-engine-consistency-v7-long-v1",
+    "gate_path": "experiments/gates/quick-sim-engine-consistency-v7-long-v1.json",
+    "gate_sha256": "0fc413c244352ed7064cab9ec49bf7a3662048b9ccfdf166184db653cc8cdc38",
+    "report_sha256": "fce17084b61b74c4de5b3a75bedcd09d29d9953205266e6b074de4a2da4132ca",
+    "passed": true,
+    "mean_team_rank_spearman": 0.756069707081943,
+    "mean_home_win_rate": {
+      "full_engine": 0.507940379403794,
+      "aggregate": 0.5159620596205962,
+      "paired_mae": 0.017235772357723562
+    },
+    "metric_gate_observed": {
+      "win-rate-stddev-mae": 0.011453924788243787,
+      "pace-possessions-per-team-mae": 0.09960132319757378,
+      "offensive-rating-mae": 0.28507186913162835,
+      "point-differential-stddev-mae": 0.8139691381903595,
+      "playoff-upset-rate-absolute-mean-error": 0.05999999999999999,
+      "champion-seed-mean-absolute-mean-error": 0.4666666666666667
+    }
+  },
+  "local_validation": {
+    "clean_checkout_commit": "4081f97",
+    "python": "3.12.13",
+    "tests_collected": 694,
+    "tests_passed": 692,
+    "tests_skipped": 2,
+    "format": "passed",
+    "lint": "passed",
+    "strict_mypy": "passed",
+    "coverage_percent": 85,
+    "isolated_sdist_and_wheel_build": "passed",
+    "fresh_wheel_install_smoke": "passed"
+  }
+}

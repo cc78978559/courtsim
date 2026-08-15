@@ -31,6 +31,10 @@
   minutes, usage, efficiency, shot structure, and zero-minute coverage.
 - Freeze the unpromoted v7 real-player candidate, its development-only aggregate calibration,
   disjoint 30-season holdout identity, and paired macro/player/engine gate contracts.
+- Complete the frozen v7 30 full-engine + 30 aggregate holdout, pass all macro/player/consistency
+  gates, and record a local candidate receipt while leaving v6 release governance immutable.
+- Pass clean-checkout Ubuntu, Windows, and package-smoke CI for the v7 freeze commit without
+  merging, tagging, or creating a release.
 
 ## [0.52.0] - 2026-07-26
 
