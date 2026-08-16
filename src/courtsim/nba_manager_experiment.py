@@ -15,7 +15,7 @@ from collections.abc import Callable, Mapping
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from enum import IntEnum
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, cast
 
 from courtsim.artifacts import sha256_file, write_json
@@ -1036,10 +1036,17 @@ def _load_json_object(path: Path, label: str) -> dict[str, Any]:
 def _safe_relative(value: object) -> Path:
     if not isinstance(value, str) or not value:
         raise NBAManagerExperimentError("NBA manager artifact path is invalid")
-    path = Path(value)
-    if path.is_absolute() or ".." in path.parts:
+    posix_path = PurePosixPath(value)
+    windows_path = PureWindowsPath(value)
+    if (
+        posix_path.is_absolute()
+        or windows_path.is_absolute()
+        or bool(windows_path.drive)
+        or ".." in posix_path.parts
+        or ".." in windows_path.parts
+    ):
         raise NBAManagerExperimentError("NBA manager artifact path escapes its run")
-    return path
+    return Path(*posix_path.parts)
 
 
 def _object(value: object, label: str) -> dict[str, Any]:

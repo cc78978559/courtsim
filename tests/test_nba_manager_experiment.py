@@ -591,7 +591,18 @@ def test_season_execution_rejects_invalid_audit_payload(audit_payload: str) -> N
         NBAManagerSeasonExecution("next", simple_outcome(), audit_payload)
 
 
-@pytest.mark.parametrize("value", (None, "", "../cell.json", "C:\\absolute\\cell.json"))
+@pytest.mark.parametrize(
+    "value",
+    (
+        None,
+        "",
+        "../cell.json",
+        "..\\cell.json",
+        "C:\\absolute\\cell.json",
+        "C:drive-relative.json",
+        "\\\\server\\share\\cell.json",
+    ),
+)
 def test_artifact_paths_are_confined(value: object) -> None:
     with pytest.raises(NBAManagerExperimentError, match="path"):
         manager_experiment_module._safe_relative(value)
