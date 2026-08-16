@@ -608,6 +608,31 @@ def test_artifact_paths_are_confined(value: object) -> None:
         manager_experiment_module._safe_relative(value)
 
 
+def test_artifact_helpers_reject_unknown_proofs_and_tampered_files(tmp_path: Path) -> None:
+    with pytest.raises(NBAManagerExperimentError, match="unknown NBA manager CI proof"):
+        manager_experiment_module._ci_proof("unknown-proof")
+
+    invalid_json = tmp_path / "invalid.json"
+    invalid_json.write_text("not-json", encoding="utf-8")
+    with pytest.raises(NBAManagerExperimentError, match="invalid test JSON"):
+        manager_experiment_module._load_json_object(invalid_json, "test JSON")
+
+    invalid_gzip = tmp_path / "invalid.json.gz"
+    invalid_gzip.write_bytes(b"not-gzip")
+    with pytest.raises(NBAManagerExperimentError, match="invalid test gzip"):
+        manager_experiment_module._load_gzip_object(invalid_gzip, "test gzip")
+
+    established_json = tmp_path / "established.json"
+    manager_experiment_module._establish_json(established_json, {"value": 1}, "test JSON")
+    with pytest.raises(NBAManagerExperimentError, match="conflicts"):
+        manager_experiment_module._establish_json(established_json, {"value": 2}, "test JSON")
+
+    established_gzip = tmp_path / "established.json.gz"
+    manager_experiment_module._establish_gzip(established_gzip, {"value": 1}, "test gzip")
+    with pytest.raises(NBAManagerExperimentError, match="conflicts"):
+        manager_experiment_module._establish_gzip(established_gzip, {"value": 2}, "test gzip")
+
+
 def test_internal_artifact_schema_guards() -> None:
     with pytest.raises(NBAManagerExperimentError, match="object"):
         manager_experiment_module._object([], "artifact")
