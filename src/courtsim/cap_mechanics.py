@@ -227,6 +227,7 @@ def evaluate_signing_salary(
     annual_salary: int,
     ledger: CapLedger,
     rules: CapMechanicsRules | None = None,
+    minimum_salary: int | None = None,
 ) -> SalaryDecision:
     active_rules = rules or CapMechanicsRules()
     resulting = team_payroll + annual_salary
@@ -234,6 +235,11 @@ def evaluate_signing_salary(
         return SalaryDecision(False, "invalid", 0, resulting, ("salary-must-be-positive",))
     if resulting <= active_rules.salary_cap:
         return SalaryDecision(True, "cap-room", active_rules.salary_cap - team_payroll, resulting)
+    if minimum_salary is not None:
+        if minimum_salary < 1:
+            raise ValueError("minimum_salary must be positive")
+        if annual_salary == minimum_salary:
+            return SalaryDecision(True, "minimum-exception", minimum_salary, resulting)
     right = next(
         (
             item

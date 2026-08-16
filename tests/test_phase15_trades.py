@@ -6,8 +6,8 @@ from test_game_runtime import player
 from courtsim.career import CareerPlayer, CareerStatus, DevelopmentTraits, DraftPickAsset
 from courtsim.domain.player import AbilityRatings, SizeClass
 from courtsim.management import ContractRules, LeagueManagementState, PlayerContract
-from courtsim.manager_ai import ManagerPolicyMode, ManagerProfile
-from courtsim.manager_trade import evaluate_trade_shadow
+from courtsim.manager_ai import REALITY_BASELINE_POLICY, ManagerPolicyMode, ManagerProfile
+from courtsim.manager_trade import TradeShadowResult, evaluate_trade_shadow
 from courtsim.rosters import RosterSnapshot
 from courtsim.trades import (
     ContractTradeCondition,
@@ -250,6 +250,52 @@ def test_trade_shadow_one_manager_veto_blocks_approval() -> None:
     approvals = {item.team_id: item for item in shadow.approvals}
     assert not approvals["home"].accepted
     assert approvals["away"].accepted
+
+
+def test_reality_baseline_trade_does_not_read_hidden_potential() -> None:
+    offer = TradeOffer(1, "home", "away", (1,), (11,), (), ())
+    profiles = {
+        team_id: ManagerProfile(f"baseline-{team_id}", team_id) for team_id in ("home", "away")
+    }
+    policies = {team_id: REALITY_BASELINE_POLICY for team_id in profiles}
+
+    def evaluate(home_potential: int, away_potential: int) -> TradeShadowResult:
+        return evaluate_trade_shadow(
+            management=management(salary_a=5_000_000, salary_b=5_000_000),
+            players=league_players(
+                home_value=70,
+                away_value=70,
+                home_potential=home_potential,
+                away_potential=away_potential,
+            ),
+            picks=picks(),
+            offer=offer,
+            profiles=profiles,
+            contract_rules=contract_rules(),
+            front_office_policies=policies,
+        )
+
+    low_high = evaluate(70, 100)
+    high_low = evaluate(100, 70)
+    assert tuple(item.accepted for item in low_high.approvals) == tuple(
+        item.accepted for item in high_low.approvals
+    )
+    assert tuple(item.rational_gain for item in low_high.approvals) == tuple(
+        item.rational_gain for item in high_low.approvals
+    )
+    assert tuple(item.trace for item in low_high.approvals) == tuple(
+        item.trace for item in high_low.approvals
+    )
+    with pytest.raises(ValueError, match="policies must cover"):
+        evaluate_trade_shadow(
+            management=management(salary_a=5_000_000, salary_b=5_000_000),
+            players=league_players(),
+            picks=picks(),
+            offer=offer,
+            profiles=profiles,
+            contract_rules=contract_rules(),
+            front_office_policies={"home": REALITY_BASELINE_POLICY},
+        )
 
 
 def test_illegal_trade_is_visible_to_both_manager_traces() -> None:

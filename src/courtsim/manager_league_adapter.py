@@ -219,10 +219,17 @@ class CourtSimLeagueState:
     def __post_init__(self) -> None:
         if self.version != MANAGER_LEAGUE_ADAPTER_VERSION:
             raise ValueError("unsupported manager league adapter version")
+        cap_rules = cap_rules_for_salary_cap(self.contract_rules.salary_cap)
+        payrolls = {roster.team_id: 0 for roster in self.management.rosters}
+        for contract in self.management.contracts:
+            payrolls[contract.team_id] += contract.annual_salary
         validate_management_state(
             self.management,
             self.contract_rules,
-            maximum_payroll=cap_rules_for_salary_cap(self.contract_rules.salary_cap).second_apron,
+            maximum_payroll=max(
+                cap_rules.second_apron,
+                max(payrolls.values(), default=0),
+            ),
         )
         if self.players != tuple(sorted(self.players, key=lambda item: item.player_id)):
             raise ValueError("manager league players must be ordered by player_id")
@@ -756,7 +763,10 @@ def league_state_from_json(payload: str) -> CourtSimLeagueState:
             raise ManagerLeagueAdapterError("manager league salary cap is invalid")
         market = market_result_from_dict(
             raw["management"],
-            maximum_payroll=cap_rules_for_salary_cap(salary_cap).second_apron,
+            maximum_payroll=_snapshot_payroll_ceiling(
+                management_envelope,
+                cap_rules_for_salary_cap(salary_cap).second_apron,
+            ),
         )
         if market.actions or market.initial_state != market.final_state:
             raise ManagerLeagueAdapterError("manager league management envelope is not a snapshot")
@@ -797,6 +807,28 @@ def league_state_from_json(payload: str) -> CourtSimLeagueState:
         if isinstance(error, ManagerLeagueAdapterError):
             raise
         raise ManagerLeagueAdapterError(f"invalid manager league state: {error}") from error
+
+
+def _snapshot_payroll_ceiling(envelope: dict[str, Any], floor: int) -> int:
+    state = _object(envelope.get("initial_state"), "manager league initial management")
+    contracts = state.get("contracts")
+    if not isinstance(contracts, list):
+        raise ManagerLeagueAdapterError("manager league contracts must be a list")
+    payrolls: dict[str, int] = defaultdict(int)
+    for raw_contract in contracts:
+        contract = _object(raw_contract, "manager league contract")
+        team_id = contract.get("team_id")
+        salary = contract.get("annual_salary")
+        if (
+            not isinstance(team_id, str)
+            or not team_id
+            or not isinstance(salary, int)
+            or isinstance(salary, bool)
+            or salary < 1
+        ):
+            raise ManagerLeagueAdapterError("manager league serialized contract is invalid")
+        payrolls[team_id] += salary
+    return max(floor, max(payrolls.values(), default=0))
 
 
 def _ensure_annual_prospects(

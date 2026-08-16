@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
-from itertools import combinations
+from itertools import combinations, islice, product
 
 from courtsim.cap_mechanics import CapLedger, CapMechanicsRules
 from courtsim.career import CareerPlayer
 from courtsim.draft_assets import TradableDraftPick
 from courtsim.management import ContractRules, LeagueManagementState
 from courtsim.manager_ai import (
+    FrontOfficePolicySpec,
     ManagerDecisionLedger,
     ManagerDecisionRecord,
     ManagerPolicyMode,
@@ -189,6 +190,13 @@ class _RawOffer:
     parent_index: int | None
 
 
+def _participant_policies(
+    policies: Mapping[str, FrontOfficePolicySpec] | None,
+    team_ids: tuple[str, ...],
+) -> dict[str, FrontOfficePolicySpec] | None:
+    return None if policies is None else {team_id: policies[team_id] for team_id in team_ids}
+
+
 def generate_trade_market_shadow(
     *,
     management: LeagueManagementState,
@@ -202,6 +210,7 @@ def generate_trade_market_shadow(
     cap_ledger: CapLedger | None = None,
     cap_rules: CapMechanicsRules | None = None,
     frozen_pick_ids: frozenset[int] = frozenset(),
+    front_office_policies: Mapping[str, FrontOfficePolicySpec] | None = None,
 ) -> TradeMarketShadowResult:
     """Generate and independently approve a bounded, deterministic offer market."""
     team_ids = tuple(roster.team_id for roster in management.rosters)
@@ -209,6 +218,8 @@ def generate_trade_market_shadow(
         raise ValueError("trade market profiles must cover every team exactly")
     if any(team_id != profile.team_id for team_id, profile in profiles.items()):
         raise ValueError("trade market profile keys must match profile team ids")
+    if front_office_policies is not None and set(front_office_policies) != set(team_ids):
+        raise ValueError("trade market policies must cover every team exactly")
     base_candidate_budget = max(
         1,
         market_rules.maximum_candidates_per_pair
@@ -253,6 +264,9 @@ def generate_trade_market_shadow(
             cap_ledger=cap_ledger,
             cap_rules=cap_rules,
             frozen_pick_ids=frozen_pick_ids,
+            front_office_policies=_participant_policies(
+                front_office_policies, (offer.team_a_id, offer.team_b_id)
+            ),
         )
         negotiation_id = offer.trade_id if parent_trade_id is None else parent_trade_id
         evaluations.append(
@@ -289,6 +303,9 @@ def generate_trade_market_shadow(
             cap_ledger=cap_ledger,
             cap_rules=cap_rules,
             frozen_pick_ids=frozen_pick_ids,
+            front_office_policies=_participant_policies(
+                front_office_policies, (offer.team_a_id, offer.team_b_id)
+            ),
         )
         evaluations.append(
             TradeMarketEvaluation(
@@ -330,6 +347,9 @@ def generate_trade_market_shadow(
             cap_ledger=cap_ledger,
             cap_rules=cap_rules,
             frozen_pick_ids=frozen_pick_ids,
+            front_office_policies=_participant_policies(
+                front_office_policies, (offer.team_a_id, offer.team_b_id)
+            ),
         )
         evaluations.append(
             TradeMarketEvaluation(
@@ -438,6 +458,25 @@ def _candidate_offers(
     team_ids = tuple(sorted(rosters))
     for first_index, team_a_id in enumerate(team_ids):
         for team_b_id in team_ids[first_index + 1 :]:
+            direct_total = len(rosters[team_a_id]) * len(rosters[team_b_id])
+            if direct_total >= rules.maximum_candidates_per_pair:
+                result.extend(
+                    _RawOffer(
+                        team_a_id,
+                        team_b_id,
+                        (player_a,),
+                        (player_b,),
+                        (),
+                        (),
+                        "direct",
+                        None,
+                    )
+                    for player_a, player_b in islice(
+                        product(rosters[team_a_id], rosters[team_b_id]),
+                        rules.maximum_candidates_per_pair,
+                    )
+                )
+                continue
             pair: list[_RawOffer] = []
             direct_indices: dict[tuple[int, int], int] = {}
             for player_a in rosters[team_a_id]:

@@ -137,6 +137,7 @@ class NBAQuickSimExecutor:
     version: str = NBA_QUICK_SIM_EXECUTOR_VERSION
     shot_zone_profiles: NBAShotProfileSet | None = None
     player_targets: NBAPlayerTargetSet | None = None
+    allow_partial_player_targets: bool = False
 
     def __post_init__(self) -> None:
         team_ids = tuple(team.team_id for team in self.teams)
@@ -186,7 +187,11 @@ class NBAQuickSimExecutor:
                 raise ValueError("NBA shot profiles must cover every quick-sim team")
         if self.player_targets is not None:
             target_ids = {item.nba_player_id for item in self.player_targets.players}
-            if any(player_id not in target_ids for player_id in player_ids):
+            if not isinstance(self.allow_partial_player_targets, bool):
+                raise ValueError("partial NBA player-target marker must be boolean")
+            if not self.allow_partial_player_targets and any(
+                player_id not in target_ids for player_id in player_ids
+            ):
                 raise ValueError("NBA player targets must cover every quick-sim roster identity")
 
     def __call__(self, season_id: str, seed: int) -> QuickSimSeasonSummary:
@@ -233,12 +238,14 @@ class NBAQuickSimExecutor:
                     self.player_targets,
                     game_id=scheduled.game_id,
                     master_seed=seed,
+                    allow_partial_targets=self.allow_partial_player_targets,
                 )
                 away = build_nba_real_game_team(
                     away,
                     self.player_targets,
                     game_id=scheduled.game_id,
                     master_seed=seed,
+                    allow_partial_targets=self.allow_partial_player_targets,
                 )
             return home, away
 

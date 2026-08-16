@@ -8,7 +8,7 @@ from dataclasses import dataclass, fields, replace
 from enum import IntEnum
 from typing import Any, NoReturn, cast
 
-from courtsim.cap_mechanics import CapLedger, CapMechanicsRules
+from courtsim.cap_mechanics import CapLedger, CapMechanicsRules, remove_bird_rights
 from courtsim.domain.player import AbilityRatings, PlayerProfile
 from courtsim.domain.player_serialization import (
     player_profile_from_dict,
@@ -721,6 +721,7 @@ def advance_offseason(
     draft_rules: DraftRules | None = None,
     cap_ledger: CapLedger | None = None,
     cap_rules: CapMechanicsRules | None = None,
+    maximum_payroll: int | None = None,
 ) -> OffseasonResult:
     career_rules = career_rules or CareerRules()
     contract_rules = contract_rules or ContractRules()
@@ -730,11 +731,15 @@ def advance_offseason(
     )
     if cap_ledger is not None and cap_rules is None:
         cap_rules = CapMechanicsRules()
-    maximum_payroll = cap_rules.second_apron if cap_rules is not None else None
+    payroll_ceiling = (
+        max(cap_rules.second_apron, maximum_payroll or 0)
+        if cap_rules is not None
+        else maximum_payroll
+    )
     validate_management_state(
         management,
         contract_rules,
-        maximum_payroll=maximum_payroll,
+        maximum_payroll=payroll_ceiling,
     )
     if management.season_year != season_year:
         raise ValueError("offseason year must match management season year")
@@ -749,30 +754,43 @@ def advance_offseason(
         management,
         transition.retired_player_ids,
         contract_rules,
-        maximum_payroll=maximum_payroll,
+        maximum_payroll=payroll_ceiling,
     )
     contract_year = advance_contract_year(
         after_retirement,
         contract_rules,
-        maximum_payroll=maximum_payroll,
+        maximum_payroll=payroll_ceiling,
     )
-    synced = _sync_statuses(transition.final_players, contract_year.final_state)
-    draft = apply_draft(
+    prepared_management, pre_draft_waived_player_ids = open_draft_roster_slots(
         contract_year.final_state,
+        transition.final_players,
+        picks,
+        contract_rules,
+        maximum_payroll=payroll_ceiling,
+    )
+    active_cap_ledger = (
+        remove_bird_rights(cap_ledger, frozenset(pre_draft_waived_player_ids))
+        if cap_ledger is not None
+        else None
+    )
+    synced = _sync_statuses(transition.final_players, prepared_management)
+    draft = apply_draft(
+        prepared_management,
         synced,
         picks,
         draft_plan,
         season_year=season_year + 1,
         contract_rules=contract_rules,
         draft_rules=draft_rules,
-        maximum_payroll=maximum_payroll,
+        maximum_payroll=payroll_ceiling,
     )
     market = apply_market_plan(
         draft.final_management,
         market_plan,
         contract_rules,
-        cap_ledger=cap_ledger,
+        cap_ledger=active_cap_ledger,
         cap_rules=cap_rules,
+        maximum_payroll=payroll_ceiling,
     )
     final_players = _sync_statuses(draft.final_players, market.final_state)
     return OffseasonResult(
@@ -793,6 +811,72 @@ def advance_offseason(
         market.final_state,
         final_players,
     )
+
+
+def open_draft_roster_slots(
+    state: LeagueManagementState,
+    players: tuple[CareerPlayer, ...],
+    picks: tuple[DraftPickAsset, ...],
+    rules: ContractRules,
+    *,
+    minimum_roster_players: int = 0,
+    maximum_payroll: int | None = None,
+) -> tuple[LeagueManagementState, tuple[int, ...]]:
+    """Waive the weakest players needed to make every owned draft pick executable.
+
+    The rule is deliberately policy-neutral: both experiment arms use the same
+    observable current ratings, age, salary and stable player-id tie break.
+    """
+    validate_management_state(state, rules, maximum_payroll=maximum_payroll)
+    if not 0 <= minimum_roster_players <= rules.maximum_roster_players:
+        raise ValueError("minimum_roster_players is outside roster bounds")
+    players_by_id = {player.player_id: player for player in players}
+    contracts_by_id = {contract.player_id: contract for contract in state.contracts}
+    picks_by_team = {roster.team_id: 0 for roster in state.rosters}
+    for pick in picks:
+        if pick.owner_team_id not in picks_by_team:
+            raise ValueError("draft pick owner is absent from management state")
+        picks_by_team[pick.owner_team_id] += 1
+
+    waived: list[int] = []
+    rosters: list[RosterSnapshot] = []
+    for roster in state.rosters:
+        cut_count = max(
+            0,
+            len(roster.player_ids) + picks_by_team[roster.team_id] - rules.maximum_roster_players,
+        )
+        if cut_count > len(roster.player_ids) - minimum_roster_players:
+            raise ValueError("draft picks leave no legal pre-draft roster")
+
+        def cut_value(player_id: int) -> tuple[int, int, int, int]:
+            try:
+                player = players_by_id[player_id]
+                contract = contracts_by_id[player_id]
+            except KeyError as exc:
+                raise ValueError("management state references missing player data") from exc
+            current_ability = sum(
+                getattr(player.profile.abilities, item.name) for item in fields(AbilityRatings)
+            )
+            return current_ability, -player.age, -contract.annual_salary, player_id
+
+        team_waived = set(sorted(roster.player_ids, key=cut_value)[:cut_count])
+        waived.extend(sorted(team_waived))
+        rosters.append(
+            RosterSnapshot(
+                roster.team_id,
+                tuple(player_id for player_id in roster.player_ids if player_id not in team_waived),
+            )
+        )
+    waived_ids = tuple(sorted(waived))
+    waived_set = set(waived_ids)
+    final_state = LeagueManagementState(
+        state.season_year,
+        tuple(rosters),
+        tuple(sorted((*state.free_agent_ids, *waived_ids))),
+        tuple(contract for contract in state.contracts if contract.player_id not in waived_set),
+    )
+    validate_management_state(final_state, rules, maximum_payroll=maximum_payroll)
+    return final_state, waived_ids
 
 
 def audit_offseason(result: OffseasonResult) -> OffseasonAudit:

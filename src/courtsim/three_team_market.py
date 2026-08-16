@@ -12,6 +12,7 @@ from courtsim.career import CareerPlayer
 from courtsim.draft_assets import TradableDraftPick
 from courtsim.management import ContractRules, LeagueManagementState
 from courtsim.manager_ai import (
+    FrontOfficePolicySpec,
     ManagerDecisionLedger,
     ManagerDecisionRecord,
     ManagerPolicyMode,
@@ -21,6 +22,7 @@ from courtsim.manager_trade import (
     DEFAULT_MANAGER_TRADE_RULES,
     ManagerTradeRules,
 )
+from courtsim.randomness import derive_seed
 from courtsim.three_team_market_v2 import (
     ContractConditionKind,
     ThreeTeamContractCondition,
@@ -43,9 +45,17 @@ from courtsim.trades import DEFAULT_TRADE_RULES, TradeRules
 THREE_TEAM_MARKET_VERSION = "three-team-market-v1"
 
 
+def _participant_policies(
+    policies: Mapping[str, FrontOfficePolicySpec] | None,
+    team_ids: tuple[str, ...],
+) -> dict[str, FrontOfficePolicySpec] | None:
+    return None if policies is None else {team_id: policies[team_id] for team_id in team_ids}
+
+
 @dataclass(frozen=True, slots=True)
 class ThreeTeamMarketRules:
     maximum_candidates_per_trio: int = 64
+    maximum_trios: int = 10_000
     maximum_cyclic_candidates_per_trio: int = 32
     maximum_hub_candidates_per_trio: int = 32
     minimum_combined_rational_gain: float = 0.001
@@ -58,6 +68,7 @@ class ThreeTeamMarketRules:
     def __post_init__(self) -> None:
         limits = (
             self.maximum_candidates_per_trio,
+            self.maximum_trios,
             self.maximum_cyclic_candidates_per_trio,
             self.maximum_hub_candidates_per_trio,
             self.maximum_compensation_picks,
@@ -178,16 +189,33 @@ def generate_three_team_market_shadow(
     cap_ledger: CapLedger | None = None,
     cap_rules: CapMechanicsRules | None = None,
     frozen_pick_ids: frozenset[int] = frozenset(),
+    front_office_policies: Mapping[str, FrontOfficePolicySpec] | None = None,
 ) -> ThreeTeamMarketShadowResult:
     team_ids = tuple(roster.team_id for roster in management.rosters)
     if set(profiles) != set(team_ids):
         raise ValueError("three-team market profiles must cover every league team")
+    if front_office_policies is not None and set(front_office_policies) != set(team_ids):
+        raise ValueError("three-team market policies must cover every league team")
     rosters = {roster.team_id: roster.player_ids for roster in management.rosters}
     salaries = {contract.player_id: contract.annual_salary for contract in management.contracts}
     evaluations: list[ThreeTeamMarketEvaluation] = []
     ledger_records: list[ManagerDecisionRecord] = []
     next_trade_id = 1
-    for trio in combinations(tuple(sorted(team_ids)), 3):
+    all_trios = combinations(tuple(sorted(team_ids)), 3)
+    selected_trios = nsmallest(
+        market_rules.maximum_trios,
+        all_trios,
+        key=lambda trio: (
+            derive_seed(
+                management.season_year,
+                THREE_TEAM_MARKET_VERSION,
+                "trio-pool",
+                *trio,
+            ),
+            trio,
+        ),
+    )
+    for trio in sorted(selected_trios):
         trio_evaluations = 0
         families = (
             (
@@ -233,6 +261,7 @@ def generate_three_team_market_shadow(
                     cap_ledger=cap_ledger,
                     cap_rules=cap_rules,
                     frozen_pick_ids=frozen_pick_ids,
+                    front_office_policies=_participant_policies(front_office_policies, trio),
                 )
                 salary_imbalance = _salary_imbalance(routes, salaries)
                 evaluations.append(
@@ -278,6 +307,7 @@ def generate_three_team_market_shadow(
                         cap_ledger=cap_ledger,
                         cap_rules=cap_rules,
                         frozen_pick_ids=frozen_pick_ids,
+                        front_office_policies=_participant_policies(front_office_policies, trio),
                     )
                     evaluations.append(
                         ThreeTeamMarketEvaluation(

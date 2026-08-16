@@ -190,7 +190,7 @@ def trade_rejections(
         validate_management_state(
             management,
             contract_rules,
-            maximum_payroll=cap_rules.second_apron
+            maximum_payroll=_payroll_ceiling(management, cap_rules.second_apron)
             if cap_ledger is not None and cap_rules is not None
             else None,
         )
@@ -484,7 +484,14 @@ def apply_trade(
     validate_management_state(
         final_management,
         contract_rules,
-        maximum_payroll=cap_rules.second_apron if cap_rules is not None else None,
+        maximum_payroll=(
+            max(
+                _payroll_ceiling(management, cap_rules.second_apron),
+                _payroll_ceiling(final_management, cap_rules.second_apron),
+            )
+            if cap_rules is not None
+            else None
+        ),
     )
     return TradeResult(
         trade_rules,
@@ -500,6 +507,13 @@ def apply_trade(
         tuple(sorted((exception_ids or {}).items())),
         tuple(sorted(frozen_pick_ids)),
     )
+
+
+def _payroll_ceiling(state: LeagueManagementState, floor: int) -> int:
+    payrolls = {roster.team_id: 0 for roster in state.rosters}
+    for contract in state.contracts:
+        payrolls[contract.team_id] += contract.annual_salary
+    return max(floor, max(payrolls.values(), default=0))
 
 
 def audit_trade(result: TradeResult) -> TradeAudit:

@@ -83,6 +83,8 @@ OFF_BALL_ACTION
 | 经理反事实证据与发布回滚 | `src/courtsim/manager_evaluation.py` |
 | 可续跑经理实验编排 | `src/courtsim/manager_experiment.py` |
 | 真实联盟经理实验适配 | `src/courtsim/manager_league_adapter.py` |
+| 30 队焦点球队配对经理实验 | `src/courtsim/nba_manager_experiment.py` |
+| 30 队经理现实状态与执行适配 | `src/courtsim/nba_manager_adapter.py`、`src/courtsim/analysis/nba_manager_state.py` |
 | 年度新秀班生成 | `src/courtsim/prospects.py` |
 | 白盒经理轮换和上场时间 | `src/courtsim/manager_rotation.py` |
 | 命令入口 | `src/courtsim/cli.py`、`tools.ps1` |

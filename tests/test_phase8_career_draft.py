@@ -22,6 +22,7 @@ from courtsim.career import (
     audit_offseason,
     offseason_result_from_json,
     offseason_result_to_json,
+    open_draft_roster_slots,
 )
 from courtsim.domain.player import AbilityRatings
 from courtsim.domain.serialization import SerializationError
@@ -167,6 +168,29 @@ def test_career_contracts_reject_invalid_state() -> None:
         )
     with pytest.raises(ValueError, match="games_played"):
         PlayerSeasonSummary(1, 10, 11, 0)
+
+
+def test_draft_roster_slots_use_policy_neutral_deterministic_waivers() -> None:
+    rules = contract_rules()
+    state = LeagueManagementState(
+        2028,
+        (RosterSnapshot("home", (1, 2, 3, 4, 5)),),
+        (),
+        tuple(PlayerContract(player_id, "home", 1_000_000, 2) for player_id in range(1, 6)),
+    )
+    available = tuple(career_player(player_id, age=20 + player_id) for player_id in range(1, 6))
+    prepared, waived = open_draft_roster_slots(
+        state,
+        available,
+        (DraftPickAsset(1, 1, 1, "home", "home"),),
+        rules,
+        minimum_roster_players=4,
+    )
+
+    assert waived == (5,)
+    assert prepared.rosters[0].player_ids == (1, 2, 3, 4)
+    assert prepared.free_agent_ids == (5,)
+    assert {contract.player_id for contract in prepared.contracts} == {1, 2, 3, 4}
 
 
 def test_young_player_growth_is_deterministic_and_player_addressed() -> None:

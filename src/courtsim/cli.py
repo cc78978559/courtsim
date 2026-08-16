@@ -74,6 +74,15 @@ from courtsim.analysis.nba_data_pipeline import (
     inspect_nba_data,
     sync_nba_data,
 )
+from courtsim.analysis.nba_manager_source_sync import (
+    NBAManagerSourceSyncError,
+    sync_nba_manager_state_source,
+)
+from courtsim.analysis.nba_manager_state import (
+    NBAManagerStateError,
+    build_nba_manager_initial_state,
+    load_nba_manager_state_source,
+)
 from courtsim.analysis.nba_player_calibration import build_player_calibration_plan
 from courtsim.analysis.nba_player_evaluation import (
     NbaPlayerEvaluationError,
@@ -102,6 +111,7 @@ from courtsim.analysis.nba_quick_sim_runner import (
     NbaQuickSimRunnerError,
     run_nba_quick_sim_batch,
 )
+from courtsim.analysis.nba_real_rosters import build_nba_real_roster_teams
 from courtsim.analysis.nba_reality import NbaRealityError, build_nba_reality_payload
 from courtsim.analysis.nba_reference import (
     TEAM_METRIC_ORDER,
@@ -129,7 +139,11 @@ from courtsim.analysis.nba_shot_profiles import (
     build_nba_shot_profile_payload,
     load_nba_shot_profile_set,
 )
-from courtsim.analysis.nba_team_strength import NbaTeamStrengthError
+from courtsim.analysis.nba_team_strength import (
+    NbaTeamStrengthError,
+    apply_nba_team_strengths,
+    load_nba_team_strength_alignment,
+)
 from courtsim.analysis.pace_diagnostics import PaceDiagnosticError, build_pace_audit_from_bundle
 from courtsim.analysis.performance import run_model_benchmark
 from courtsim.analysis.quick_sim_batch import (
@@ -169,15 +183,32 @@ from courtsim.artifacts import write_json
 from courtsim.config import ConfigError, load_scenario
 from courtsim.demo import FoundationDemoSimulator
 from courtsim.domain.game import GameClockConfig
+from courtsim.domain.player_serialization import player_lineup_from_json
 from courtsim.draft_obligations import DraftObligationError, inspect_draft_obligation_files
+from courtsim.management import ContractRules
 from courtsim.model.trace_mode import TraceMode
 from courtsim.nba_franchise_artifacts import (
     NBAFranchiseArtifactError,
     load_nba_franchise_checkpoint,
+    write_nba_franchise_checkpoint,
 )
 from courtsim.nba_franchise_runner import (
     NBAFranchiseRunnerError,
     inspect_nba_franchise_manifest,
+)
+from courtsim.nba_manager_evaluation import NBAFrontOfficeEvidenceThresholds
+from courtsim.nba_manager_experiment import (
+    NBA_MANAGER_REQUIRED_CI,
+    NBAManagerExperimentError,
+    build_nba_manager_candidate_receipt,
+    inspect_nba_manager_experiment,
+    run_nba_manager_experiment,
+    verify_nba_manager_experiment,
+)
+from courtsim.nba_manager_study import (
+    NBAManagerStudyError,
+    build_nba_manager_study_bundle,
+    portable_nba_manager_checkpoint_receipt,
 )
 from courtsim.parameter_overlay import (
     ParameterOverlayError,
@@ -623,6 +654,112 @@ def _parser() -> argparse.ArgumentParser:
         help="verify and summarize a resumable franchise manifest",
     )
     franchise_status.add_argument("manifest", type=Path)
+
+    manager_state_build = subparsers.add_parser(
+        "nba-manager-state-build",
+        help="build a source-pinned real-player franchise checkpoint for manager studies",
+    )
+    manager_state_build.add_argument("player_targets", type=Path)
+    manager_state_build.add_argument("management_source", type=Path)
+    manager_state_build.add_argument("shot_profiles", type=Path)
+    manager_state_build.add_argument("team_strength", type=Path)
+    manager_state_build.add_argument("checkpoint", type=Path)
+    manager_state_build.add_argument("receipt", type=Path)
+    manager_state_build.add_argument(
+        "--lineup", type=Path, default=Path("examples/calibration_lineup_v1.json")
+    )
+    manager_state_build.add_argument("--league-id", default="nba-manager-policy-v1")
+    manager_state_build.add_argument("--season-year", type=int, default=2025)
+    manager_state_build.add_argument("--salary-cap", type=int, default=140_000_000)
+    manager_state_build.add_argument("--minimum-salary", type=int, default=1_000_000)
+    manager_state_build.add_argument("--maximum-salary", type=int, default=60_000_000)
+    manager_state_build.add_argument("--maximum-years", type=int, default=5)
+    manager_state_build.add_argument("--maximum-roster-players", type=int, default=15)
+
+    manager_source_sync = subparsers.add_parser(
+        "nba-manager-source-sync",
+        help="cache keyless ESPN age/contracts and build a compact manager-state source",
+    )
+    manager_source_sync.add_argument("player_targets", type=Path)
+    manager_source_sync.add_argument("identity", type=Path)
+    manager_source_sync.add_argument("output", type=Path)
+    manager_source_sync.add_argument(
+        "--cache", type=Path, default=Path(".cache/nba-manager-source")
+    )
+    manager_source_sync.add_argument("--season-year", type=int, default=2025)
+    manager_source_sync.add_argument("--workers", type=int, default=8)
+    manager_source_sync.add_argument("--offline", action="store_true")
+    manager_source_sync.add_argument("--force", action="store_true")
+
+    manager_study_run = subparsers.add_parser(
+        "nba-manager-study-run",
+        help="run or resume a focal-team paired thirty-team manager study",
+    )
+    manager_study_run.add_argument("initial_checkpoint", type=Path)
+    manager_study_run.add_argument("state_build_receipt", type=Path)
+    manager_study_run.add_argument("shot_profiles", type=Path)
+    manager_study_run.add_argument("macro_reference", type=Path)
+    manager_study_run.add_argument("manager_profiles", type=Path)
+    manager_study_run.add_argument("output", type=Path)
+    manager_study_run.add_argument("--schema", type=Path, default=DEFAULT_MODEL_SCHEMA)
+    manager_study_run.add_argument("--parameters", type=Path, default=DEFAULT_MODEL_PARAMETERS)
+    manager_study_run.add_argument(
+        "--player-targets",
+        type=Path,
+        help="frozen player targets required by the formal manager study",
+    )
+    manager_study_run.add_argument(
+        "--state-build-source",
+        type=Path,
+        default=Path("experiments/inputs/nba-manager-state-source-2025.json"),
+        help="frozen source used to reconstruct the formal initial state",
+    )
+    manager_study_run.add_argument(
+        "--protocol",
+        type=Path,
+        default=Path("experiments/promotion/nba-manager-policy-v1-protocol.json"),
+        help="canonical frozen formal promotion protocol",
+    )
+    manager_study_run.add_argument("--experiment-id", default="nba-manager-policy-v1")
+    manager_study_run.add_argument("--seed-start", type=int)
+    manager_study_run.add_argument("--sources", type=int)
+    manager_study_run.add_argument("--seasons", type=int)
+    manager_study_run.add_argument("--maximum-new-sources", type=int)
+    manager_study_run.add_argument("--workers", type=int, default=1)
+    manager_study_run.add_argument("--development", action="store_true")
+    manager_study_run.add_argument("--periods", type=int, default=4)
+    manager_study_run.add_argument("--period-seconds", type=int, default=720)
+    manager_study_run.add_argument("--possession-seconds", type=int, default=24)
+    manager_study_run.add_argument("--overtime-seconds", type=int, default=300)
+    manager_study_run.add_argument("--max-overtimes", type=int, default=8)
+
+    manager_study_status = subparsers.add_parser(
+        "nba-manager-study-status",
+        help="verify and summarize a complete or partial NBA manager study",
+    )
+    manager_study_status.add_argument("study", type=Path)
+    manager_study_verify = subparsers.add_parser(
+        "nba-manager-study-verify",
+        help="recompute evidence from a complete tamper-checked NBA manager study",
+    )
+    manager_study_verify.add_argument("report", type=Path)
+    manager_study_receipt = subparsers.add_parser(
+        "nba-manager-study-receipt",
+        help="emit a WIP-only candidate pass/fail receipt after required CI",
+    )
+    manager_study_receipt.add_argument("report", type=Path)
+    manager_study_receipt.add_argument("output", type=Path)
+    manager_study_receipt.add_argument("--git-commit", required=True)
+    manager_study_receipt.add_argument(
+        "--ci",
+        action="append",
+        default=[],
+        metavar="NAME=passed@COMMIT@RUN_URL",
+        help=(
+            "commit-bound GitHub Actions attestation required exactly once for: "
+            f"{', '.join(NBA_MANAGER_REQUIRED_CI)}"
+        ),
+    )
 
     validate = subparsers.add_parser("validate", help="validate a scenario JSON file")
     validate.add_argument("scenario", type=Path)
@@ -1602,6 +1739,186 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
 
+        if arguments.command == "nba-manager-source-sync":
+            manager_source_report = sync_nba_manager_state_source(
+                player_targets_path=arguments.player_targets,
+                identity_path=arguments.identity,
+                output_path=arguments.output,
+                cache_directory=arguments.cache,
+                season_year=arguments.season_year,
+                workers=arguments.workers,
+                offline=arguments.offline,
+                force=arguments.force,
+            )
+            print(json.dumps(manager_source_report, separators=(",", ":"), sort_keys=True))
+            return 0
+
+        if arguments.command == "nba-manager-state-build":
+            player_targets = load_nba_player_target_set(arguments.player_targets)
+            shot_profiles = load_nba_shot_profile_set(arguments.shot_profiles)
+            team_ids = tuple(sorted(item.team_id for item in shot_profiles.teams))
+            templates = player_lineup_from_json(arguments.lineup.read_text(encoding="utf-8"))
+            teams = apply_nba_team_strengths(
+                build_nba_real_roster_teams(player_targets, templates, team_ids),
+                arguments.team_strength,
+            )
+            contract_rules = ContractRules(
+                arguments.salary_cap,
+                arguments.minimum_salary,
+                arguments.maximum_salary,
+                arguments.maximum_years,
+                arguments.maximum_roster_players,
+            )
+            state_build = build_nba_manager_initial_state(
+                league_id=arguments.league_id,
+                season_year=arguments.season_year,
+                teams=teams,
+                alignment=load_nba_team_strength_alignment(arguments.team_strength),
+                player_targets=player_targets,
+                player_source=load_nba_manager_state_source(arguments.management_source),
+                contract_rules=contract_rules,
+            )
+            checkpoint_receipt = write_nba_franchise_checkpoint(
+                state_build.state,
+                contract_rules,
+                arguments.checkpoint,
+            )
+            manager_state_receipt_payload = {
+                "version": "nba-manager-state-build-receipt-v1",
+                "build": asdict(state_build.receipt),
+                "checkpoint": asdict(portable_nba_manager_checkpoint_receipt(checkpoint_receipt)),
+            }
+            write_json(arguments.receipt, manager_state_receipt_payload)
+            print(
+                json.dumps(
+                    manager_state_receipt_payload,
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0
+
+        if arguments.command == "nba-manager-study-run":
+            formal_run = not arguments.development
+            default_sources = 30 if formal_run else 8
+            default_seed_start = 20270401 if formal_run else 20270301
+            default_seasons = 5 if formal_run else 3
+            sources = default_sources if arguments.sources is None else arguments.sources
+            seed_start = (
+                default_seed_start if arguments.seed_start is None else arguments.seed_start
+            )
+            seasons = default_seasons if arguments.seasons is None else arguments.seasons
+            if formal_run and (sources, seed_start, seasons) != (30, 20270401, 5):
+                raise ConfigError(
+                    "formal NBA manager study is frozen to seeds 20270401-20270430 and five seasons"
+                )
+            if not 1 <= sources <= 30:
+                raise ConfigError("NBA manager study sources must be from one through thirty")
+            bundle = build_nba_manager_study_bundle(
+                experiment_id=arguments.experiment_id,
+                initial_checkpoint=arguments.initial_checkpoint,
+                state_build_receipt_path=arguments.state_build_receipt,
+                schema_path=arguments.schema,
+                parameters_path=arguments.parameters,
+                shot_profiles_path=arguments.shot_profiles,
+                macro_reference_path=arguments.macro_reference,
+                manager_profiles_path=arguments.manager_profiles,
+                player_targets_path=arguments.player_targets,
+                state_build_source_path=arguments.state_build_source,
+                promotion_protocol_path=arguments.protocol,
+                master_seeds=tuple(range(seed_start, seed_start + sources)),
+                seasons=seasons,
+                formal_run=formal_run,
+                game_config=GameClockConfig(
+                    arguments.periods,
+                    arguments.period_seconds,
+                    arguments.possession_seconds,
+                    arguments.overtime_seconds,
+                    arguments.max_overtimes,
+                    True,
+                ),
+            )
+            thresholds = None
+            season_weights: tuple[float, ...] = (0.10, 0.15, 0.20, 0.25, 0.30)
+            if not formal_run:
+                thresholds = NBAFrontOfficeEvidenceThresholds(
+                    minimum_independent_sources=sources,
+                    minimum_seasons_per_source=seasons,
+                )
+                season_weights = tuple(1 / seasons for _ in range(seasons))
+            manager_study_result = run_nba_manager_experiment(
+                spec=bundle.spec,
+                initial_state_payload=bundle.initial_state_payload,
+                executor=bundle.adapter,
+                output_directory=arguments.output,
+                thresholds=thresholds,
+                season_weights=season_weights,
+                maximum_new_sources=arguments.maximum_new_sources,
+                workers=arguments.workers,
+            )
+            manager_study_summary = {
+                "version": manager_study_result.version,
+                "complete": manager_study_result.complete,
+                "executed_cells": manager_study_result.executed_cells,
+                "reused_cells": manager_study_result.reused_cells,
+                "completed_sources": manager_study_result.completed_sources,
+                "status": (
+                    "running"
+                    if not manager_study_result.complete
+                    else "candidate-pass"
+                    if manager_study_result.evidence is not None
+                    and manager_study_result.evidence.recommended
+                    else "candidate-fail"
+                ),
+            }
+            print(json.dumps(manager_study_summary, separators=(",", ":"), sort_keys=True))
+            return (
+                0
+                if not manager_study_result.complete
+                or manager_study_result.evidence is None
+                or manager_study_result.evidence.recommended
+                else 19
+            )
+
+        if arguments.command == "nba-manager-study-status":
+            print(
+                json.dumps(
+                    inspect_nba_manager_experiment(arguments.study),
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0
+
+        if arguments.command == "nba-manager-study-verify":
+            evidence = verify_nba_manager_experiment(arguments.report)
+            print(json.dumps(asdict(evidence), separators=(",", ":"), sort_keys=True))
+            return 0 if evidence.recommended else 18
+
+        if arguments.command == "nba-manager-study-receipt":
+            ci_checks: dict[str, str] = {}
+            for raw_ci in arguments.ci:
+                name, separator, value = raw_ci.partition("=")
+                if not separator or name in ci_checks:
+                    raise ConfigError(
+                        "NBA manager CI values must be unique NAME=passed@COMMIT@RUN_URL entries"
+                    )
+                ci_checks[name] = value
+            manager_candidate_receipt = build_nba_manager_candidate_receipt(
+                arguments.report,
+                git_commit=arguments.git_commit,
+                ci_checks=ci_checks,
+            )
+            write_json(arguments.output, manager_candidate_receipt)
+            print(
+                json.dumps(
+                    manager_candidate_receipt,
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return 0 if manager_candidate_receipt["status"] == "candidate-pass" else 18
+
         if arguments.command == "validate":
             config = load_scenario(arguments.scenario)
             print(f"valid: {config.name} ({len(config.zones)} zones)")
@@ -2030,6 +2347,10 @@ def main(argv: list[str] | None = None) -> int:
         NbaRealityError,
         NBAFranchiseArtifactError,
         NBAFranchiseRunnerError,
+        NBAManagerExperimentError,
+        NBAManagerSourceSyncError,
+        NBAManagerStateError,
+        NBAManagerStudyError,
         ParameterOverlayError,
         PaceDiagnosticError,
         PlayerProfileOverlayError,

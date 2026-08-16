@@ -4,9 +4,12 @@ on:
   push:
     branches:
       - main
-      - "agent/**"
   pull_request:
   workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -21,7 +24,8 @@ jobs:
         os: [ubuntu-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout clean repository
+        uses: actions/checkout@v7
 
       - uses: actions/setup-python@v7
         with:
@@ -57,7 +61,8 @@ jobs:
     needs: quality
 
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout clean repository
+        uses: actions/checkout@v7
 
       - uses: actions/setup-python@v7
         with:
