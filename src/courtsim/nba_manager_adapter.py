@@ -3,15 +3,22 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field, fields
+from itertools import pairwise
 from math import fsum
 from pathlib import Path
 from typing import Any, cast
 
+from courtsim.analysis.nba_player_evaluation import (
+    audit_nba_player_aggregates,
+    evaluate_nba_player_audit,
+    evaluate_nba_player_reality_gate,
+)
+from courtsim.analysis.nba_player_targets import NBAPlayerTargetSet
 from courtsim.analysis.nba_quick_sim_executor import build_nba_player_season_summaries
 from courtsim.analysis.nba_shot_profiles import NBAShotProfileSet
-from courtsim.analysis.quick_sim_comparison import QuickSimSeasonSummary
 from courtsim.cap_mechanics import cap_rules_for_salary_cap
 from courtsim.career import CareerRules, DraftRules
 from courtsim.domain.game import GameClockConfig
@@ -19,7 +26,9 @@ from courtsim.domain.player import AbilityRatings
 from courtsim.management import ContractRules
 from courtsim.manager_ai import (
     REALITY_BASELINE_POLICY,
+    REALITY_BASELINE_POLICY_ID,
     WHITE_BOX_CANDIDATE_POLICY,
+    WHITE_BOX_CANDIDATE_POLICY_ID,
     FrontOfficePolicySpec,
     ManagerProfile,
 )
@@ -31,6 +40,7 @@ from courtsim.nba_franchise_artifacts import (
     nba_franchise_state_from_json,
     nba_franchise_state_to_json,
 )
+from courtsim.nba_league import NBARegularSeasonRules
 from courtsim.nba_manager_evaluation import NBAFrontOfficeOutcome
 from courtsim.nba_manager_experiment import (
     NBA_MANAGER_EXPERIMENT_VERSION,
@@ -78,6 +88,7 @@ class NBAFrontOfficeExperimentAdapter:
     trade_market_rules: TradeMarketRules = field(default_factory=TradeMarketRules)
     three_team_market_rules: ThreeTeamMarketRules = field(default_factory=ThreeTeamMarketRules)
     shot_zone_profiles: NBAShotProfileSet | None = None
+    player_targets: NBAPlayerTargetSet | None = None
     macro_ranges: tuple[MacroMetricRange, ...] = ()
     minimum_roster_players: int = 12
     trace_mode: TraceMode = TraceMode.AGGREGATE_ONLY
@@ -96,6 +107,11 @@ class NBAFrontOfficeExperimentAdapter:
             raise ValueError("formal NBA manager experiments require aggregate-only traces")
 
     def __call__(self, request: NBAManagerSeasonRequest) -> NBAManagerSeasonExecution:
+        if (
+            request.baseline_policy_id != REALITY_BASELINE_POLICY_ID
+            or request.candidate_policy_id != WHITE_BOX_CANDIDATE_POLICY_ID
+        ):
+            raise ValueError("NBA manager request policy identity differs from adapter")
         state, stored_contract_rules = nba_franchise_state_from_json(request.state_payload)
         if stored_contract_rules != self.contract_rules:
             raise ValueError("NBA manager state contract rules differ from adapter")
@@ -130,12 +146,21 @@ class NBAFrontOfficeExperimentAdapter:
             trade_market_rules=self.trade_market_rules,
             three_team_market_rules=self.three_team_market_rules,
             shot_zone_profiles=self.shot_zone_profiles,
+            player_targets=self.player_targets,
             front_office_policies=policies,
             minimum_offseason_roster_players=self.minimum_roster_players,
             trace_mode=self.trace_mode,
         )
-        outcome = _outcome(request, execution, self.contract_rules, self.macro_ranges)
-        audit = _compact_audit(request, execution, policies, outcome)
+        outcome, player_gate = _outcome(
+            request,
+            execution,
+            self.contract_rules,
+            self.macro_ranges,
+            self.season_config,
+            self.minimum_roster_players,
+            self.player_targets,
+        )
+        audit = _compact_audit(request, execution, policies, outcome, player_gate)
         return NBAManagerSeasonExecution(
             nba_franchise_state_to_json(execution.final_state, self.contract_rules),
             outcome,
@@ -180,12 +205,20 @@ def _outcome(
     execution: NBAFranchiseSeasonExecution,
     contract_rules: ContractRules,
     macro_ranges: tuple[MacroMetricRange, ...],
-) -> NBAFrontOfficeOutcome:
+    season_config: SeasonConfig,
+    minimum_roster_players: int,
+    player_targets: NBAPlayerTargetSet | None,
+) -> tuple[NBAFrontOfficeOutcome, dict[str, object] | None]:
     focal = request.focal_team_id
     standing = next(item for item in execution.simulation.season.standings if item.team_id == focal)
     games = standing.wins + standing.losses + standing.ties
-    opened, accepted, rounds, stale = _negotiation_metrics(execution, focal)
-    return NBAFrontOfficeOutcome(
+    opened, accepted, rounds, stale, positive, no_counter, exhausted = _negotiation_metrics(
+        execution, focal
+    )
+    illegal_transactions = _illegal_transaction_count(execution)
+    macro_metrics, structural_gate = _season_safety_metrics(execution, macro_ranges, season_config)
+    player_gate = _player_reality_gate(execution, player_targets)
+    outcome = NBAFrontOfficeOutcome(
         request.source_id,
         request.master_seed,
         request.season_year,
@@ -200,12 +233,30 @@ def _outcome(
         accepted,
         rounds,
         stale,
-        illegal_transactions=0,
+        positive,
+        no_counter,
+        exhausted,
+        illegal_transactions=illegal_transactions,
         unplayable_rosters=sum(
-            len(roster.player_ids) < 5 for roster in execution.final_state.management.rosters
+            len(roster.player_ids) < minimum_roster_players
+            for roster in execution.final_state.management.rosters
         ),
-        macro_gate_passed=_macro_gate(execution.simulation.summary, macro_ranges),
+        macro_gate_passed=structural_gate
+        and (player_gate is None or player_gate.get("passed") is True),
+        macro_metrics=macro_metrics,
     )
+    return outcome, player_gate
+
+
+def _player_reality_gate(
+    execution: NBAFranchiseSeasonExecution,
+    targets: NBAPlayerTargetSet | None,
+) -> dict[str, object] | None:
+    if targets is None or execution.initial_state.completed_seasons > 0:
+        return None
+    audit = audit_nba_player_aggregates(execution.simulation.player_aggregates, targets)
+    evaluation = evaluate_nba_player_audit(audit, targets)
+    return evaluate_nba_player_reality_gate(evaluation, audit)
 
 
 def _postseason_progress(execution: NBAFranchiseSeasonExecution, team_id: str) -> float:
@@ -349,7 +400,7 @@ def _roster_continuity(execution: NBAFranchiseSeasonExecution, team_id: str) -> 
 def _negotiation_metrics(
     execution: NBAFranchiseSeasonExecution,
     team_id: str,
-) -> tuple[int, int, int, int]:
+) -> tuple[int, int, int, int, int, int, int]:
     bilateral = [
         item
         for item in execution.bilateral_trade_market.negotiations
@@ -368,34 +419,233 @@ def _negotiation_metrics(
     stale = sum(
         "stale" in rejection
         for evaluation in execution.bilateral_trade_market.evaluations
+        if team_id
+        in {
+            evaluation.shadow.offer.team_a_id,
+            evaluation.shadow.offer.team_b_id,
+        }
         for rejection in evaluation.shadow.hard_rejections
     ) + sum(
         "stale" in rejection
         for evaluation in execution.three_team_trade_market.evaluations
+        if team_id in evaluation.shadow.offer.team_ids
         for rejection in evaluation.shadow.hard_rejections
     )
-    return opened, accepted, rounds, stale
-
-
-def _macro_gate(
-    summary: QuickSimSeasonSummary,
-    ranges: tuple[MacroMetricRange, ...],
-) -> bool:
-    if not ranges:
-        return True
-    values = {
-        "win-rate-stddev": summary.win_rate_stddev,
-        "pace-possessions-per-team": summary.pace_possessions_per_team,
-        "offensive-rating": summary.offensive_rating,
-        "point-differential-stddev": summary.point_differential_stddev,
-        "playoff-upset-rate": summary.playoff_upset_rate,
-        "champion-seed-mean": summary.champion_seed,
+    bilateral_executed = {
+        offer.trade_id for offer in execution.bilateral_trade_execution.plan.offers
     }
-    return all(
-        values[item.metric] is not None
-        and item.minimum <= cast(float, values[item.metric]) <= item.maximum
-        for item in ranges
+    three_team_executed = {
+        offer.trade_id for offer in execution.three_team_trade_execution.plan.offers
+    }
+    positive = sum(
+        evaluation.shadow.offer.trade_id in bilateral_executed
+        and team_id
+        in {
+            evaluation.shadow.offer.team_a_id,
+            evaluation.shadow.offer.team_b_id,
+        }
+        and all(
+            approval.rational_gain is not None and approval.rational_gain >= 0
+            for approval in evaluation.shadow.approvals
+        )
+        for evaluation in execution.bilateral_trade_market.evaluations
+    ) + sum(
+        evaluation.shadow.offer.trade_id in three_team_executed
+        and team_id in evaluation.shadow.offer.team_ids
+        and all(
+            approval.rational_gain is not None and approval.rational_gain >= 0
+            for approval in evaluation.shadow.approvals
+        )
+        for evaluation in execution.three_team_trade_market.evaluations
     )
+    no_counter = sum(item.terminal_reason == "no-counter" for item in bilateral) + sum(
+        not any(node.status == "countered" for node in tree.nodes)
+        and not any(node.status == "accepted" for node in tree.nodes)
+        for tree in three_team
+    )
+    exhausted = sum(item.terminal_reason == "round-limit" for item in bilateral) + sum(
+        not any(node.status == "accepted" for node in tree.nodes)
+        and max(node.round_number for node in tree.nodes) >= tree.maximum_rounds
+        for tree in three_team
+    )
+    return opened, accepted, rounds, stale, positive, no_counter, exhausted
+
+
+def _season_safety_metrics(
+    execution: NBAFranchiseSeasonExecution,
+    ranges: tuple[MacroMetricRange, ...],
+    season_config: SeasonConfig,
+) -> tuple[tuple[tuple[str, float], ...], bool]:
+    summary = execution.simulation.summary
+    injuries = (
+        *execution.simulation.season.injuries,
+        *execution.simulation.postseason_state.injuries,
+    )
+    player_games = sum(item.games_played for item in execution.simulation.player_aggregates) + sum(
+        value for _, value in execution.simulation.postseason_state.player_games
+    )
+    values = {
+        "champion-seed-mean": summary.champion_seed,
+        "home-win-rate": summary.home_win_rate,
+        "injury-rate": len(injuries) / player_games if player_games else 0.0,
+        "offensive-rating": summary.offensive_rating,
+        "pace-possessions-per-team": summary.pace_possessions_per_team,
+        "playoff-upset-rate": summary.playoff_upset_rate,
+        "point-differential-stddev": summary.point_differential_stddev,
+        "win-rate-stddev": summary.win_rate_stddev,
+    }
+    expected = {item.metric for item in ranges}
+    complete = expected == set(values) and all(values[name] is not None for name in expected)
+    duration_valid = all(
+        season_config.minimum_days_out
+        <= injury.return_day - injury.injury_day - 1
+        <= season_config.maximum_days_out
+        for injury in injuries
+    )
+    metrics = tuple(
+        (name, cast(float, values[name])) for name in sorted(expected) if values[name] is not None
+    )
+    return metrics, complete and duration_valid and _calendar_gate_passed(execution)
+
+
+def _calendar_gate_passed(execution: NBAFranchiseSeasonExecution) -> bool:
+    schedule = execution.simulation.season.schedule
+    rules = NBARegularSeasonRules()
+    if (
+        not schedule.games
+        or schedule.games[0].day != 1
+        or schedule.games[-1].day != rules.season_span_days
+    ):
+        return False
+    games_by_day = Counter(game.day for game in schedule.games)
+    ordered_game_days = tuple(sorted(games_by_day))
+    game_days = len(games_by_day)
+    if not rules.minimum_game_days <= game_days <= rules.maximum_game_days:
+        return False
+    if (
+        not rules.minimum_league_off_days
+        <= rules.season_span_days - game_days
+        <= rules.maximum_league_off_days
+    ):
+        return False
+    all_star_start = ordered_game_days[rules.all_star_break_after_game_day - 1] + 1
+    if any(
+        day in games_by_day
+        for day in range(all_star_start, all_star_start + rules.all_star_break_days)
+    ):
+        return False
+    if (
+        sum(
+            rules.balanced_day_minimum_games <= games <= rules.balanced_day_maximum_games
+            for games in games_by_day.values()
+        )
+        < rules.minimum_balanced_game_days
+        or sum(games >= rules.heavy_day_minimum_games for games in games_by_day.values())
+        > rules.maximum_heavy_game_days
+    ):
+        return False
+    for team_id in schedule.team_ids:
+        days = tuple(
+            game.day for game in schedule.games if team_id in (game.home_team_id, game.away_team_id)
+        )
+        gaps = tuple(second - first for first, second in pairwise(days))
+        back_to_backs = sum(gap == 1 for gap in gaps)
+        one_day_rest = sum(gap == 2 for gap in gaps)
+        longest_rest = max((gap - 1 for gap in gaps), default=0)
+        longest_consecutive = 1
+        consecutive = 1
+        for gap in gaps:
+            consecutive = consecutive + 1 if gap == 1 else 1
+            longest_consecutive = max(longest_consecutive, consecutive)
+        if not (
+            rules.minimum_team_back_to_backs <= back_to_backs <= rules.maximum_team_back_to_backs
+            and longest_consecutive <= rules.maximum_consecutive_game_days
+            and rules.minimum_one_day_rest_intervals
+            <= one_day_rest
+            <= rules.maximum_one_day_rest_intervals
+            and rules.minimum_longest_rest_days <= longest_rest <= rules.maximum_longest_rest_days
+        ):
+            return False
+    return True
+
+
+def _illegal_transaction_count(execution: NBAFranchiseSeasonExecution) -> int:
+    bilateral_approved = {
+        item.shadow.offer.trade_id
+        for item in execution.bilateral_trade_market.evaluations
+        if item.shadow.legal and item.shadow.approved
+    }
+    three_team_approved = {
+        item.shadow.offer.trade_id
+        for item in execution.three_team_trade_market.evaluations
+        if item.shadow.legal and item.shadow.approved
+    }
+    bilateral_ids = tuple(
+        offer.trade_id for offer in execution.bilateral_trade_execution.plan.offers
+    )
+    three_team_ids = tuple(
+        offer.trade_id for offer in execution.three_team_trade_execution.plan.offers
+    )
+    return (
+        sum(trade_id not in bilateral_approved for trade_id in bilateral_ids)
+        + sum(trade_id not in three_team_approved for trade_id in three_team_ids)
+        + abs(len(execution.bilateral_trade_execution.audits) - len(bilateral_ids))
+        + abs(len(execution.three_team_trade_execution.audits) - len(three_team_ids))
+        + sum(not audit.replay_verified for audit in execution.bilateral_trade_execution.audits)
+        + sum(not audit.replay_verified for audit in execution.three_team_trade_execution.audits)
+    )
+
+
+def _calendar_audit(execution: NBAFranchiseSeasonExecution) -> dict[str, object]:
+    schedule = execution.simulation.season.schedule
+    rules = NBARegularSeasonRules()
+    games_by_day = Counter(game.day for game in schedule.games)
+    ordered_game_days = tuple(sorted(games_by_day))
+    all_star_start = (
+        ordered_game_days[rules.all_star_break_after_game_day - 1] + 1
+        if len(ordered_game_days) >= rules.all_star_break_after_game_day
+        else 0
+    )
+    team_metrics = []
+    for team_id in schedule.team_ids:
+        days = tuple(
+            game.day for game in schedule.games if team_id in (game.home_team_id, game.away_team_id)
+        )
+        gaps = tuple(second - first for first, second in pairwise(days))
+        consecutive = longest_consecutive = 1
+        for gap in gaps:
+            consecutive = consecutive + 1 if gap == 1 else 1
+            longest_consecutive = max(longest_consecutive, consecutive)
+        team_metrics.append(
+            (
+                sum(gap == 1 for gap in gaps),
+                sum(gap == 2 for gap in gaps),
+                max((gap - 1 for gap in gaps), default=0),
+                longest_consecutive,
+            )
+        )
+    return {
+        "passed": _calendar_gate_passed(execution),
+        "season_span_days": max(games_by_day, default=0),
+        "game_days": len(games_by_day),
+        "league_off_days": rules.season_span_days - len(games_by_day),
+        "balanced_game_days": sum(
+            rules.balanced_day_minimum_games <= games <= rules.balanced_day_maximum_games
+            for games in games_by_day.values()
+        ),
+        "heavy_game_days": sum(
+            games >= rules.heavy_day_minimum_games for games in games_by_day.values()
+        ),
+        "all_star_break_start": all_star_start,
+        "all_star_break_days": rules.all_star_break_days,
+        "back_to_backs_min": min((item[0] for item in team_metrics), default=0),
+        "back_to_backs_max": max((item[0] for item in team_metrics), default=0),
+        "one_day_rest_min": min((item[1] for item in team_metrics), default=0),
+        "one_day_rest_max": max((item[1] for item in team_metrics), default=0),
+        "longest_rest_min": min((item[2] for item in team_metrics), default=0),
+        "longest_rest_max": max((item[2] for item in team_metrics), default=0),
+        "longest_consecutive_games": max((item[3] for item in team_metrics), default=0),
+    }
 
 
 def _compact_audit(
@@ -403,6 +653,7 @@ def _compact_audit(
     execution: NBAFranchiseSeasonExecution,
     policies: Mapping[str, FrontOfficePolicySpec],
     outcome: NBAFrontOfficeOutcome,
+    player_gate: dict[str, object] | None,
 ) -> dict[str, object]:
     return {
         "version": NBA_MANAGER_ADAPTER_VERSION,
@@ -419,6 +670,13 @@ def _compact_audit(
         "draft_selections": len(execution.offseason.offseason.selections),
         "market_actions": len(execution.offseason.offseason.market_actions),
         "summary": asdict(execution.simulation.summary),
+        "calendar": _calendar_audit(execution),
+        "injury": {
+            "regular_season_incidents": len(execution.simulation.season.injuries),
+            "postseason_incidents": len(execution.simulation.postseason_state.injuries),
+            "rate": dict(outcome.macro_metrics).get("injury-rate"),
+        },
+        "player_reality_gate": player_gate,
         "outcome": asdict(outcome),
     }
 

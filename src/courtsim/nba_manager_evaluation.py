@@ -30,9 +30,13 @@ class NBAFrontOfficeOutcome:
     negotiations_accepted: int = 0
     negotiation_rounds: int = 0
     stale_rejections: int = 0
+    positive_gain_transactions: int = 0
+    no_counteroffers: int = 0
+    round_exhaustions: int = 0
     illegal_transactions: int = 0
     unplayable_rosters: int = 0
     macro_gate_passed: bool = True
+    macro_metrics: tuple[tuple[str, float], ...] = ()
 
     def __post_init__(self) -> None:
         if not self.source_id.strip() or not self.focal_team_id.strip():
@@ -61,6 +65,9 @@ class NBAFrontOfficeOutcome:
             self.negotiations_accepted,
             self.negotiation_rounds,
             self.stale_rejections,
+            self.positive_gain_transactions,
+            self.no_counteroffers,
+            self.round_exhaustions,
             self.illegal_transactions,
             self.unplayable_rosters,
         )
@@ -72,6 +79,11 @@ class NBAFrontOfficeOutcome:
             raise ValueError("accepted negotiations cannot exceed opened negotiations")
         if not isinstance(self.macro_gate_passed, bool):
             raise ValueError("macro_gate_passed must be boolean")
+        metric_names = tuple(name for name, _ in self.macro_metrics)
+        if metric_names != tuple(sorted(set(metric_names))) or any(
+            not name.strip() or not isfinite(value) for name, value in self.macro_metrics
+        ):
+            raise ValueError("NBA manager macro metrics must be finite and canonical")
 
     @property
     def address(self) -> tuple[str, int, int, str]:
@@ -163,6 +175,24 @@ class NBAFrontOfficeEvidenceMetrics:
     treatment_negotiation_efficiency: float
     control_mean_negotiation_rounds: float
     treatment_mean_negotiation_rounds: float
+    control_positive_gain_transactions: int
+    treatment_positive_gain_transactions: int
+    control_no_counteroffers: int
+    treatment_no_counteroffers: int
+    control_round_exhaustions: int
+    treatment_round_exhaustions: int
+    control_stale_rejections: int
+    treatment_stale_rejections: int
+
+
+@dataclass(frozen=True, slots=True)
+class NBAMacroGateComparison:
+    arm: str
+    metric: str
+    observed: float
+    minimum: float
+    maximum: float
+    passed: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,6 +206,7 @@ class NBAFrontOfficeEvidenceResult:
     neutral_sources: int
     worse_sources: int
     metrics: NBAFrontOfficeEvidenceMetrics
+    macro_comparisons: tuple[NBAMacroGateComparison, ...]
     hard_rejections: tuple[str, ...]
     recommended: bool
     evidence_digest: str
@@ -190,6 +221,7 @@ def evaluate_nba_front_office_policy(
     weights: NBAFrontOfficeEvaluationWeights | None = None,
     thresholds: NBAFrontOfficeEvidenceThresholds | None = None,
     season_weights: tuple[float, ...] = DEFAULT_SEASON_WEIGHTS,
+    macro_ranges: tuple[tuple[str, float, float], ...] = (),
 ) -> NBAFrontOfficeEvidenceResult:
     """Evaluate focal-team deltas after aggregating each independent source."""
     if not baseline_policy_id.strip() or not candidate_policy_id.strip():
@@ -202,6 +234,12 @@ def evaluate_nba_front_office_policy(
         or not math.isclose(sum(season_weights), 1.0, abs_tol=1e-9)
     ):
         raise ValueError("NBA manager season weights must be positive and sum to one")
+    macro_names = tuple(name for name, _, _ in macro_ranges)
+    if macro_names != tuple(sorted(set(macro_names))) or any(
+        not name.strip() or not isfinite(minimum) or not isfinite(maximum) or minimum > maximum
+        for name, minimum, maximum in macro_ranges
+    ):
+        raise ValueError("NBA manager macro ranges must be finite and canonical")
     ordered = tuple(sorted(observations, key=lambda item: item.control.address))
     addresses = tuple(item.control.address for item in ordered)
     if len(addresses) != len(set(addresses)):
@@ -229,6 +267,16 @@ def evaluate_nba_front_office_policy(
     safety_failures = 0
     control_opened = control_accepted = control_rounds = 0
     treatment_opened = treatment_accepted = treatment_rounds = 0
+    negotiation_audit = {
+        "control_positive": 0,
+        "treatment_positive": 0,
+        "control_no_counter": 0,
+        "treatment_no_counter": 0,
+        "control_exhausted": 0,
+        "treatment_exhausted": 0,
+        "control_stale": 0,
+        "treatment_stale": 0,
+    }
     for source in sorted(by_source):
         seasons = sorted(by_source[source], key=lambda item: item.control.season_year)
         if len(seasons) != len(season_weights):
@@ -275,6 +323,14 @@ def evaluate_nba_front_office_policy(
             treatment_opened += item.treatment.negotiations_opened
             treatment_accepted += item.treatment.negotiations_accepted
             treatment_rounds += item.treatment.negotiation_rounds
+            negotiation_audit["control_positive"] += item.control.positive_gain_transactions
+            negotiation_audit["treatment_positive"] += item.treatment.positive_gain_transactions
+            negotiation_audit["control_no_counter"] += item.control.no_counteroffers
+            negotiation_audit["treatment_no_counter"] += item.treatment.no_counteroffers
+            negotiation_audit["control_exhausted"] += item.control.round_exhaustions
+            negotiation_audit["treatment_exhausted"] += item.treatment.round_exhaustions
+            negotiation_audit["control_stale"] += item.control.stale_rejections
+            negotiation_audit["treatment_stale"] += item.treatment.stale_rejections
 
     mean_utility = _mean(source_utility)
     worse = sum(value < -active_thresholds.neutral_band for value in source_utility)
@@ -296,7 +352,16 @@ def evaluate_nba_front_office_policy(
         _rounded(treatment_accepted / treatment_opened if treatment_opened else 0.0),
         _rounded(control_rounds / control_opened if control_opened else 0.0),
         _rounded(treatment_rounds / treatment_opened if treatment_opened else 0.0),
+        negotiation_audit["control_positive"],
+        negotiation_audit["treatment_positive"],
+        negotiation_audit["control_no_counter"],
+        negotiation_audit["treatment_no_counter"],
+        negotiation_audit["control_exhausted"],
+        negotiation_audit["treatment_exhausted"],
+        negotiation_audit["control_stale"],
+        negotiation_audit["treatment_stale"],
     )
+    macro_comparisons = _macro_comparisons(ordered, macro_ranges)
     rejected: list[str] = []
     seasons_per_source = tuple((source, len(by_source[source])) for source in sorted(by_source))
     if len(by_source) < active_thresholds.minimum_independent_sources:
@@ -346,6 +411,8 @@ def evaluate_nba_front_office_policy(
     rejected.extend(reason for observed, minimum, reason in checks if observed < minimum)
     if safety_failures:
         rejected.append("manager-safety-invariant-failed")
+    if any(not item.passed for item in macro_comparisons):
+        rejected.append("manager-macro-reality-gate-failed")
 
     digest_payload = {
         "baseline_policy_id": baseline_policy_id,
@@ -353,6 +420,7 @@ def evaluate_nba_front_office_policy(
         "weights": asdict(active_weights),
         "thresholds": asdict(active_thresholds),
         "season_weights": season_weights,
+        "macro_ranges": macro_ranges,
         "observations": [
             {"control": asdict(item.control), "treatment": asdict(item.treatment)}
             for item in ordered
@@ -371,6 +439,7 @@ def evaluate_nba_front_office_policy(
         neutral,
         worse,
         metrics,
+        macro_comparisons,
         tuple(rejected),
         not rejected,
         digest,
@@ -379,6 +448,31 @@ def evaluate_nba_front_office_policy(
 
 def _mean(values: Sequence[float]) -> float:
     return sum(values) / len(values) if values else float("-inf")
+
+
+def _macro_comparisons(
+    observations: Sequence[PairedNBAFrontOfficeOutcome],
+    ranges: tuple[tuple[str, float, float], ...],
+) -> tuple[NBAMacroGateComparison, ...]:
+    results: list[NBAMacroGateComparison] = []
+    for arm in ("control", "treatment"):
+        outcomes = tuple(getattr(item, arm) for item in observations)
+        by_outcome = [dict(item.macro_metrics) for item in outcomes]
+        for metric, minimum, maximum in ranges:
+            values = [item[metric] for item in by_outcome if metric in item]
+            observed = _mean(values)
+            passed = len(values) == len(outcomes) and minimum <= observed <= maximum
+            results.append(
+                NBAMacroGateComparison(
+                    arm,
+                    metric,
+                    _rounded(observed),
+                    minimum,
+                    maximum,
+                    passed,
+                )
+            )
+    return tuple(results)
 
 
 def _ci_lower_95(values: Sequence[float]) -> float:

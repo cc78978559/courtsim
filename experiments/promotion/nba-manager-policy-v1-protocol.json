@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "version": "nba-manager-promotion-protocol-v1",
+  "status": "frozen",
+  "experiment_id": "nba-manager-policy-v1",
+  "holdout_id": "nba-manager-policy-v1-holdout-202704",
+  "start_season": 2025,
+  "seasons": 5,
+  "team_ids": [
+    "Atlanta Hawks", "Boston Celtics", "Brooklyn Nets", "Charlotte Hornets",
+    "Chicago Bulls", "Cleveland Cavaliers", "Dallas Mavericks", "Denver Nuggets",
+    "Detroit Pistons", "Golden State Warriors", "Houston Rockets", "Indiana Pacers",
+    "LA Clippers", "Los Angeles Lakers", "Memphis Grizzlies", "Miami Heat",
+    "Milwaukee Bucks", "Minnesota Timberwolves", "New Orleans Pelicans", "New York Knicks",
+    "Oklahoma City Thunder", "Orlando Magic", "Philadelphia 76ers", "Phoenix Suns",
+    "Portland Trail Blazers", "Sacramento Kings", "San Antonio Spurs", "Toronto Raptors",
+    "Utah Jazz", "Washington Wizards"
+  ],
+  "master_seeds": [
+    20270401, 20270402, 20270403, 20270404, 20270405, 20270406, 20270407, 20270408,
+    20270409, 20270410, 20270411, 20270412, 20270413, 20270414, 20270415, 20270416,
+    20270417, 20270418, 20270419, 20270420, 20270421, 20270422, 20270423, 20270424,
+    20270425, 20270426, 20270427, 20270428, 20270429, 20270430
+  ],
+  "focal_team_ids": [
+    "Atlanta Hawks", "Boston Celtics", "Brooklyn Nets", "Charlotte Hornets",
+    "Chicago Bulls", "Cleveland Cavaliers", "Dallas Mavericks", "Denver Nuggets",
+    "Detroit Pistons", "Golden State Warriors", "Houston Rockets", "Indiana Pacers",
+    "LA Clippers", "Los Angeles Lakers", "Memphis Grizzlies", "Miami Heat",
+    "Milwaukee Bucks", "Minnesota Timberwolves", "New Orleans Pelicans", "New York Knicks",
+    "Oklahoma City Thunder", "Orlando Magic", "Philadelphia 76ers", "Phoenix Suns",
+    "Portland Trail Blazers", "Sacramento Kings", "San Antonio Spurs", "Toronto Raptors",
+    "Utah Jazz", "Washington Wizards"
+  ],
+  "initial_state_sha256": "42a66d83308bd076be2fca442d86b87f10aab12f2de8f6f7620111f477b6d70b",
+  "source_hashes": [
+    ["initial_checkpoint", "a35b5935521056de3691c45719091c3af1419520e52d7d6f20e9f55cc7846210"],
+    ["macro_reference", "4d2828977ed392b970670848cf7eb035ffb5646c2806180c3240fe4145262fab"],
+    ["manager_profiles", "595d74c06e011440cd4f1cdd03a624bdbd4bda8673027034a00f043f31c46531"],
+    ["model_parameters", "c113afcf3ed94a34734e0b6f8e5ac4c784946ac0a5afee88d849dfbf7020da82"],
+    ["model_schema", "a51ce2b630c215bc04e8d413620dcbb6213d9fb39ee50e2e90f78357df92c54f"],
+    ["player_targets", "433e59f47be18ef03d05d75780eb3297f4bf5a969adce1ccd11b5c3a8c279f19"],
+    ["shot_profiles", "b9114f3247f2ce807065be40faf64633cfd49d8d5999bd692dddc675d4a13ead"],
+    ["state_build_receipt", "03ffdbf69d6edb75b3698c0026f6f934090324f7f88535f7b31d0a9ad5886ae5"]
+  ],
+  "execution_config_sha256": "da45b85fae7a8a236baf2ab55d7786eab7749be797488d7291407b4effb1509c",
+  "macro_ranges": [
+    ["champion-seed-mean", 1.0, 3.0],
+    ["home-win-rate", 0.47, 0.57],
+    ["injury-rate", 0.001, 0.008],
+    ["offensive-rating", 107.53286847129719, 118.29845448584616],
+    ["pace-possessions-per-team", 97.80577235772357, 104.65008130081301],
+    ["playoff-upset-rate", 0.25, 0.6166666666666667],
+    ["point-differential-stddev", 2.446501750390316, 7.393381480158248],
+    ["win-rate-stddev", 0.1001905420941415, 0.1808030610091202]
+  ]
+}

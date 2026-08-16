@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import cast
 
+from courtsim.analysis.nba_player_targets import NBAPlayerTargetSet
 from courtsim.analysis.nba_quick_sim_executor import (
     NBAQuickSimExecution,
     NBAQuickSimExecutor,
@@ -158,6 +159,7 @@ def execute_nba_franchise_season(
     trade_market_rules: TradeMarketRules | None = None,
     three_team_market_rules: ThreeTeamMarketRules | None = None,
     shot_zone_profiles: NBAShotProfileSet | None = None,
+    player_targets: NBAPlayerTargetSet | None = None,
     front_office_policies: dict[str, FrontOfficePolicySpec] | None = None,
     minimum_offseason_roster_players: int | None = None,
     trace_mode: TraceMode = TraceMode.AGGREGATE_ONLY,
@@ -215,6 +217,7 @@ def execute_nba_franchise_season(
         cap_ledger=initial_cap_ledger,
         cap_rules=cap_rules,
         frozen_pick_ids=frozen_pick_ids,
+        front_office_policies=active_front_office_policies,
     )
     three_team_shadow = generate_three_team_market_shadow(
         management=state.management,
@@ -228,6 +231,7 @@ def execute_nba_franchise_season(
         cap_ledger=initial_cap_ledger,
         cap_rules=cap_rules,
         frozen_pick_ids=frozen_pick_ids,
+        front_office_policies=active_front_office_policies,
     )
     clearing = clear_mixed_trade_markets(bilateral_shadow, three_team_shadow)
     bilateral_plan = clearing.bilateral_plan
@@ -306,6 +310,8 @@ def execute_nba_franchise_season(
         matchup_teams=matchup_teams,
         season_config=season_config or SeasonConfig(),
         shot_zone_profiles=shot_zone_profiles,
+        player_targets=player_targets,
+        allow_partial_player_targets=player_targets is not None,
         trace_mode=trace_mode,
     ).execute(season_id, seed)
     next_learning = advance_manager_learning_from_season(

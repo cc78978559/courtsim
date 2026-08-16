@@ -11,6 +11,7 @@ from courtsim.career import CareerPlayer
 from courtsim.draft_assets import TradableDraftPick
 from courtsim.management import ContractRules, LeagueManagementState
 from courtsim.manager_ai import (
+    FrontOfficePolicySpec,
     ManagerDecisionLedger,
     ManagerDecisionRecord,
     ManagerPolicyMode,
@@ -189,6 +190,13 @@ class _RawOffer:
     parent_index: int | None
 
 
+def _participant_policies(
+    policies: Mapping[str, FrontOfficePolicySpec] | None,
+    team_ids: tuple[str, ...],
+) -> dict[str, FrontOfficePolicySpec] | None:
+    return None if policies is None else {team_id: policies[team_id] for team_id in team_ids}
+
+
 def generate_trade_market_shadow(
     *,
     management: LeagueManagementState,
@@ -202,6 +210,7 @@ def generate_trade_market_shadow(
     cap_ledger: CapLedger | None = None,
     cap_rules: CapMechanicsRules | None = None,
     frozen_pick_ids: frozenset[int] = frozenset(),
+    front_office_policies: Mapping[str, FrontOfficePolicySpec] | None = None,
 ) -> TradeMarketShadowResult:
     """Generate and independently approve a bounded, deterministic offer market."""
     team_ids = tuple(roster.team_id for roster in management.rosters)
@@ -209,6 +218,8 @@ def generate_trade_market_shadow(
         raise ValueError("trade market profiles must cover every team exactly")
     if any(team_id != profile.team_id for team_id, profile in profiles.items()):
         raise ValueError("trade market profile keys must match profile team ids")
+    if front_office_policies is not None and set(front_office_policies) != set(team_ids):
+        raise ValueError("trade market policies must cover every team exactly")
     base_candidate_budget = max(
         1,
         market_rules.maximum_candidates_per_pair
@@ -253,6 +264,9 @@ def generate_trade_market_shadow(
             cap_ledger=cap_ledger,
             cap_rules=cap_rules,
             frozen_pick_ids=frozen_pick_ids,
+            front_office_policies=_participant_policies(
+                front_office_policies, (offer.team_a_id, offer.team_b_id)
+            ),
         )
         negotiation_id = offer.trade_id if parent_trade_id is None else parent_trade_id
         evaluations.append(
@@ -289,6 +303,9 @@ def generate_trade_market_shadow(
             cap_ledger=cap_ledger,
             cap_rules=cap_rules,
             frozen_pick_ids=frozen_pick_ids,
+            front_office_policies=_participant_policies(
+                front_office_policies, (offer.team_a_id, offer.team_b_id)
+            ),
         )
         evaluations.append(
             TradeMarketEvaluation(
@@ -330,6 +347,9 @@ def generate_trade_market_shadow(
             cap_ledger=cap_ledger,
             cap_rules=cap_rules,
             frozen_pick_ids=frozen_pick_ids,
+            front_office_policies=_participant_policies(
+                front_office_policies, (offer.team_a_id, offer.team_b_id)
+            ),
         )
         evaluations.append(
             TradeMarketEvaluation(

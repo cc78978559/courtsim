@@ -116,6 +116,37 @@ class NBAManagerStateBuildReceipt:
     non_bird_fallback_player_ids: tuple[int, ...]
     version: str = NBA_MANAGER_STATE_BUILD_VERSION
 
+    def __post_init__(self) -> None:
+        if (
+            not self.league_id.strip()
+            or self.season_year < 1
+            or not self.player_target_id.strip()
+            or not self.player_source_dataset_id.strip()
+            or not _valid_sha256(self.player_source_sha256)
+            or not _valid_sha256(self.initial_state_sha256)
+            or self.rostered_players < 300
+            or not 0 <= self.source_age_coverage <= 1
+            or not 0 <= self.minute_weighted_source_salary_coverage <= 1
+            or self.formal_source_eligible
+            != (
+                self.source_age_coverage >= 0.95
+                and self.minute_weighted_source_salary_coverage >= 0.90
+            )
+            or self.version != NBA_MANAGER_STATE_BUILD_VERSION
+        ):
+            raise ValueError("NBA manager state-build receipt is invalid")
+        for player_ids in (
+            self.proxy_age_player_ids,
+            self.proxy_salary_player_ids,
+            self.default_contract_player_ids,
+            self.non_bird_fallback_player_ids,
+        ):
+            if player_ids != tuple(sorted(set(player_ids))) or any(
+                not isinstance(player_id, int) or isinstance(player_id, bool) or player_id < 1
+                for player_id in player_ids
+            ):
+                raise ValueError("NBA manager state-build fallback identities are invalid")
+
 
 @dataclass(frozen=True, slots=True)
 class NBAManagerStateBuildResult:

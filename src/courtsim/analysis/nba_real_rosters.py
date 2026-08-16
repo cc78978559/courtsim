@@ -132,59 +132,67 @@ def build_nba_real_game_team(
     *,
     game_id: int,
     master_seed: int,
+    allow_partial_targets: bool = False,
 ) -> GameTeam:
     """Sample a deterministic target-shaped active rotation from all 15 roster positions."""
     target_by_id = {item.nba_player_id: item for item in targets.players}
-    roster_targets = [target_by_id[player_id] for player_id in team.roster_order]
+    missing = tuple(player_id for player_id in team.roster_order if player_id not in target_by_id)
+    if missing and not allow_partial_targets:
+        raise NbaRealRosterError("real NBA player targets must cover the complete roster")
     league_appearance = sum(min(1.0, item.games_played / 82.0) for item in targets.players) / len(
         targets.players
     )
     league_minutes = sum(item.minutes_per_game for item in targets.players) / len(targets.players)
     minute_targets = {
-        item.nba_player_id: _shrunk_value(
-            item.minutes_per_game,
+        player_id: _shrunk_value(
+            target_by_id[player_id].minutes_per_game,
             league_minutes,
-            item.games_played,
+            target_by_id[player_id].games_played,
         )
-        for item in roster_targets
+        if player_id in target_by_id
+        else _fallback_minutes(team.roster_order.index(player_id))
+        for player_id in team.roster_order
+    }
+    appearance_targets = {
+        player_id: _shrunk_value(
+            min(1.0, target_by_id[player_id].games_played / 82.0),
+            league_appearance,
+            target_by_id[player_id].games_played,
+        )
+        if player_id in target_by_id
+        else _fallback_appearance(team.roster_order.index(player_id))
+        for player_id in team.roster_order
     }
     ordered = sorted(
-        roster_targets,
-        key=lambda item: (-minute_targets[item.nba_player_id], item.nba_player_id),
+        team.roster_order,
+        key=lambda player_id: (-minute_targets[player_id], player_id),
     )
     active = [
-        item
-        for item in ordered
+        player_id
+        for player_id in ordered
         if derive_seed(
             master_seed,
             NBA_REAL_ROSTER_VERSION,
             team.team_id,
             game_id,
-            item.nba_player_id,
+            player_id,
             "appearance",
         )
         % 10_000
-        < round(
-            10_000
-            * _shrunk_value(
-                min(1.0, item.games_played / 82.0),
-                league_appearance,
-                item.games_played,
-            )
-        )
+        < round(10_000 * appearance_targets[player_id])
     ]
-    active_ids = {item.nba_player_id for item in active}
-    for item in ordered:
+    active_ids = set(active)
+    for player_id in ordered:
         if len(active) >= 5:
             break
-        if item.nba_player_id not in active_ids:
-            active.append(item)
-            active_ids.add(item.nba_player_id)
-    active.sort(key=lambda item: (-minute_targets[item.nba_player_id], item.nba_player_id))
+        if player_id not in active_ids:
+            active.append(player_id)
+            active_ids.add(player_id)
+    active.sort(key=lambda player_id: (-minute_targets[player_id], player_id))
     profile_by_id = {item.player_id: item for item in team.roster_profiles}
-    lineup_ids = cast(Lineup, tuple(item.nba_player_id for item in active[:5]))
+    lineup_ids = cast(Lineup, tuple(active[:5]))
     substitution_order = tuple(
-        item.nba_player_id for item in (*active, *(item for item in ordered if item not in active))
+        (*active, *(player_id for player_id in ordered if player_id not in active))
     )
     return GameTeam(
         team.team_id,
@@ -199,7 +207,7 @@ def build_nba_real_game_team(
             if player_id not in lineup_ids
         ),
         substitution_order,
-        _target_rotation_plan(active, minute_targets),
+        _target_rotation_plan_for_ids(active, minute_targets),
     )
 
 
@@ -239,17 +247,21 @@ def _target_rotation_plan(
     targets: list[NBAPlayerTarget],
     minute_targets: dict[int, float] | None = None,
 ) -> RotationPlan:
-    if not 5 <= len(targets) <= 15:
+    return _target_rotation_plan_for_ids(
+        [item.nba_player_id for item in targets],
+        {item.nba_player_id: item.minutes_per_game for item in targets}
+        if minute_targets is None
+        else minute_targets,
+    )
+
+
+def _target_rotation_plan_for_ids(
+    player_ids: list[int],
+    minute_targets: dict[int, float],
+) -> RotationPlan:
+    if not 5 <= len(player_ids) <= 15:
         raise NbaRealRosterError("real NBA rotation requires five through fifteen player targets")
-    raw = [
-        (
-            minute_targets[item.nba_player_id]
-            if minute_targets is not None
-            else item.minutes_per_game
-        )
-        / 3
-        for item in targets
-    ]
+    raw = [minute_targets[player_id] / 3 for player_id in player_ids]
     scale = 80 / sum(raw)
     counts = [max(1, min(16, round(value * scale))) for value in raw]
     while sum(counts) != 80:
@@ -264,7 +276,7 @@ def _target_rotation_plan(
             key=lambda item: direction * (raw[item] * scale - counts[item]),
         )
         counts[index] += direction
-    remaining = dict(zip((item.nba_player_id for item in targets), counts, strict=True))
+    remaining = dict(zip(player_ids, counts, strict=True))
     stints = []
     addresses = ((period, clock) for period in range(1, 5) for clock in (720, 540, 360, 180))
     for stint_index, (period, clock) in enumerate(addresses):
@@ -289,6 +301,14 @@ def _target_rotation_plan(
 def _shrunk_value(value: float, league_mean: float, sample_games: int) -> float:
     reliability = sample_games / (sample_games + 20.0)
     return reliability * value + (1.0 - reliability) * league_mean
+
+
+def _fallback_minutes(roster_index: int) -> float:
+    return 30.0 if roster_index < 5 else 15.0 if roster_index < 10 else 4.0
+
+
+def _fallback_appearance(roster_index: int) -> float:
+    return 0.98 if roster_index < 5 else 0.80 if roster_index < 10 else 0.20
 
 
 def _percentage_rating(value: float, offset: float = 0.0) -> int:

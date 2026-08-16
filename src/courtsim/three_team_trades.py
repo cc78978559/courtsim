@@ -19,7 +19,12 @@ from courtsim.management import (
     LeagueManagementState,
     validate_management_state,
 )
-from courtsim.manager_ai import ManagerDecisionLedger, ManagerPolicyMode, ManagerProfile
+from courtsim.manager_ai import (
+    FrontOfficePolicySpec,
+    ManagerDecisionLedger,
+    ManagerPolicyMode,
+    ManagerProfile,
+)
 from courtsim.manager_trade import (
     DEFAULT_MANAGER_TRADE_RULES,
     MANAGER_TRADE_VERSION,
@@ -434,11 +439,14 @@ def evaluate_three_team_trade_shadow(
     cap_ledger: CapLedger | None = None,
     cap_rules: CapMechanicsRules | None = None,
     frozen_pick_ids: frozenset[int] = frozenset(),
+    front_office_policies: Mapping[str, FrontOfficePolicySpec] | None = None,
 ) -> ThreeTeamTradeShadowResult:
     if set(profiles) != set(offer.team_ids):
         raise ValueError("three-team profiles must cover every participant exactly")
     if any(team_id != profile.team_id for team_id, profile in profiles.items()):
         raise ValueError("three-team profile keys must match profile team ids")
+    if front_office_policies is not None and set(front_office_policies) != set(offer.team_ids):
+        raise ValueError("three-team policies must cover every participant exactly")
     player_map = {player.player_id: player for player in players}
     if len(player_map) != len(players):
         raise ValueError("career player ids must be unique")
@@ -478,6 +486,9 @@ def evaluate_three_team_trade_shadow(
             contract_rules=contract_rules,
             manager_rules=manager_rules,
             decision_id=f"three-team-trade:{offer.trade_id}:{team_id}",
+            front_office_policy=(
+                None if front_office_policies is None else front_office_policies[team_id]
+            ),
         )
         approvals.append(approval)
         ledger = ledger.add(trace=approval.trace, stage="three-team-trade", profile=profile)

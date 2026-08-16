@@ -12,6 +12,7 @@ from courtsim.career import CareerPlayer
 from courtsim.draft_assets import TradableDraftPick
 from courtsim.management import ContractRules, LeagueManagementState
 from courtsim.manager_ai import (
+    FrontOfficePolicySpec,
     ManagerDecisionLedger,
     ManagerDecisionRecord,
     ManagerPolicyMode,
@@ -42,6 +43,13 @@ from courtsim.three_team_trades import (
 from courtsim.trades import DEFAULT_TRADE_RULES, TradeRules
 
 THREE_TEAM_MARKET_VERSION = "three-team-market-v1"
+
+
+def _participant_policies(
+    policies: Mapping[str, FrontOfficePolicySpec] | None,
+    team_ids: tuple[str, ...],
+) -> dict[str, FrontOfficePolicySpec] | None:
+    return None if policies is None else {team_id: policies[team_id] for team_id in team_ids}
 
 
 @dataclass(frozen=True, slots=True)
@@ -181,10 +189,13 @@ def generate_three_team_market_shadow(
     cap_ledger: CapLedger | None = None,
     cap_rules: CapMechanicsRules | None = None,
     frozen_pick_ids: frozenset[int] = frozenset(),
+    front_office_policies: Mapping[str, FrontOfficePolicySpec] | None = None,
 ) -> ThreeTeamMarketShadowResult:
     team_ids = tuple(roster.team_id for roster in management.rosters)
     if set(profiles) != set(team_ids):
         raise ValueError("three-team market profiles must cover every league team")
+    if front_office_policies is not None and set(front_office_policies) != set(team_ids):
+        raise ValueError("three-team market policies must cover every league team")
     rosters = {roster.team_id: roster.player_ids for roster in management.rosters}
     salaries = {contract.player_id: contract.annual_salary for contract in management.contracts}
     evaluations: list[ThreeTeamMarketEvaluation] = []
@@ -250,6 +261,7 @@ def generate_three_team_market_shadow(
                     cap_ledger=cap_ledger,
                     cap_rules=cap_rules,
                     frozen_pick_ids=frozen_pick_ids,
+                    front_office_policies=_participant_policies(front_office_policies, trio),
                 )
                 salary_imbalance = _salary_imbalance(routes, salaries)
                 evaluations.append(
@@ -295,6 +307,7 @@ def generate_three_team_market_shadow(
                         cap_ledger=cap_ledger,
                         cap_rules=cap_rules,
                         frozen_pick_ids=frozen_pick_ids,
+                        front_office_policies=_participant_policies(front_office_policies, trio),
                     )
                     evaluations.append(
                         ThreeTeamMarketEvaluation(

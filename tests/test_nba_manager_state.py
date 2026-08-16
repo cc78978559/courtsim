@@ -1,6 +1,7 @@
 from dataclasses import replace
-from typing import cast
+from typing import Any, cast
 
+import pytest
 from test_game_runtime import player
 
 from courtsim.analysis.nba_manager_state import (
@@ -149,3 +150,61 @@ def test_real_manager_state_receipt_is_deterministic() -> None:
     )
     assert first.receipt == second.receipt
     assert first.state == second.state
+
+
+@pytest.mark.parametrize(
+    "changes",
+    (
+        {"player_source_sha256": "bad"},
+        {"initial_state_sha256": "bad"},
+        {"source_age_coverage": 0.94, "formal_source_eligible": True},
+        {"proxy_age_player_ids": (2, 1)},
+        {"rostered_players": 299},
+    ),
+)
+def test_manager_state_build_receipt_rejects_invalid_provenance(
+    changes: dict[str, Any],
+) -> None:
+    teams, alignment, targets, source, rules = _inputs()
+    result = build_nba_manager_initial_state(
+        league_id="NBA",
+        season_year=2025,
+        teams=teams,
+        alignment=alignment,
+        player_targets=targets,
+        player_source=source,
+        contract_rules=rules,
+    )
+    with pytest.raises(ValueError, match="invalid"):
+        replace(result.receipt, **changes)
+
+
+@pytest.mark.parametrize(
+    "changes",
+    (
+        {"nba_player_id": 0},
+        {"age": 17},
+        {"annual_salary": 0},
+        {"contract_years_remaining": 0},
+        {"team_tenure_seasons": 0},
+    ),
+)
+def test_manager_player_source_rejects_invalid_values(changes: dict[str, Any]) -> None:
+    with pytest.raises(ValueError, match="invalid"):
+        replace(NBAManagerPlayerSource(1), **changes)
+
+
+@pytest.mark.parametrize(
+    "changes",
+    (
+        {"dataset_id": ""},
+        {"source_sha256": "bad"},
+        {"players": (NBAManagerPlayerSource(2), NBAManagerPlayerSource(1))},
+        {"sources": (("z", "0" * 64), ("a", "1" * 64))},
+        {"version": "unsupported"},
+    ),
+)
+def test_manager_state_source_rejects_invalid_values(changes: dict[str, Any]) -> None:
+    source = NBAManagerStateSource("dataset", "2024-25", "0" * 64, ())
+    with pytest.raises(ValueError, match=r"invalid|unsupported|ordered unique"):
+        replace(source, **changes)

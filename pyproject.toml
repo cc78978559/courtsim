@@ -61,3 +61,4 @@ omit = ["src/courtsim/__main__.py"]
 show_missing = true
 skip_covered = true
 fail_under = 85
+precision = 2

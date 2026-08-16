@@ -702,6 +702,17 @@ def _parser() -> argparse.ArgumentParser:
     manager_study_run.add_argument("output", type=Path)
     manager_study_run.add_argument("--schema", type=Path, default=DEFAULT_MODEL_SCHEMA)
     manager_study_run.add_argument("--parameters", type=Path, default=DEFAULT_MODEL_PARAMETERS)
+    manager_study_run.add_argument(
+        "--player-targets",
+        type=Path,
+        help="frozen player targets required by the formal manager study",
+    )
+    manager_study_run.add_argument(
+        "--protocol",
+        type=Path,
+        default=Path("experiments/promotion/nba-manager-policy-v1-protocol.json"),
+        help="canonical frozen formal promotion protocol",
+    )
     manager_study_run.add_argument("--experiment-id", default="nba-manager-policy-v1")
     manager_study_run.add_argument("--seed-start", type=int)
     manager_study_run.add_argument("--sources", type=int)
@@ -736,8 +747,11 @@ def _parser() -> argparse.ArgumentParser:
         "--ci",
         action="append",
         default=[],
-        metavar="NAME=passed",
-        help=f"required exactly once for: {', '.join(NBA_MANAGER_REQUIRED_CI)}",
+        metavar="NAME=passed@COMMIT@RUN_URL",
+        help=(
+            "commit-bound GitHub Actions attestation required exactly once for: "
+            f"{', '.join(NBA_MANAGER_REQUIRED_CI)}"
+        ),
     )
 
     validate = subparsers.add_parser("validate", help="validate a scenario JSON file")
@@ -1802,6 +1816,8 @@ def main(argv: list[str] | None = None) -> int:
                 shot_profiles_path=arguments.shot_profiles,
                 macro_reference_path=arguments.macro_reference,
                 manager_profiles_path=arguments.manager_profiles,
+                player_targets_path=arguments.player_targets,
+                promotion_protocol_path=arguments.protocol,
                 master_seeds=tuple(range(seed_start, seed_start + sources)),
                 seasons=seasons,
                 formal_run=formal_run,
@@ -1876,7 +1892,9 @@ def main(argv: list[str] | None = None) -> int:
             for raw_ci in arguments.ci:
                 name, separator, value = raw_ci.partition("=")
                 if not separator or name in ci_checks:
-                    raise ConfigError("NBA manager CI values must be unique NAME=passed entries")
+                    raise ConfigError(
+                        "NBA manager CI values must be unique NAME=passed@COMMIT@RUN_URL entries"
+                    )
                 ci_checks[name] = value
             manager_candidate_receipt = build_nba_manager_candidate_receipt(
                 arguments.report,

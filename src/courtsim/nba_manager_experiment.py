@@ -5,8 +5,12 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
+import math
 import os
+import subprocess
 import tempfile
+import urllib.error
+import urllib.request
 from collections.abc import Callable, Mapping
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
@@ -15,6 +19,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from courtsim.artifacts import sha256_file, write_json
+from courtsim.manager_ai import REALITY_BASELINE_POLICY_ID, WHITE_BOX_CANDIDATE_POLICY_ID
 from courtsim.nba_manager_evaluation import (
     DEFAULT_SEASON_WEIGHTS,
     NBA_MANAGER_EVIDENCE_VERSION,
@@ -24,6 +29,18 @@ from courtsim.nba_manager_evaluation import (
     NBAFrontOfficeOutcome,
     PairedNBAFrontOfficeOutcome,
     evaluate_nba_front_office_policy,
+)
+from courtsim.nba_manager_protocol import (
+    NBA_MANAGER_CANONICAL_TEAM_IDS,
+    NBA_MANAGER_PROTOCOL_ID,
+    NBA_MANAGER_PROTOCOL_INPUT_ROLES,
+    NBA_MANAGER_PROTOCOL_SOURCE_ROLE,
+    canonical_nba_manager_protocol_path,
+    load_nba_manager_promotion_protocol,
+    verify_nba_manager_protocol_file,
+)
+from courtsim.nba_manager_protocol import (
+    NBA_MANAGER_FORMAL_MASTER_SEEDS as PROTOCOL_FORMAL_MASTER_SEEDS,
 )
 
 NBA_MANAGER_EXPERIMENT_VERSION = "nba-manager-experiment-v1"
@@ -36,6 +53,7 @@ NBA_MANAGER_REQUIRED_CI = (
     "windows-ci",
     "wheel-smoke",
 )
+NBA_MANAGER_FORMAL_MASTER_SEEDS = PROTOCOL_FORMAL_MASTER_SEEDS
 
 
 class NBAManagerExperimentError(ValueError):
@@ -60,6 +78,9 @@ class NBAManagerExperimentSpec:
     initial_state_sha256: str
     source_hashes: tuple[tuple[str, str], ...]
     execution_config_sha256: str
+    macro_ranges: tuple[tuple[str, float, float], ...]
+    code_commit: str
+    code_tree_sha256: str
     version: str = NBA_MANAGER_EXPERIMENT_VERSION
     formal_run: bool = True
 
@@ -98,6 +119,26 @@ class NBAManagerExperimentSpec:
             raise ValueError("NBA manager experiment seasons are invalid")
         _validate_digest(self.initial_state_sha256, "initial state")
         _validate_digest(self.execution_config_sha256, "execution configuration")
+        macro_names = tuple(name for name, _, _ in self.macro_ranges)
+        if macro_names != tuple(sorted(set(macro_names))) or any(
+            not name.strip()
+            or not isinstance(minimum, (int, float))
+            or isinstance(minimum, bool)
+            or not isinstance(maximum, (int, float))
+            or isinstance(maximum, bool)
+            or not math.isfinite(minimum)
+            or not math.isfinite(maximum)
+            or minimum > maximum
+            for name, minimum, maximum in self.macro_ranges
+        ):
+            raise ValueError("NBA manager macro ranges are invalid")
+        if self.formal_run and not self.macro_ranges:
+            raise ValueError("formal NBA manager experiment requires macro ranges")
+        if len(self.code_commit) != 40 or any(
+            character not in "0123456789abcdef" for character in self.code_commit
+        ):
+            raise ValueError("NBA manager code commit is invalid")
+        _validate_digest(self.code_tree_sha256, "code tree")
         names = tuple(name for name, _ in self.source_hashes)
         if names != tuple(sorted(set(names))) or any(not name.strip() for name in names):
             raise ValueError("NBA manager source hashes must use sorted unique names")
@@ -105,6 +146,17 @@ class NBAManagerExperimentSpec:
             _validate_digest(digest, "source")
         if self.version != NBA_MANAGER_EXPERIMENT_VERSION:
             raise ValueError("unsupported NBA manager experiment version")
+        if self.formal_run and (
+            self.experiment_id != NBA_MANAGER_PROTOCOL_ID
+            or self.baseline_policy_id != REALITY_BASELINE_POLICY_ID
+            or self.candidate_policy_id != WHITE_BOX_CANDIDATE_POLICY_ID
+            or self.master_seeds != NBA_MANAGER_FORMAL_MASTER_SEEDS
+            or self.team_ids != NBA_MANAGER_CANONICAL_TEAM_IDS
+            or self.focal_team_ids != NBA_MANAGER_CANONICAL_TEAM_IDS
+            or self.seasons != 5
+            or set(names) != {*NBA_MANAGER_PROTOCOL_INPUT_ROLES, NBA_MANAGER_PROTOCOL_SOURCE_ROLE}
+        ):
+            raise ValueError("formal NBA manager experiment identity is not frozen")
 
 
 @dataclass(frozen=True, slots=True)
@@ -159,6 +211,47 @@ def nba_manager_execution_config_sha256(config: object) -> str:
     except (TypeError, ValueError) as error:
         raise ValueError("NBA manager execution configuration must be canonical JSON") from error
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def nba_manager_code_identity(*, require_clean: bool = False) -> tuple[str, str]:
+    """Return the current Git commit and a content hash of the executable package sources."""
+    repository = Path(__file__).resolve().parents[2]
+    try:
+        completed = subprocess.run(
+            ("git", "rev-parse", "HEAD"),
+            cwd=repository,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise NBAManagerExperimentError("cannot establish NBA manager code identity") from error
+    commit = completed.stdout.strip().lower()
+    if len(commit) != 40 or any(character not in "0123456789abcdef" for character in commit):
+        raise NBAManagerExperimentError("NBA manager Git commit is invalid")
+    if require_clean:
+        try:
+            status = subprocess.run(
+                ("git", "status", "--porcelain", "--untracked-files=all", "--", "src/courtsim"),
+                cwd=repository,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+        except (OSError, subprocess.CalledProcessError) as error:
+            raise NBAManagerExperimentError("cannot inspect NBA manager code tree") from error
+        if status.stdout.strip():
+            raise NBAManagerExperimentError("candidate receipt requires a clean code tree")
+    source_root = Path(__file__).resolve().parent
+    digest = hashlib.sha256()
+    for path in sorted(source_root.rglob("*.py")):
+        relative = path.relative_to(source_root).as_posix().encode("utf-8")
+        payload = path.read_bytes().replace(b"\r\n", b"\n")
+        digest.update(len(relative).to_bytes(4, "big"))
+        digest.update(relative)
+        digest.update(len(payload).to_bytes(8, "big"))
+        digest.update(payload)
+    return commit, digest.hexdigest()
 
 
 def run_nba_manager_experiment(
@@ -256,11 +349,11 @@ def run_nba_manager_experiment(
                 cell_path = destination / relative
                 request_digest = _digest(_request_payload(request))
                 if cell_path.exists():
-                    execution = _load_cell(cell_path, request_digest, request)
+                    execution = _load_cell(cell_path, request_digest, request, spec.formal_run)
                     source_reused += 1
                 else:
                     execution = executor(request)
-                    _validate_execution(execution, request)
+                    _validate_execution(execution, request, formal_run=spec.formal_run)
                     _write_gzip_json(cell_path, _cell_payload(request_digest, request, execution))
                     source_executed += 1
                 state_payload = execution.next_state_payload
@@ -302,6 +395,7 @@ def run_nba_manager_experiment(
         weights=active_weights,
         thresholds=active_thresholds,
         season_weights=season_weights,
+        macro_ranges=spec.macro_ranges,
     )
     report_path = destination / "report.json"
     report = {
@@ -400,11 +494,14 @@ def verify_nba_manager_experiment(report_path: str | Path) -> NBAFrontOfficeEvid
             raise NBAManagerExperimentError("NBA manager cell changed")
         cell = _load_gzip_object(cell_path, "NBA manager cell")
         request = _request_from_cell(cell)
+        _validate_request_against_spec(request, spec)
+        if relative != _cell_relative(request.source_id, request.arm, request.season_year):
+            raise NBAManagerExperimentError("NBA manager cell path differs from request")
         expected_state = previous.get((request.source_id, request.arm), state_payload)
         if request.state_payload != expected_state:
             raise NBAManagerExperimentError("NBA manager state continuity is broken")
         execution = _execution_from_cell(cell)
-        _validate_execution(execution, request)
+        _validate_execution(execution, request, formal_run=spec.formal_run)
         if cell["request_sha256"] != _digest(_request_payload(request)):
             raise NBAManagerExperimentError("NBA manager request digest differs")
         previous[(request.source_id, request.arm)] = execution.next_state_payload
@@ -416,6 +513,7 @@ def verify_nba_manager_experiment(report_path: str | Path) -> NBAFrontOfficeEvid
         weights=weights,
         thresholds=thresholds,
         season_weights=season_weights,
+        macro_ranges=spec.macro_ranges,
     )
     if _json_value(asdict(evidence)) != report["evidence"]:
         raise NBAManagerExperimentError("NBA manager evidence cannot be reproduced")
@@ -472,17 +570,59 @@ def build_nba_manager_candidate_receipt(
     ci_checks: Mapping[str, str],
 ) -> dict[str, object]:
     """Build a WIP-only candidate receipt after all required CI checks pass."""
-    if not git_commit.strip():
-        raise ValueError("NBA manager candidate receipt requires a Git commit")
-    if set(ci_checks) != set(NBA_MANAGER_REQUIRED_CI) or any(
-        value != "passed" for value in ci_checks.values()
-    ):
-        raise NBAManagerExperimentError("NBA manager candidate receipt requires passed CI checks")
     report_file = Path(report_path)
     evidence = verify_nba_manager_experiment(report_file)
     spec, weights, thresholds, season_weights = _parse_plan(report_file.parent / "plan.json")
-    if not spec.formal_run or len(spec.master_seeds) != 30 or spec.seasons != 5:
+    if not spec.formal_run:
         raise NBAManagerExperimentError("development studies cannot produce candidate receipts")
+    current_commit, current_tree = nba_manager_code_identity(require_clean=True)
+    if git_commit != spec.code_commit or current_commit != spec.code_commit:
+        raise NBAManagerExperimentError("candidate receipt Git commit differs from the study")
+    if current_tree != spec.code_tree_sha256:
+        raise NBAManagerExperimentError("candidate receipt code tree differs from the study")
+    protocol_sha256 = dict(spec.source_hashes).get(NBA_MANAGER_PROTOCOL_SOURCE_ROLE)
+    if protocol_sha256 is None:
+        raise NBAManagerExperimentError("candidate receipt lacks the frozen promotion protocol")
+    verify_nba_manager_protocol_file(
+        canonical_nba_manager_protocol_path(),
+        protocol_sha256,
+    )
+    protocol = load_nba_manager_promotion_protocol(canonical_nba_manager_protocol_path())
+    input_hashes = tuple(
+        item for item in spec.source_hashes if item[0] != NBA_MANAGER_PROTOCOL_SOURCE_ROLE
+    )
+    if (
+        protocol.experiment_id != spec.experiment_id
+        or protocol.start_season != spec.start_season
+        or protocol.initial_state_sha256 != spec.initial_state_sha256
+        or protocol.source_hashes != input_hashes
+        or protocol.execution_config_sha256 != spec.execution_config_sha256
+        or protocol.macro_ranges != spec.macro_ranges
+        or protocol.team_ids != spec.team_ids
+        or protocol.master_seeds != spec.master_seeds
+        or protocol.focal_team_ids != spec.focal_team_ids
+        or protocol.seasons != spec.seasons
+    ):
+        raise NBAManagerExperimentError("candidate receipt differs from frozen promotion protocol")
+    if set(ci_checks) != set(NBA_MANAGER_REQUIRED_CI):
+        raise NBAManagerExperimentError("NBA manager candidate receipt requires exact CI checks")
+    ci_attestations: dict[str, dict[str, str]] = {}
+    for name, value in ci_checks.items():
+        status, separator, remainder = value.partition("@")
+        commit, second_separator, url = remainder.partition("@")
+        if (
+            status != "passed"
+            or not separator
+            or not second_separator
+            or commit != spec.code_commit
+            or not url.startswith("https://github.com/")
+            or "/actions/runs/" not in url
+        ):
+            raise NBAManagerExperimentError(
+                "NBA manager candidate receipt requires commit-bound GitHub CI attestations"
+            )
+        _verify_github_ci_attestation(name, url, spec.code_commit)
+        ci_attestations[name] = {"status": status, "commit": commit, "url": url}
     return {
         "schema_version": NBA_MANAGER_EXPERIMENT_SCHEMA_VERSION,
         "version": "nba-manager-policy-candidate-v1",
@@ -502,8 +642,44 @@ def build_nba_manager_candidate_receipt(
         "thresholds": asdict(thresholds),
         "season_weights": list(season_weights),
         "report_sha256": sha256_file(report_file),
-        "ci": dict(sorted(ci_checks.items())),
+        "code_tree_sha256": spec.code_tree_sha256,
+        "ci": dict(sorted(ci_attestations.items())),
     }
+
+
+def _verify_github_ci_attestation(name: str, url: str, commit: str) -> None:
+    prefix = "https://github.com/cc78978559/courtsim/actions/runs/"
+    run_id = url.removeprefix(prefix).split("/", 1)[0]
+    if not url.startswith(prefix) or not run_id.isdigit():
+        raise NBAManagerExperimentError("NBA manager CI URL must identify the courtsim repository")
+    api_root = f"https://api.github.com/repos/cc78978559/courtsim/actions/runs/{run_id}"
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "courtsim-promotion"}
+    try:
+        with urllib.request.urlopen(
+            urllib.request.Request(api_root, headers=headers), timeout=20
+        ) as response:
+            run = _object(json.loads(response.read().decode("utf-8")), "GitHub Actions run")
+        with urllib.request.urlopen(
+            urllib.request.Request(f"{api_root}/jobs?per_page=100", headers=headers), timeout=20
+        ) as response:
+            jobs = _object(json.loads(response.read().decode("utf-8")), "GitHub Actions jobs")
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, urllib.error.URLError) as error:
+        raise NBAManagerExperimentError(
+            "cannot verify NBA manager GitHub CI attestation"
+        ) from error
+    raw_jobs = jobs.get("jobs")
+    if (
+        run.get("head_sha") != commit
+        or run.get("conclusion") != "success"
+        or _object(run.get("repository"), "GitHub repository").get("full_name")
+        != "cc78978559/courtsim"
+        or not isinstance(raw_jobs, list)
+        or not any(
+            isinstance(job, dict) and job.get("name") == name and job.get("conclusion") == "success"
+            for job in raw_jobs
+        )
+    ):
+        raise NBAManagerExperimentError("NBA manager GitHub CI attestation is not successful")
 
 
 def _plan_payload(
@@ -543,6 +719,7 @@ def _parse_plan(
     spec_raw["focal_team_ids"] = tuple(spec_raw["focal_team_ids"])
     spec_raw["team_ids"] = tuple(spec_raw["team_ids"])
     spec_raw["source_hashes"] = tuple(tuple(item) for item in spec_raw["source_hashes"])
+    spec_raw["macro_ranges"] = tuple(tuple(item) for item in spec_raw["macro_ranges"])
     return (
         NBAManagerExperimentSpec(**spec_raw),
         NBAFrontOfficeEvaluationWeights(**_object(plan["weights"], "weights")),
@@ -589,6 +766,7 @@ def _load_cell(
     path: Path,
     request_digest: str,
     request: NBAManagerSeasonRequest,
+    formal_run: bool,
 ) -> NBAManagerSeasonExecution:
     cell = _load_gzip_object(path, "NBA manager cell")
     if cell.get("request_sha256") != request_digest:
@@ -597,7 +775,7 @@ def _load_cell(
     if stored_request != request:
         raise NBAManagerExperimentError("NBA manager stored request differs")
     execution = _execution_from_cell(cell)
-    _validate_execution(execution, request)
+    _validate_execution(execution, request, formal_run=formal_run)
     return execution
 
 
@@ -625,9 +803,14 @@ def _execution_from_cell(cell: Mapping[str, object]) -> NBAManagerSeasonExecutio
     if cell.get("execution_sha256") != _digest(execution):
         raise NBAManagerExperimentError("NBA manager execution digest differs")
     try:
+        outcome = _object(execution["outcome"], "NBA manager outcome")
+        outcome["macro_metrics"] = tuple(
+            (str(item[0]), float(cast(int | float, item[1])))
+            for item in cast(list[list[object]], outcome.get("macro_metrics", []))
+        )
         return NBAManagerSeasonExecution(
             str(execution["next_state_payload"]),
-            NBAFrontOfficeOutcome(**_object(execution["outcome"], "NBA manager outcome")),
+            NBAFrontOfficeOutcome(**outcome),
             str(execution["audit_payload"]),
         )
     except (KeyError, TypeError, ValueError) as error:
@@ -637,10 +820,46 @@ def _execution_from_cell(cell: Mapping[str, object]) -> NBAManagerSeasonExecutio
 def _validate_execution(
     execution: NBAManagerSeasonExecution,
     request: NBAManagerSeasonRequest,
+    *,
+    formal_run: bool,
 ) -> None:
     expected = (request.source_id, request.master_seed, request.season_year, request.focal_team_id)
     if execution.outcome.address != expected:
         raise NBAManagerExperimentError("NBA manager execution outcome address differs")
+    if formal_run:
+        audit = _object(json.loads(execution.audit_payload), "NBA manager canonical audit")
+        expected_candidates = (
+            [] if request.arm is NBAManagerExperimentArm.CONTROL else [request.focal_team_id]
+        )
+        if (
+            audit.get("version") != "nba-manager-adapter-v1"
+            or audit.get("arm") != request.arm.name.lower()
+            or audit.get("focal_team_id") != request.focal_team_id
+            or audit.get("candidate_teams") != expected_candidates
+            or audit.get("outcome") != _json_value(asdict(execution.outcome))
+        ):
+            raise NBAManagerExperimentError("formal NBA manager execution lacks canonical audit")
+
+
+def _validate_request_against_spec(
+    request: NBAManagerSeasonRequest,
+    spec: NBAManagerExperimentSpec,
+) -> None:
+    try:
+        source_index = int(request.source_id.removeprefix("source-")) - 1
+    except ValueError as error:
+        raise NBAManagerExperimentError("NBA manager request source identity is invalid") from error
+    if (
+        request.experiment_id != spec.experiment_id
+        or request.baseline_policy_id != spec.baseline_policy_id
+        or request.candidate_policy_id != spec.candidate_policy_id
+        or not 0 <= source_index < len(spec.master_seeds)
+        or request.source_id != f"source-{source_index + 1:04d}"
+        or request.master_seed != spec.master_seeds[source_index]
+        or request.focal_team_id != spec.focal_team_ids[source_index]
+        or not spec.start_season <= request.season_year < spec.start_season + spec.seasons
+    ):
+        raise NBAManagerExperimentError("NBA manager request differs from frozen plan")
 
 
 def _paired_outcomes(

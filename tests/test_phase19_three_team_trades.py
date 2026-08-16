@@ -7,12 +7,13 @@ from courtsim.career import CareerPlayer, CareerStatus, DevelopmentTraits
 from courtsim.domain.player import AbilityRatings
 from courtsim.draft_assets import FutureDraftPickAsset
 from courtsim.management import ContractRules, LeagueManagementState, PlayerContract
-from courtsim.manager_ai import ManagerPolicyMode, ManagerProfile
+from courtsim.manager_ai import REALITY_BASELINE_POLICY, ManagerPolicyMode, ManagerProfile
 from courtsim.rosters import RosterSnapshot
 from courtsim.three_team_trades import (
     PickTradeRoute,
     PlayerTradeRoute,
     ThreeTeamTradeOffer,
+    ThreeTeamTradeShadowResult,
     apply_three_team_trade,
     audit_three_team_trade,
     evaluate_three_team_trade_shadow,
@@ -99,6 +100,49 @@ def circular_offer(*, with_picks: bool = False) -> ThreeTeamTradeOffer:
 
 def profiles() -> dict[str, ManagerProfile]:
     return {team_id: ManagerProfile(f"manager-{team_id}", team_id) for team_id in ("A", "B", "C")}
+
+
+def test_reality_baseline_three_team_trade_does_not_read_hidden_potential() -> None:
+    baseline_profiles = profiles()
+    policies = {team_id: REALITY_BASELINE_POLICY for team_id in baseline_profiles}
+    original = career_players()
+    changed = tuple(
+        replace(item, potential=ratings(100 if item.player_id in {1, 11, 21} else 70))
+        for item in original
+    )
+
+    def evaluate(players: tuple[CareerPlayer, ...]) -> ThreeTeamTradeShadowResult:
+        return evaluate_three_team_trade_shadow(
+            management=state(),
+            players=players,
+            picks=future_picks(),
+            offer=circular_offer(),
+            profiles=baseline_profiles,
+            contract_rules=rules(),
+            front_office_policies=policies,
+        )
+
+    first = evaluate(original)
+    second = evaluate(changed)
+    assert tuple(item.accepted for item in first.approvals) == tuple(
+        item.accepted for item in second.approvals
+    )
+    assert tuple(item.rational_gain for item in first.approvals) == tuple(
+        item.rational_gain for item in second.approvals
+    )
+    assert tuple(item.trace for item in first.approvals) == tuple(
+        item.trace for item in second.approvals
+    )
+    with pytest.raises(ValueError, match="policies must cover"):
+        evaluate_three_team_trade_shadow(
+            management=state(),
+            players=original,
+            picks=future_picks(),
+            offer=circular_offer(),
+            profiles=baseline_profiles,
+            contract_rules=rules(),
+            front_office_policies={"A": REALITY_BASELINE_POLICY},
+        )
 
 
 def test_three_team_trade_atomically_routes_players_contracts_and_picks() -> None:

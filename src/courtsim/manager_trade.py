@@ -13,6 +13,8 @@ from courtsim.draft_assets import TradableDraftPick
 from courtsim.management import ContractRules, LeagueManagementState
 from courtsim.manager_ai import (
     DecisionContribution,
+    FrontOfficePolicyKind,
+    FrontOfficePolicySpec,
     ManagerCandidate,
     ManagerDecisionLedger,
     ManagerDecisionTrace,
@@ -87,12 +89,15 @@ def evaluate_trade_shadow(
     cap_ledger: CapLedger | None = None,
     cap_rules: CapMechanicsRules | None = None,
     frozen_pick_ids: frozenset[int] = frozenset(),
+    front_office_policies: Mapping[str, FrontOfficePolicySpec] | None = None,
 ) -> TradeShadowResult:
     """Evaluate both managers independently; this function never executes the trade."""
     if set(profiles) != {offer.team_a_id, offer.team_b_id}:
         raise ValueError("trade profiles must cover both participating teams exactly")
     if any(team_id != profile.team_id for team_id, profile in profiles.items()):
         raise ValueError("trade profile keys must match profile team ids")
+    if front_office_policies is not None and set(front_office_policies) != set(profiles):
+        raise ValueError("trade policies must cover both participating teams exactly")
     player_map = {player.player_id: player for player in players}
     if len(player_map) != len(players):
         raise ValueError("career player ids must be unique")
@@ -148,6 +153,9 @@ def evaluate_trade_shadow(
             contract_rules=contract_rules,
             manager_rules=manager_rules,
             decision_id=f"trade:{offer.trade_id}:{team_id}:{other_team_id}",
+            front_office_policy=(
+                None if front_office_policies is None else front_office_policies[team_id]
+            ),
         )
         approvals.append(approval)
         ledger = ledger.add(trace=approval.trace, stage="trade", profile=profile)
@@ -180,6 +188,7 @@ def evaluate_trade_team_approval(
     contract_rules: ContractRules,
     decision_id: str,
     manager_rules: ManagerTradeRules = DEFAULT_MANAGER_TRADE_RULES,
+    front_office_policy: FrontOfficePolicySpec | None = None,
 ) -> TradeManagerApproval:
     """Evaluate one team's accept/reject choice for any routed trade structure."""
     contributions = _trade_contributions(
@@ -193,6 +202,7 @@ def evaluate_trade_team_approval(
         incoming_picks,
         profile,
         contract_rules,
+        front_office_policy,
     )
     style = _trade_style(
         player_map,
@@ -256,6 +266,7 @@ def _trade_contributions(
     incoming_picks: tuple[int, ...],
     profile: ManagerProfile,
     contract_rules: ContractRules,
+    front_office_policy: FrontOfficePolicySpec | None,
 ) -> tuple[DecisionContribution, ...]:
     roster = next(item.player_ids for item in management.rosters if item.team_id == team_id)
     contracts = {contract.player_id: contract for contract in management.contracts}
@@ -264,13 +275,21 @@ def _trade_contributions(
             raise ValueError(f"trade player {player_id} has no career record")
     outgoing_player_value = sum(
         _player_value(
-            player_map[player_id], contracts[player_id].annual_salary, profile, contract_rules
+            player_map[player_id],
+            contracts[player_id].annual_salary,
+            profile,
+            contract_rules,
+            front_office_policy,
         )
         for player_id in outgoing_players
     )
     incoming_player_value = sum(
         _player_value(
-            player_map[player_id], contracts[player_id].annual_salary, profile, contract_rules
+            player_map[player_id],
+            contracts[player_id].annual_salary,
+            profile,
+            contract_rules,
+            front_office_policy,
         )
         for player_id in incoming_players
     )
@@ -320,9 +339,15 @@ def _player_value(
     salary: int,
     profile: ManagerProfile,
     contract_rules: ContractRules,
+    front_office_policy: FrontOfficePolicySpec | None,
 ) -> float:
     ability = _rating_mean(player.profile.abilities) / 100
-    potential = _rating_mean(player.potential) / 100
+    potential = (
+        ability
+        if front_office_policy is not None
+        and front_office_policy.kind is FrontOfficePolicyKind.REALITY_BASELINE
+        else _rating_mean(player.potential) / 100
+    )
     upside = max(0.0, potential - ability)
     age_value = max(0.0, min(1.0, (34 - player.age) / 16))
     availability = 1 - player.injury_burden / 100
