@@ -25,6 +25,7 @@ NBA_MANAGER_PROTOCOL_INPUT_ROLES = frozenset(
         "model_schema",
         "player_targets",
         "shot_profiles",
+        "state_build_source",
         "state_build_receipt",
     }
 )

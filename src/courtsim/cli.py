@@ -208,6 +208,7 @@ from courtsim.nba_manager_experiment import (
 from courtsim.nba_manager_study import (
     NBAManagerStudyError,
     build_nba_manager_study_bundle,
+    portable_nba_manager_checkpoint_receipt,
 )
 from courtsim.parameter_overlay import (
     ParameterOverlayError,
@@ -706,6 +707,12 @@ def _parser() -> argparse.ArgumentParser:
         "--player-targets",
         type=Path,
         help="frozen player targets required by the formal manager study",
+    )
+    manager_study_run.add_argument(
+        "--state-build-source",
+        type=Path,
+        default=Path("experiments/inputs/nba-manager-state-source-2025.json"),
+        help="frozen source used to reconstruct the formal initial state",
     )
     manager_study_run.add_argument(
         "--protocol",
@@ -1779,7 +1786,7 @@ def main(argv: list[str] | None = None) -> int:
             manager_state_receipt_payload = {
                 "version": "nba-manager-state-build-receipt-v1",
                 "build": asdict(state_build.receipt),
-                "checkpoint": asdict(checkpoint_receipt),
+                "checkpoint": asdict(portable_nba_manager_checkpoint_receipt(checkpoint_receipt)),
             }
             write_json(arguments.receipt, manager_state_receipt_payload)
             print(
@@ -1817,6 +1824,7 @@ def main(argv: list[str] | None = None) -> int:
                 macro_reference_path=arguments.macro_reference,
                 manager_profiles_path=arguments.manager_profiles,
                 player_targets_path=arguments.player_targets,
+                state_build_source_path=arguments.state_build_source,
                 promotion_protocol_path=arguments.protocol,
                 master_seeds=tuple(range(seed_start, seed_start + sources)),
                 seasons=seasons,

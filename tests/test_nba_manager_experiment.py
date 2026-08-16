@@ -412,7 +412,7 @@ def test_github_ci_attestation_verifies_repository_commit_and_job(
             Response(
                 {
                     "jobs": [
-                        {"name": "windows-ci", "conclusion": "success"},
+                        {"name": "Quality (windows-latest)", "conclusion": "success"},
                     ]
                 }
             ),
@@ -433,6 +433,78 @@ def test_github_ci_attestation_verifies_repository_commit_and_job(
         manager_experiment_module._verify_github_ci_attestation(
             "windows-ci",
             "https://github.com/example/courtsim/actions/runs/12345",
+            CODE_COMMIT,
+        )
+
+
+def test_github_ci_attestation_requires_named_successful_steps(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Response:
+        def __init__(self, payload: dict[str, object]) -> None:
+            self.payload = json.dumps(payload).encode()
+
+        def __enter__(self) -> "Response":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        def read(self) -> bytes:
+            return self.payload
+
+    run = Response(
+        {
+            "head_sha": CODE_COMMIT,
+            "conclusion": "success",
+            "repository": {"full_name": "cc78978559/courtsim"},
+        }
+    )
+    jobs = Response(
+        {
+            "jobs": [
+                {
+                    "name": "Quality (ubuntu-latest)",
+                    "conclusion": "success",
+                    "steps": [
+                        {"name": "Checkout clean repository", "conclusion": "success"},
+                        {"name": "Test with coverage", "conclusion": "success"},
+                    ],
+                }
+            ]
+        }
+    )
+    responses = iter((run, jobs))
+    monkeypatch.setattr(
+        "courtsim.nba_manager_experiment.urllib.request.urlopen",
+        lambda *args, **kwargs: next(responses),
+    )
+    manager_experiment_module._verify_github_ci_attestation(
+        "clean-checkout-tests",
+        "https://github.com/cc78978559/courtsim/actions/runs/12345",
+        CODE_COMMIT,
+    )
+
+    incomplete = iter(
+        (
+            run,
+            Response(
+                {
+                    "jobs": [
+                        {"name": "Quality (ubuntu-latest)", "conclusion": "success", "steps": []}
+                    ]
+                }
+            ),
+        )
+    )
+    monkeypatch.setattr(
+        "courtsim.nba_manager_experiment.urllib.request.urlopen",
+        lambda *args, **kwargs: next(incomplete),
+    )
+    with pytest.raises(NBAManagerExperimentError, match="proof steps"):
+        manager_experiment_module._verify_github_ci_attestation(
+            "coverage-85",
+            "https://github.com/cc78978559/courtsim/actions/runs/12345",
             CODE_COMMIT,
         )
 

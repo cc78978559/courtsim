@@ -65,6 +65,16 @@ class NBAManagerStudyError(ValueError):
     pass
 
 
+def portable_nba_manager_checkpoint_receipt(
+    receipt: NBAFranchiseCheckpointReceipt,
+) -> NBAFranchiseCheckpointReceipt:
+    """Remove machine-specific directories from a state-build receipt."""
+    filename = Path(receipt.checkpoint_path).name
+    if not filename:
+        raise NBAManagerStudyError("NBA manager checkpoint receipt path is invalid")
+    return replace(receipt, checkpoint_path=filename)
+
+
 @dataclass(frozen=True, slots=True)
 class NBAManagerStudyBundle:
     spec: NBAManagerExperimentSpec
@@ -169,6 +179,7 @@ def build_nba_manager_study_bundle(
     formal_run: bool = True,
     game_config: GameClockConfig | None = None,
     player_targets_path: str | Path | None = None,
+    state_build_source_path: str | Path | None = None,
     promotion_protocol_path: str | Path | None = None,
 ) -> NBAManagerStudyBundle:
     checkpoint = Path(initial_checkpoint).resolve()
@@ -180,6 +191,9 @@ def build_nba_manager_study_bundle(
     managers = Path(manager_profiles_path).resolve()
     player_targets_file = (
         None if player_targets_path is None else Path(player_targets_path).resolve()
+    )
+    state_build_source_file = (
+        None if state_build_source_path is None else Path(state_build_source_path).resolve()
     )
     state, contract_rules, checkpoint_receipt = load_nba_franchise_checkpoint(checkpoint)
     initial_payload = nba_franchise_state_to_json(state, contract_rules)
@@ -202,6 +216,8 @@ def build_nba_manager_study_bundle(
     team_ids = tuple(roster.team_id for roster in state.management.rosters)
     if formal_run and player_targets_file is None:
         raise NBAManagerStudyError("formal NBA manager study requires frozen player targets")
+    if formal_run and state_build_source_file is None:
+        raise NBAManagerStudyError("formal NBA manager study requires the state-build source")
     player_targets: NBAPlayerTargetSet | None = None
     if player_targets_file is not None:
         loaded_targets = load_nba_player_target_set(player_targets_file)
@@ -258,6 +274,11 @@ def build_nba_manager_study_bundle(
         if player_targets_file is None
         else (("player_targets", sha256_file(player_targets_file)),)
     )
+    state_build_sources = (
+        ()
+        if state_build_source_file is None
+        else (("state_build_source", sha256_file(state_build_source_file)),)
+    )
     input_source_hashes = tuple(
         sorted(
             (
@@ -269,6 +290,7 @@ def build_nba_manager_study_bundle(
                 ("shot_profiles", sha256_file(shots)),
                 ("state_build_receipt", sha256_file(state_receipt)),
                 *optional_sources,
+                *state_build_sources,
             )
         )
     )

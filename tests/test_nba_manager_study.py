@@ -19,7 +19,10 @@ from courtsim.artifacts import write_json
 from courtsim.domain.game import GameClockConfig
 from courtsim.manager_ai import ManagerProfile
 from courtsim.model.trace_mode import TraceMode
-from courtsim.nba_franchise_artifacts import write_nba_franchise_checkpoint
+from courtsim.nba_franchise_artifacts import (
+    NBAFranchiseCheckpointReceipt,
+    write_nba_franchise_checkpoint,
+)
 from courtsim.nba_manager_adapter import (
     NBA_MANAGER_ADAPTER_VERSION,
     MacroMetricRange,
@@ -32,6 +35,7 @@ from courtsim.nba_manager_study import (
     NBA_MANAGER_PROFILE_SET_VERSION,
     NBAManagerStudyError,
     build_nba_manager_study_bundle,
+    portable_nba_manager_checkpoint_receipt,
 )
 
 
@@ -171,6 +175,7 @@ def test_study_bundle_freezes_all_development_sources_and_configuration(tmp_path
         macro_reference_path=Path("experiments/sources/nba-2022-25-quick-sim-reference.json"),
         manager_profiles_path=manager_profiles,
         player_targets_path=player_targets,
+        state_build_source_path=player_targets,
         master_seeds=(20270301,),
         focal_team_ids=("T01",),
         seasons=1,
@@ -188,6 +193,7 @@ def test_study_bundle_freezes_all_development_sources_and_configuration(tmp_path
         "player_targets",
         "shot_profiles",
         "state_build_receipt",
+        "state_build_source",
     }
     assert bundle.spec.execution_config_sha256
     assert bundle.adapter.trace_mode.name == "AGGREGATE_ONLY"
@@ -246,6 +252,12 @@ def test_study_rejects_missing_mismatched_or_incomplete_player_targets(tmp_path:
     with pytest.raises(NBAManagerStudyError, match="requires frozen player targets"):
         build_nba_manager_study_bundle(**common)
 
+    with pytest.raises(NBAManagerStudyError, match="requires the state-build source"):
+        build_nba_manager_study_bundle(
+            **common,
+            player_targets_path=player_targets,
+        )
+
     payload = json.loads(player_targets.read_text(encoding="utf-8"))
     payload["target_id"] = "different-target"
     write_json(player_targets, payload)
@@ -282,11 +294,26 @@ def test_formal_study_rejects_short_game_clock(tmp_path: Path) -> None:
             macro_reference_path=Path("experiments/sources/nba-2022-25-quick-sim-reference.json"),
             manager_profiles_path=manager_profiles,
             player_targets_path=player_targets,
+            state_build_source_path=player_targets,
             master_seeds=(20270301,),
             focal_team_ids=("T01",),
             seasons=1,
             game_config=GameClockConfig(1, 24, 24, 24, 1, True),
         )
+
+
+def test_state_build_checkpoint_receipt_path_is_portable() -> None:
+    receipt = NBAFranchiseCheckpointReceipt(
+        "C:/machine/work/initial-franchise.json.gz",
+        "nba",
+        0,
+        "a" * 64,
+        "b" * 64,
+        "gzip",
+    )
+    portable = portable_nba_manager_checkpoint_receipt(receipt)
+    assert portable.checkpoint_path == "initial-franchise.json.gz"
+    assert portable.state_sha256 == receipt.state_sha256
 
 
 def test_formal_study_rejects_ineligible_state_source_coverage(tmp_path: Path) -> None:

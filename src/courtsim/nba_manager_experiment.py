@@ -53,6 +53,22 @@ NBA_MANAGER_REQUIRED_CI = (
     "windows-ci",
     "wheel-smoke",
 )
+NBA_MANAGER_CI_PROOFS = (
+    (
+        "clean-checkout-tests",
+        "Quality (ubuntu-latest)",
+        ("Checkout clean repository", "Test with coverage"),
+    ),
+    ("strict-mypy", "Quality (ubuntu-latest)", ("Type check",)),
+    ("coverage-85", "Quality (ubuntu-latest)", ("Test with coverage",)),
+    ("ubuntu-ci", "Quality (ubuntu-latest)", ()),
+    ("windows-ci", "Quality (windows-latest)", ()),
+    (
+        "wheel-smoke",
+        "Package smoke test",
+        ("Build wheel and source distribution", "Verify installed package metadata"),
+    ),
+)
 NBA_MANAGER_FORMAL_MASTER_SEEDS = PROTOCOL_FORMAL_MASTER_SEEDS
 
 
@@ -606,7 +622,7 @@ def build_nba_manager_candidate_receipt(
         raise NBAManagerExperimentError("candidate receipt differs from frozen promotion protocol")
     if set(ci_checks) != set(NBA_MANAGER_REQUIRED_CI):
         raise NBAManagerExperimentError("NBA manager candidate receipt requires exact CI checks")
-    ci_attestations: dict[str, dict[str, str]] = {}
+    ci_attestations: dict[str, dict[str, object]] = {}
     for name, value in ci_checks.items():
         status, separator, remainder = value.partition("@")
         commit, second_separator, url = remainder.partition("@")
@@ -622,7 +638,14 @@ def build_nba_manager_candidate_receipt(
                 "NBA manager candidate receipt requires commit-bound GitHub CI attestations"
             )
         _verify_github_ci_attestation(name, url, spec.code_commit)
-        ci_attestations[name] = {"status": status, "commit": commit, "url": url}
+        _, job_name, steps = _ci_proof(name)
+        ci_attestations[name] = {
+            "status": status,
+            "commit": commit,
+            "url": url,
+            "job": job_name,
+            "steps": list(steps),
+        }
     return {
         "schema_version": NBA_MANAGER_EXPERIMENT_SCHEMA_VERSION,
         "version": "nba-manager-policy-candidate-v1",
@@ -648,6 +671,7 @@ def build_nba_manager_candidate_receipt(
 
 
 def _verify_github_ci_attestation(name: str, url: str, commit: str) -> None:
+    _, expected_job_name, expected_steps = _ci_proof(name)
     prefix = "https://github.com/cc78978559/courtsim/actions/runs/"
     run_id = url.removeprefix(prefix).split("/", 1)[0]
     if not url.startswith(prefix) or not run_id.isdigit():
@@ -668,18 +692,48 @@ def _verify_github_ci_attestation(name: str, url: str, commit: str) -> None:
             "cannot verify NBA manager GitHub CI attestation"
         ) from error
     raw_jobs = jobs.get("jobs")
+    successful_job = (
+        next(
+            (
+                job
+                for job in raw_jobs
+                if isinstance(job, dict)
+                and job.get("name") == expected_job_name
+                and job.get("conclusion") == "success"
+            ),
+            None,
+        )
+        if isinstance(raw_jobs, list)
+        else None
+    )
     if (
         run.get("head_sha") != commit
         or run.get("conclusion") != "success"
         or _object(run.get("repository"), "GitHub repository").get("full_name")
         != "cc78978559/courtsim"
-        or not isinstance(raw_jobs, list)
-        or not any(
-            isinstance(job, dict) and job.get("name") == name and job.get("conclusion") == "success"
-            for job in raw_jobs
-        )
+        or successful_job is None
     ):
         raise NBAManagerExperimentError("NBA manager GitHub CI attestation is not successful")
+    if expected_steps:
+        raw_steps = successful_job.get("steps")
+        successful_steps = (
+            {
+                str(step.get("name"))
+                for step in raw_steps
+                if isinstance(step, dict) and step.get("conclusion") == "success"
+            }
+            if isinstance(raw_steps, list)
+            else set()
+        )
+        if not set(expected_steps) <= successful_steps:
+            raise NBAManagerExperimentError("NBA manager GitHub CI proof steps are incomplete")
+
+
+def _ci_proof(name: str) -> tuple[str, str, tuple[str, ...]]:
+    try:
+        return next(item for item in NBA_MANAGER_CI_PROOFS if item[0] == name)
+    except StopIteration as error:
+        raise NBAManagerExperimentError("unknown NBA manager CI proof") from error
 
 
 def _plan_payload(

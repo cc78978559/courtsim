@@ -41,9 +41,10 @@
     ["model_schema", "a51ce2b630c215bc04e8d413620dcbb6213d9fb39ee50e2e90f78357df92c54f"],
     ["player_targets", "433e59f47be18ef03d05d75780eb3297f4bf5a969adce1ccd11b5c3a8c279f19"],
     ["shot_profiles", "b9114f3247f2ce807065be40faf64633cfd49d8d5999bd692dddc675d4a13ead"],
-    ["state_build_receipt", "03ffdbf69d6edb75b3698c0026f6f934090324f7f88535f7b31d0a9ad5886ae5"]
+    ["state_build_receipt", "7ad95146f2371401b8365fad009d85af779fc73e4f32ca1cb02855b374b33e33"],
+    ["state_build_source", "bf7e82fc9377d46e1160562a8b5ecf77d3baec8181bba9f9c29a1cfc6c82dd43"]
   ],
-  "execution_config_sha256": "da45b85fae7a8a236baf2ab55d7786eab7749be797488d7291407b4effb1509c",
+  "execution_config_sha256": "aa2cc84041f4a40c17e4bf462d6174c6d025e1ff1555b37ba6ee463332e7bcbd",
   "macro_ranges": [
     ["champion-seed-mean", 1.0, 3.0],
     ["home-win-rate", 0.47, 0.57],

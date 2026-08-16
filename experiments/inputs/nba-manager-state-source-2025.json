@@ -1,0 +1,2676 @@
+{
+  "dataset_id": "espn-nba-manager-state-2025",
+  "players": [
+    {
+      "age": 40,
+      "annual_salary": 48728845,
+      "contract_years_remaining": 2,
+      "nba_player_id": 2544
+    },
+    {
+      "age": 39,
+      "annual_salary": 10460000,
+      "contract_years_remaining": 1,
+      "nba_player_id": 101108
+    },
+    {
+      "age": 38,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 200768
+    },
+    {
+      "age": 36,
+      "annual_salary": 51179021,
+      "contract_years_remaining": 2,
+      "nba_player_id": 201142
+    },
+    {
+      "age": 38,
+      "annual_salary": 9500000,
+      "contract_years_remaining": 1,
+      "nba_player_id": 201143
+    },
+    {
+      "age": 37,
+      "annual_salary": 9975962,
+      "contract_years_remaining": 1,
+      "nba_player_id": 201144
+    },
+    {
+      "age": 38,
+      "annual_salary": 8000000,
+      "contract_years_remaining": 1,
+      "nba_player_id": 201145
+    },
+    {
+      "age": 36,
+      "annual_salary": 3303771,
+      "nba_player_id": 201566
+    },
+    {
+      "age": 36,
+      "annual_salary": 3850000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 201567
+    },
+    {
+      "age": 36,
+      "annual_salary": 3303771,
+      "contract_years_remaining": 2,
+      "nba_player_id": 201569
+    },
+    {
+      "age": 36,
+      "annual_salary": 23000000,
+      "contract_years_remaining": 1,
+      "nba_player_id": 201572
+    },
+    {
+      "age": 36,
+      "annual_salary": 4668000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 201587
+    },
+    {
+      "age": 36,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 201599
+    },
+    {
+      "age": 35,
+      "annual_salary": 33653846,
+      "contract_years_remaining": 2,
+      "nba_player_id": 201935
+    },
+    {
+      "age": 36,
+      "annual_salary": 55761216,
+      "contract_years_remaining": 3,
+      "nba_player_id": 201939
+    },
+    {
+      "age": 35,
+      "annual_salary": 23400000,
+      "contract_years_remaining": 3,
+      "nba_player_id": 201942
+    },
+    {
+      "age": 34,
+      "annual_salary": 30000000,
+      "contract_years_remaining": 4,
+      "nba_player_id": 201950
+    },
+    {
+      "age": 39,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 201959
+    },
+    {
+      "age": 36,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 201988
+    },
+    {
+      "age": 38,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 202066
+    },
+    {
+      "age": 34,
+      "annual_salary": 49205800,
+      "contract_years_remaining": 4,
+      "nba_player_id": 202331
+    },
+    {
+      "age": 32,
+      "annual_salary": 41000000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 202681
+    },
+    {
+      "age": 33,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 202684
+    },
+    {
+      "age": 32,
+      "annual_salary": 503884,
+      "contract_years_remaining": 1,
+      "nba_player_id": 202687
+    },
+    {
+      "age": 34,
+      "annual_salary": 15873016,
+      "contract_years_remaining": 3,
+      "nba_player_id": 202691
+    },
+    {
+      "age": 33,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 202692
+    },
+    {
+      "age": 35,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 202693
+    },
+    {
+      "age": 33,
+      "annual_salary": 49350000,
+      "contract_years_remaining": 3,
+      "nba_player_id": 202695
+    },
+    {
+      "age": 32,
+      "annual_salary": 25365854,
+      "contract_years_remaining": 2,
+      "nba_player_id": 202699
+    },
+    {
+      "age": 34,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 202704
+    },
+    {
+      "age": 33,
+      "annual_salary": 3303771,
+      "contract_years_remaining": 2,
+      "nba_player_id": 202709
+    },
+    {
+      "age": 35,
+      "annual_salary": 48798677,
+      "contract_years_remaining": 3,
+      "nba_player_id": 202710
+    },
+    {
+      "age": 31,
+      "annual_salary": 43219440,
+      "contract_years_remaining": 4,
+      "nba_player_id": 203076
+    },
+    {
+      "age": 31,
+      "annual_salary": 50203930,
+      "contract_years_remaining": 3,
+      "nba_player_id": 203078
+    },
+    {
+      "age": 34,
+      "annual_salary": 48787676,
+      "contract_years_remaining": 3,
+      "nba_player_id": 203081
+    },
+    {
+      "age": 31,
+      "annual_salary": 5000000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 203083
+    },
+    {
+      "age": 32,
+      "annual_salary": 18000000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 203084
+    },
+    {
+      "age": 34,
+      "annual_salary": 24107143,
+      "contract_years_remaining": 3,
+      "nba_player_id": 203110
+    },
+    {
+      "age": 33,
+      "annual_salary": 31666676,
+      "contract_years_remaining": 2,
+      "nba_player_id": 203114
+    },
+    {
+      "age": 31,
+      "annual_salary": 743829,
+      "contract_years_remaining": 1,
+      "nba_player_id": 203458
+    },
+    {
+      "age": 33,
+      "annual_salary": 33333333,
+      "contract_years_remaining": 2,
+      "nba_player_id": 203468
+    },
+    {
+      "age": 31,
+      "annual_salary": 13025250,
+      "contract_years_remaining": 1,
+      "nba_player_id": 203471
+    },
+    {
+      "age": 33,
+      "annual_salary": 12804878,
+      "contract_years_remaining": 2,
+      "nba_player_id": 203482
+    },
+    {
+      "age": 31,
+      "annual_salary": 22757000,
+      "contract_years_remaining": 3,
+      "nba_player_id": 203484
+    },
+    {
+      "age": 34,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 203486
+    },
+    {
+      "age": 32,
+      "annual_salary": 43827587,
+      "contract_years_remaining": 2,
+      "nba_player_id": 203497
+    },
+    {
+      "age": 31,
+      "annual_salary": 12600000,
+      "contract_years_remaining": 1,
+      "nba_player_id": 203500
+    },
+    {
+      "age": 32,
+      "annual_salary": 16193183,
+      "contract_years_remaining": 1,
+      "nba_player_id": 203501
+    },
+    {
+      "age": 30,
+      "annual_salary": 48787676,
+      "contract_years_remaining": 4,
+      "nba_player_id": 203507
+    },
+    {
+      "age": 34,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 203552
+    },
+    {
+      "age": 29,
+      "annual_salary": 44531940,
+      "contract_years_remaining": 3,
+      "nba_player_id": 203897
+    },
+    {
+      "nba_player_id": 203901
+    },
+    {
+      "age": 32,
+      "annual_salary": 14092577,
+      "contract_years_remaining": 2,
+      "nba_player_id": 203903
+    },
+    {
+      "age": 30,
+      "annual_salary": 6730769,
+      "contract_years_remaining": 2,
+      "nba_player_id": 203914
+    },
+    {
+      "age": 31,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 203915
+    },
+    {
+      "age": 30,
+      "annual_salary": 29793104,
+      "contract_years_remaining": 4,
+      "nba_player_id": 203924
+    },
+    {
+      "age": 33,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 203926
+    },
+    {
+      "age": 29,
+      "annual_salary": 22841455,
+      "contract_years_remaining": 5,
+      "nba_player_id": 203932
+    },
+    {
+      "age": 30,
+      "annual_salary": 20210285,
+      "contract_years_remaining": 1,
+      "nba_player_id": 203935
+    },
+    {
+      "age": 31,
+      "annual_salary": 8780488,
+      "contract_years_remaining": 3,
+      "nba_player_id": 203937
+    },
+    {
+      "age": 33,
+      "annual_salary": 4000000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 203939
+    },
+    {
+      "age": 30,
+      "annual_salary": 33073920,
+      "contract_years_remaining": 2,
+      "nba_player_id": 203944
+    },
+    {
+      "age": 29,
+      "annual_salary": 26276786,
+      "contract_years_remaining": 3,
+      "nba_player_id": 203952
+    },
+    {
+      "age": 30,
+      "annual_salary": 51415938,
+      "contract_years_remaining": 5,
+      "nba_player_id": 203954
+    },
+    {
+      "age": 30,
+      "annual_salary": 22265280,
+      "contract_years_remaining": 1,
+      "nba_player_id": 203991
+    },
+    {
+      "age": 30,
+      "annual_salary": 18125000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 203994
+    },
+    {
+      "age": 29,
+      "annual_salary": 51415938,
+      "contract_years_remaining": 4,
+      "nba_player_id": 203999
+    },
+    {
+      "age": 29,
+      "annual_salary": 29268293,
+      "contract_years_remaining": 2,
+      "nba_player_id": 204001
+    },
+    {
+      "age": 32,
+      "annual_salary": 9300000,
+      "contract_years_remaining": 1,
+      "nba_player_id": 204456
+    },
+    {
+      "age": 28,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1626145
+    },
+    {
+      "age": 32,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1626153
+    },
+    {
+      "age": 28,
+      "annual_salary": 18692307,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1626156
+    },
+    {
+      "age": 29,
+      "annual_salary": 49205800,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1626157
+    },
+    {
+      "age": 31,
+      "annual_salary": 12648321,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1626158
+    },
+    {
+      "age": 29,
+      "annual_salary": 7983000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1626162
+    },
+    {
+      "age": 28,
+      "annual_salary": 49205800,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1626164
+    },
+    {
+      "age": 30,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1626166
+    },
+    {
+      "age": 28,
+      "annual_salary": 19928500,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1626167
+    },
+    {
+      "age": 29,
+      "annual_salary": 8000000,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1626168
+    },
+    {
+      "age": 29,
+      "annual_salary": 12578286,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1626171
+    },
+    {
+      "age": 28,
+      "annual_salary": 8000000,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1626172
+    },
+    {
+      "age": 30,
+      "annual_salary": 24924126,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1626179
+    },
+    {
+      "age": 31,
+      "annual_salary": 19241379,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1626181
+    },
+    {
+      "age": 32,
+      "annual_salary": 9423869,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1626192
+    },
+    {
+      "age": 32,
+      "annual_salary": 11205000,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1626204
+    },
+    {
+      "age": 31,
+      "annual_salary": 9821429,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1626220
+    },
+    {
+      "age": 28,
+      "annual_salary": 755826,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1627732
+    },
+    {
+      "age": 28,
+      "annual_salary": 40500000,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1627734
+    },
+    {
+      "age": 28,
+      "annual_salary": 6000000,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1627736
+    },
+    {
+      "age": 30,
+      "annual_salary": 5168000,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1627739
+    },
+    {
+      "age": 32,
+      "annual_salary": 8780488,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1627741
+    },
+    {
+      "age": 27,
+      "annual_salary": 36016200,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1627742
+    },
+    {
+      "age": 30,
+      "annual_salary": 16615384,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1627747
+    },
+    {
+      "age": 28,
+      "annual_salary": 29535801,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1627749
+    },
+    {
+      "age": 27,
+      "annual_salary": 36016200,
+      "contract_years_remaining": 5,
+      "nba_player_id": 1627750
+    },
+    {
+      "age": 29,
+      "annual_salary": 19500000,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1627751
+    },
+    {
+      "age": 30,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1627752
+    },
+    {
+      "age": 28,
+      "annual_salary": 49205800,
+      "contract_years_remaining": 5,
+      "nba_player_id": 1627759
+    },
+    {
+      "age": 32,
+      "annual_salary": 22500000,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1627763
+    },
+    {
+      "age": 31,
+      "annual_salary": 8500000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1627777
+    },
+    {
+      "age": 32,
+      "annual_salary": 9130000,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1627780
+    },
+    {
+      "age": 30,
+      "annual_salary": 42176000,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1627783
+    },
+    {
+      "age": 29,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1627824
+    },
+    {
+      "age": 27,
+      "annual_salary": 11743210,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1627826
+    },
+    {
+      "age": 31,
+      "annual_salary": 14924168,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1627827
+    },
+    {
+      "age": 30,
+      "annual_salary": 42846615,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1627832
+    },
+    {
+      "age": 27,
+      "annual_salary": 9523810,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1627884
+    },
+    {
+      "age": 30,
+      "annual_salary": 9890000,
+      "contract_years_remaining": 5,
+      "nba_player_id": 1627936
+    },
+    {
+      "age": 26,
+      "annual_salary": 731831,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1628365
+    },
+    {
+      "age": 27,
+      "annual_salary": 21395348,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1628366
+    },
+    {
+      "age": 27,
+      "annual_salary": 34848340,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1628368
+    },
+    {
+      "age": 26,
+      "annual_salary": 34848340,
+      "contract_years_remaining": 6,
+      "nba_player_id": 1628369
+    },
+    {
+      "age": 26,
+      "annual_salary": 17405202,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1628370
+    },
+    {
+      "age": 27,
+      "annual_salary": 25000000,
+      "contract_years_remaining": 5,
+      "nba_player_id": 1628371
+    },
+    {
+      "age": 27,
+      "annual_salary": 42176400,
+      "contract_years_remaining": 5,
+      "nba_player_id": 1628374
+    },
+    {
+      "age": 28,
+      "annual_salary": 35410310,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1628378
+    },
+    {
+      "age": 28,
+      "annual_salary": 9250000,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1628379
+    },
+    {
+      "age": 27,
+      "annual_salary": 16741200,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1628380
+    },
+    {
+      "age": 27,
+      "annual_salary": 26580000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1628381
+    },
+    {
+      "age": 27,
+      "annual_salary": 36637931,
+      "contract_years_remaining": 5,
+      "nba_player_id": 1628384
+    },
+    {
+      "age": 26,
+      "annual_salary": 20000000,
+      "contract_years_remaining": 5,
+      "nba_player_id": 1628386
+    },
+    {
+      "age": 27,
+      "annual_salary": 34848340,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1628389
+    },
+    {
+      "age": 26,
+      "annual_salary": 30000000,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1628392
+    },
+    {
+      "age": 27,
+      "annual_salary": 330394,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1628396
+    },
+    {
+      "age": 29,
+      "annual_salary": 22410605,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1628398
+    },
+    {
+      "age": 30,
+      "annual_salary": 20017429,
+      "contract_years_remaining": 5,
+      "nba_player_id": 1628401
+    },
+    {
+      "age": 29,
+      "annual_salary": 18144000,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1628404
+    },
+    {
+      "age": 29,
+      "annual_salary": 22255493,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1628415
+    },
+    {
+      "age": 27,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1628418
+    },
+    {
+      "age": 29,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1628436
+    },
+    {
+      "age": 32,
+      "annual_salary": 10810000,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1628449
+    },
+    {
+      "age": 32,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1628464
+    },
+    {
+      "age": 33,
+      "annual_salary": 11000000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1628467
+    },
+    {
+      "age": 34,
+      "annual_salary": 2845342,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1628470
+    },
+    {
+      "age": 29,
+      "annual_salary": 15625000,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1628960
+    },
+    {
+      "age": 25,
+      "annual_salary": 12500000,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1628963
+    },
+    {
+      "age": 26,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1628964
+    },
+    {
+      "age": 28,
+      "annual_salary": 23300000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1628969
+    },
+    {
+      "age": 26,
+      "annual_salary": 27173913,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1628970
+    },
+    {
+      "age": 28,
+      "annual_salary": 23000000,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1628971
+    },
+    {
+      "age": 28,
+      "annual_salary": 24960001,
+      "contract_years_remaining": 5,
+      "nba_player_id": 1628973
+    },
+    {
+      "age": 29,
+      "annual_salary": 6500000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1628975
+    },
+    {
+      "age": 25,
+      "annual_salary": 11950000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1628976
+    },
+    {
+      "age": 28,
+      "annual_salary": 11445000,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1628978
+    },
+    {
+      "age": 26,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1628981
+    },
+    {
+      "age": 26,
+      "annual_salary": 35859950,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1628983
+    },
+    {
+      "age": 28,
+      "annual_salary": 4668000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1628988
+    },
+    {
+      "age": 26,
+      "annual_salary": 16830357,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1628989
+    },
+    {
+      "age": 25,
+      "annual_salary": 25257798,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1628991
+    },
+    {
+      "age": 29,
+      "annual_salary": 8149001,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1628997
+    },
+    {
+      "age": 29,
+      "annual_salary": 8120000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1628998
+    },
+    {
+      "age": 28,
+      "annual_salary": 2875000,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1629003
+    },
+    {
+      "age": 27,
+      "annual_salary": 3500000,
+      "nba_player_id": 1629004
+    },
+    {
+      "age": 26,
+      "annual_salary": 8250000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1629006
+    },
+    {
+      "age": 26,
+      "annual_salary": 35859950,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1629008
+    },
+    {
+      "age": 26,
+      "annual_salary": 14318182,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1629011
+    },
+    {
+      "age": 26,
+      "annual_salary": 18350000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1629012
+    },
+    {
+      "age": 27,
+      "annual_salary": 1343690,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1629013
+    },
+    {
+      "age": 25,
+      "annual_salary": 25892857,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1629014
+    },
+    {
+      "age": 26,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1629018
+    },
+    {
+      "age": 25,
+      "annual_salary": 10714286,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1629020
+    },
+    {
+      "age": 27,
+      "annual_salary": 11000000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1629021
+    },
+    {
+      "age": 26,
+      "annual_salary": 780932,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1629022
+    },
+    {
+      "age": 26,
+      "annual_salary": 15500000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1629023
+    },
+    {
+      "age": 30,
+      "annual_salary": 6669000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1629026
+    },
+    {
+      "age": 26,
+      "annual_salary": 43031940,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1629027
+    },
+    {
+      "age": 26,
+      "annual_salary": 34005126,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1629028
+    },
+    {
+      "age": 25,
+      "annual_salary": 43031940,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1629029
+    },
+    {
+      "age": 25,
+      "annual_salary": 9057971,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1629048
+    },
+    {
+      "nba_player_id": 1629052
+    },
+    {
+      "age": 27,
+      "annual_salary": 12428571,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1629057
+    },
+    {
+      "age": 26,
+      "annual_salary": 17000000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1629060
+    },
+    {
+      "age": 29,
+      "annual_salary": 8000000,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1629111
+    },
+    {
+      "age": 30,
+      "annual_salary": 19406000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1629130
+    },
+    {
+      "age": 28,
+      "annual_salary": 11000000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1629216
+    },
+    {
+      "age": 28,
+      "annual_salary": 5000000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1629234
+    },
+    {
+      "age": 28,
+      "annual_salary": 5200000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1629312
+    },
+    {
+      "age": 27,
+      "annual_salary": 3938271,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1629599
+    },
+    {
+      "age": 27,
+      "annual_salary": 2425204,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1629610
+    },
+    {
+      "age": 28,
+      "annual_salary": 11423077,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1629611
+    },
+    {
+      "age": 25,
+      "annual_salary": 2019699,
+      "contract_years_remaining": 5,
+      "nba_player_id": 1629614
+    },
+    {
+      "age": 25,
+      "annual_salary": 1891857,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1629618
+    },
+    {
+      "age": 28,
+      "annual_salary": 15212068,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1629622
+    },
+    {
+      "age": 25,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1629626
+    },
+    {
+      "age": 24,
+      "annual_salary": 36725670,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1629627
+    },
+    {
+      "age": 24,
+      "annual_salary": 25794643,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1629628
+    },
+    {
+      "age": 25,
+      "annual_salary": 2463946,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1629629
+    },
+    {
+      "age": 25,
+      "annual_salary": 36725670,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1629630
+    },
+    {
+      "age": 27,
+      "annual_salary": 21696429,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1629631
+    },
+    {
+      "age": 24,
+      "annual_salary": 12000000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1629632
+    },
+    {
+      "age": 28,
+      "annual_salary": 12500000,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1629634
+    },
+    {
+      "age": 25,
+      "annual_salary": 36725670,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1629636
+    },
+    {
+      "age": 24,
+      "annual_salary": 2463946,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1629637
+    },
+    {
+      "age": 26,
+      "annual_salary": 4312500,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1629638
+    },
+    {
+      "age": 25,
+      "annual_salary": 29000000,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1629639
+    },
+    {
+      "age": 25,
+      "annual_salary": 19000000,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1629640
+    },
+    {
+      "nba_player_id": 1629643
+    },
+    {
+      "age": 24,
+      "annual_salary": 2237691,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1629645
+    },
+    {
+      "age": 24,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1629646
+    },
+    {
+      "nba_player_id": 1629650
+    },
+    {
+      "age": 25,
+      "annual_salary": 27556817,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1629651
+    },
+    {
+      "age": 25,
+      "annual_salary": 16500000,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1629652
+    },
+    {
+      "age": 26,
+      "annual_salary": 13394160,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1629655
+    },
+    {
+      "age": 24,
+      "annual_salary": 4296615,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1629656
+    },
+    {
+      "age": 24,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1629659
+    },
+    {
+      "age": 27,
+      "annual_salary": 2560975,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1629660
+    },
+    {
+      "age": 28,
+      "annual_salary": 22500000,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1629661
+    },
+    {
+      "nba_player_id": 1629669
+    },
+    {
+      "age": 25,
+      "annual_salary": 29651786,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1629673
+    },
+    {
+      "age": 25,
+      "annual_salary": 2162606,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1629674
+    },
+    {
+      "age": 25,
+      "annual_salary": 13986432,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1629675
+    },
+    {
+      "age": 27,
+      "annual_salary": 11025160,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1629680
+    },
+    {
+      "age": 26,
+      "annual_salary": 13025250,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1629684
+    },
+    {
+      "age": 28,
+      "annual_salary": 6165000,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1629723
+    },
+    {
+      "age": 28,
+      "annual_salary": 2230253,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1629726
+    },
+    {
+      "age": 28,
+      "annual_salary": 6166667,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1629731
+    },
+    {
+      "age": 31,
+      "annual_salary": 599862,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1629750
+    },
+    {
+      "age": 23,
+      "annual_salary": 42176400,
+      "contract_years_remaining": 5,
+      "nba_player_id": 1630162
+    },
+    {
+      "age": 23,
+      "annual_salary": 35147000,
+      "contract_years_remaining": 5,
+      "nba_player_id": 1630163
+    },
+    {
+      "nba_player_id": 1630165
+    },
+    {
+      "age": 24,
+      "annual_salary": 15625000,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1630166
+    },
+    {
+      "age": 26,
+      "annual_salary": 12946429,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1630167
+    },
+    {
+      "age": 24,
+      "annual_salary": 14000000,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1630168
+    },
+    {
+      "age": 24,
+      "annual_salary": 42176000,
+      "contract_years_remaining": 5,
+      "nba_player_id": 1630169
+    },
+    {
+      "age": 24,
+      "annual_salary": 29347826,
+      "contract_years_remaining": 5,
+      "nba_player_id": 1630170
+    },
+    {
+      "age": 24,
+      "annual_salary": 10185185,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1630171
+    },
+    {
+      "age": 23,
+      "annual_salary": 18500000,
+      "contract_years_remaining": 5,
+      "nba_player_id": 1630172
+    },
+    {
+      "age": 25,
+      "annual_salary": 6000000,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630173
+    },
+    {
+      "age": 25,
+      "annual_salary": 11000000,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1630174
+    },
+    {
+      "age": 24,
+      "annual_salary": 12900000,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1630175
+    },
+    {
+      "age": 24,
+      "annual_salary": 35147000,
+      "contract_years_remaining": 5,
+      "nba_player_id": 1630178
+    },
+    {
+      "age": 24,
+      "annual_salary": 12654321,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1630182
+    },
+    {
+      "age": 24,
+      "annual_salary": 23017242,
+      "contract_years_remaining": 5,
+      "nba_player_id": 1630183
+    },
+    {
+      "age": 24,
+      "annual_salary": 8571429,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1630188
+    },
+    {
+      "age": 23,
+      "annual_salary": 15000000,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1630191
+    },
+    {
+      "age": 24,
+      "annual_salary": 8888889,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1630192
+    },
+    {
+      "age": 25,
+      "annual_salary": 32500000,
+      "contract_years_remaining": 5,
+      "nba_player_id": 1630193
+    },
+    {
+      "age": 25,
+      "annual_salary": 1427671,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630194
+    },
+    {
+      "age": 25,
+      "annual_salary": 12991650,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1630198
+    },
+    {
+      "age": 25,
+      "annual_salary": 9104167,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630200
+    },
+    {
+      "age": 27,
+      "annual_salary": 6696429,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1630202
+    },
+    {
+      "age": 27,
+      "annual_salary": 383912,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630205
+    },
+    {
+      "age": 27,
+      "annual_salary": 5000000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1630208
+    },
+    {
+      "age": 24,
+      "annual_salary": 745726,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1630215
+    },
+    {
+      "age": 26,
+      "annual_salary": 34005250,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1630217
+    },
+    {
+      "age": 22,
+      "annual_salary": 12483048,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1630224
+    },
+    {
+      "age": 22,
+      "annual_salary": 7636154,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630228
+    },
+    {
+      "age": 27,
+      "annual_salary": 8571429,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1630230
+    },
+    {
+      "age": 24,
+      "annual_salary": 7975000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1630231
+    },
+    {
+      "age": 28,
+      "annual_salary": 2164993,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630241
+    },
+    {
+      "age": 27,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630243
+    },
+    {
+      "age": 25,
+      "annual_salary": 7000000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1630245
+    },
+    {
+      "age": 24,
+      "annual_salary": 2162606,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1630249
+    },
+    {
+      "age": 29,
+      "annual_salary": 7565217,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630256
+    },
+    {
+      "age": 27,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630283
+    },
+    {
+      "age": 27,
+      "annual_salary": 2196970,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630288
+    },
+    {
+      "age": 25,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630314
+    },
+    {
+      "age": 27,
+      "annual_salary": 2196970,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630322
+    },
+    {
+      "age": 24,
+      "annual_salary": 2196970,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630526
+    },
+    {
+      "age": 23,
+      "annual_salary": 596581,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1630527
+    },
+    {
+      "age": 26,
+      "annual_salary": 12976362,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1630529
+    },
+    {
+      "age": 24,
+      "annual_salary": 5159855,
+      "contract_years_remaining": 5,
+      "nba_player_id": 1630530
+    },
+    {
+      "age": 22,
+      "annual_salary": 634437,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1630531
+    },
+    {
+      "age": 23,
+      "annual_salary": 7007092,
+      "contract_years_remaining": 6,
+      "nba_player_id": 1630532
+    },
+    {
+      "age": 23,
+      "annual_salary": 6133005,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630533
+    },
+    {
+      "age": 24,
+      "annual_salary": 4310280,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1630534
+    },
+    {
+      "age": 24,
+      "annual_salary": 4158439,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630538
+    },
+    {
+      "age": 24,
+      "annual_salary": 2196970,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630539
+    },
+    {
+      "age": 24,
+      "annual_salary": 4710144,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1630540
+    },
+    {
+      "age": 22,
+      "annual_salary": 5803269,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1630541
+    },
+    {
+      "nba_player_id": 1630542
+    },
+    {
+      "age": 23,
+      "annual_salary": 4908189,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630544
+    },
+    {
+      "age": 24,
+      "annual_salary": 2546640,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1630545
+    },
+    {
+      "age": 23,
+      "annual_salary": 3087519,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1630548
+    },
+    {
+      "age": 23,
+      "annual_salary": 3989122,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630549
+    },
+    {
+      "age": 22,
+      "annual_salary": 1988598,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630550
+    },
+    {
+      "age": 23,
+      "annual_salary": 1800000,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1630551
+    },
+    {
+      "age": 23,
+      "annual_salary": 4510905,
+      "contract_years_remaining": 6,
+      "nba_player_id": 1630552
+    },
+    {
+      "age": 22,
+      "annual_salary": 2162606,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1630553
+    },
+    {
+      "age": 24,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630556
+    },
+    {
+      "age": 25,
+      "annual_salary": 5705888,
+      "contract_years_remaining": 5,
+      "nba_player_id": 1630557
+    },
+    {
+      "age": 26,
+      "annual_salary": 6451230,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630558
+    },
+    {
+      "age": 26,
+      "annual_salary": 12976362,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1630559
+    },
+    {
+      "age": 23,
+      "annual_salary": 4041249,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630560
+    },
+    {
+      "age": 23,
+      "annual_salary": 10130980,
+      "contract_years_remaining": 6,
+      "nba_player_id": 1630567
+    },
+    {
+      "age": 24,
+      "annual_salary": 2726603,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630570
+    },
+    {
+      "age": 25,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630572
+    },
+    {
+      "age": 27,
+      "annual_salary": 2092344,
+      "contract_years_remaining": 5,
+      "nba_player_id": 1630573
+    },
+    {
+      "age": 22,
+      "annual_salary": 1064558,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1630574
+    },
+    {
+      "age": 23,
+      "annual_salary": 3000000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1630577
+    },
+    {
+      "age": 22,
+      "annual_salary": 5424654,
+      "contract_years_remaining": 6,
+      "nba_player_id": 1630578
+    },
+    {
+      "age": 26,
+      "annual_salary": 2092344,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630579
+    },
+    {
+      "age": 22,
+      "annual_salary": 8352367,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630581
+    },
+    {
+      "age": 24,
+      "annual_salary": 3960531,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630583
+    },
+    {
+      "age": 24,
+      "annual_salary": 2087519,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630590
+    },
+    {
+      "age": 23,
+      "annual_salary": 9188385,
+      "contract_years_remaining": 6,
+      "nba_player_id": 1630591
+    },
+    {
+      "age": 24,
+      "annual_salary": 1891857,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1630592
+    },
+    {
+      "age": 23,
+      "annual_salary": 13940658,
+      "contract_years_remaining": 6,
+      "nba_player_id": 1630595
+    },
+    {
+      "age": 23,
+      "annual_salary": 11227809,
+      "contract_years_remaining": 6,
+      "nba_player_id": 1630596
+    },
+    {
+      "age": 26,
+      "annual_salary": 10514017,
+      "contract_years_remaining": 5,
+      "nba_player_id": 1630598
+    },
+    {
+      "age": 22,
+      "annual_salary": 1891857,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1630611
+    },
+    {
+      "age": 25,
+      "annual_salary": 2196970,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630625
+    },
+    {
+      "age": 26,
+      "annual_salary": 1988598,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630631
+    },
+    {
+      "age": 24,
+      "annual_salary": 2120693,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630639
+    },
+    {
+      "age": 27,
+      "annual_salary": 2088033,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1630643
+    },
+    {
+      "age": 24,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630658
+    },
+    {
+      "age": 26,
+      "annual_salary": 223718,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1630692
+    },
+    {
+      "age": 26,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630695
+    },
+    {
+      "age": 27,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630696
+    },
+    {
+      "age": 21,
+      "annual_salary": 6059520,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1630700
+    },
+    {
+      "age": 22,
+      "annual_salary": 2019699,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1630702
+    },
+    {
+      "age": 20,
+      "annual_salary": 10259160,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1630703
+    },
+    {
+      "age": 25,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1630811
+    },
+    {
+      "age": 22,
+      "annual_salary": 7977240,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631093
+    },
+    {
+      "age": 22,
+      "annual_salary": 12160800,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631094
+    },
+    {
+      "age": 21,
+      "annual_salary": 9770880,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631095
+    },
+    {
+      "age": 22,
+      "annual_salary": 10880640,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631096
+    },
+    {
+      "age": 22,
+      "annual_salary": 7245720,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631097
+    },
+    {
+      "age": 24,
+      "annual_salary": 8809560,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631099
+    },
+    {
+      "age": 21,
+      "annual_salary": 6614160,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631101
+    },
+    {
+      "age": 21,
+      "annual_salary": 3217920,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631103
+    },
+    {
+      "age": 21,
+      "annual_salary": 2624280,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631104
+    },
+    {
+      "age": 21,
+      "annual_salary": 4536840,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631105
+    },
+    {
+      "age": 23,
+      "annual_salary": 3695160,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631106
+    },
+    {
+      "age": 21,
+      "annual_salary": 2464200,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631107
+    },
+    {
+      "age": 21,
+      "annual_salary": 7142857,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1631108
+    },
+    {
+      "age": 23,
+      "annual_salary": 4094280,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631109
+    },
+    {
+      "age": 21,
+      "annual_salary": 5570040,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631110
+    },
+    {
+      "age": 23,
+      "annual_salary": 2537040,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631111
+    },
+    {
+      "age": 23,
+      "annual_salary": 4775760,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631114
+    },
+    {
+      "age": 24,
+      "annual_salary": 491887,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1631115
+    },
+    {
+      "age": 23,
+      "annual_salary": 2965920,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631117
+    },
+    {
+      "age": 22,
+      "annual_salary": 2019699,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631119
+    },
+    {
+      "age": 22,
+      "annual_salary": 2552520,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1631124
+    },
+    {
+      "age": 23,
+      "annual_salary": 3089640,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631128
+    },
+    {
+      "age": 25,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1631131
+    },
+    {
+      "age": 24,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1631132
+    },
+    {
+      "age": 22,
+      "annual_salary": 2019699,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1631133
+    },
+    {
+      "age": 22,
+      "annual_salary": 491887,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631157
+    },
+    {
+      "age": 25,
+      "annual_salary": 2120693,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631165
+    },
+    {
+      "age": 23,
+      "annual_salary": 3685800,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1631170
+    },
+    {
+      "age": 21,
+      "annual_salary": 5027040,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631172
+    },
+    {
+      "age": 25,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1631197
+    },
+    {
+      "age": 24,
+      "annual_salary": 2990040,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1631200
+    },
+    {
+      "age": 24,
+      "annual_salary": 2755080,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1631204
+    },
+    {
+      "age": 22,
+      "annual_salary": 3510480,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631207
+    },
+    {
+      "age": 24,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1631209
+    },
+    {
+      "age": 22,
+      "annual_salary": 2413560,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631212
+    },
+    {
+      "age": 25,
+      "annual_salary": 635853,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631213
+    },
+    {
+      "age": 22,
+      "annual_salary": 2019693,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631216
+    },
+    {
+      "age": 23,
+      "annual_salary": 957763,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1631217
+    },
+    {
+      "age": 24,
+      "annual_salary": 1891857,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1631218
+    },
+    {
+      "age": 25,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1631221
+    },
+    {
+      "age": 23,
+      "annual_salary": 3352680,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631222
+    },
+    {
+      "age": 23,
+      "annual_salary": 2847240,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631223
+    },
+    {
+      "age": 21,
+      "annual_salary": 491887,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631230
+    },
+    {
+      "age": 24,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1631232
+    },
+    {
+      "age": 22,
+      "annual_salary": 1891858,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1631243
+    },
+    {
+      "age": 26,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1631245
+    },
+    {
+      "age": 24,
+      "annual_salary": 2120693,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1631246
+    },
+    {
+      "age": 24,
+      "annual_salary": 2494320,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1631248
+    },
+    {
+      "age": 24,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631250
+    },
+    {
+      "age": 23,
+      "annual_salary": 1407153,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1631255
+    },
+    {
+      "age": 25,
+      "annual_salary": 2120693,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631260
+    },
+    {
+      "age": 25,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1631288
+    },
+    {
+      "age": 25,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1631306
+    },
+    {
+      "age": 24,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631311
+    },
+    {
+      "age": 29,
+      "annual_salary": 7692308,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1631323
+    },
+    {
+      "age": 21,
+      "annual_salary": 12768960,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641705
+    },
+    {
+      "age": 22,
+      "annual_salary": 11424600,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641706
+    },
+    {
+      "age": 22,
+      "annual_salary": 9249960,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641708
+    },
+    {
+      "age": 22,
+      "annual_salary": 8376000,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641709
+    },
+    {
+      "age": 21,
+      "annual_salary": 7607760,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641710
+    },
+    {
+      "age": 21,
+      "annual_salary": 4763760,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641711
+    },
+    {
+      "age": 20,
+      "annual_salary": 1891857,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1641712
+    },
+    {
+      "age": 20,
+      "annual_salary": 1891857,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641713
+    },
+    {
+      "age": 20,
+      "annual_salary": 3379080,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641715
+    },
+    {
+      "age": 21,
+      "annual_salary": 6362520,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641716
+    },
+    {
+      "age": 21,
+      "annual_salary": 5555880,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641717
+    },
+    {
+      "age": 21,
+      "annual_salary": 4084200,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641718
+    },
+    {
+      "age": 21,
+      "annual_salary": 3879840,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1641720
+    },
+    {
+      "age": 22,
+      "annual_salary": 1891857,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641721
+    },
+    {
+      "age": 22,
+      "annual_salary": 4525680,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641722
+    },
+    {
+      "age": 21,
+      "annual_salary": 4299000,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641723
+    },
+    {
+      "age": 21,
+      "annual_salary": 5278320,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641724
+    },
+    {
+      "age": 20,
+      "annual_salary": 5014560,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641726
+    },
+    {
+      "age": 20,
+      "annual_salary": 3114240,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641727
+    },
+    {
+      "age": 21,
+      "annual_salary": 2571480,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641729
+    },
+    {
+      "age": 20,
+      "annual_salary": 3244080,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641730
+    },
+    {
+      "age": 20,
+      "annual_salary": 6945240,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641731
+    },
+    {
+      "age": 22,
+      "annual_salary": 2120693,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641732
+    },
+    {
+      "age": 20,
+      "annual_salary": 2587200,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641733
+    },
+    {
+      "age": 23,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1641736
+    },
+    {
+      "age": 21,
+      "annual_salary": 1157153,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1641737
+    },
+    {
+      "age": 24,
+      "annual_salary": 1891857,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641739
+    },
+    {
+      "age": 23,
+      "annual_salary": 429323,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1641740
+    },
+    {
+      "age": 23,
+      "annual_salary": 1891857,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641741
+    },
+    {
+      "age": 22,
+      "annual_salary": 5756880,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1641744
+    },
+    {
+      "age": 23,
+      "annual_salary": 1891857,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641748
+    },
+    {
+      "age": 25,
+      "annual_salary": 1050000,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1641757
+    },
+    {
+      "age": 21,
+      "annual_salary": 1891857,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641763
+    },
+    {
+      "age": 21,
+      "annual_salary": 3519960,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641764
+    },
+    {
+      "age": 22,
+      "annual_salary": 2869920,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641765
+    },
+    {
+      "age": 23,
+      "annual_salary": 2663880,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641767
+    },
+    {
+      "age": 21,
+      "annual_salary": 2424892,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1641774
+    },
+    {
+      "age": 23,
+      "annual_salary": 3628440,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1641783
+    },
+    {
+      "age": 23,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1641787
+    },
+    {
+      "age": 23,
+      "annual_salary": 2622360,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1641794
+    },
+    {
+      "age": 23,
+      "annual_salary": 1157143,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641796
+    },
+    {
+      "age": 21,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1641798
+    },
+    {
+      "age": 24,
+      "annual_salary": 1157153,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1641810
+    },
+    {
+      "age": 20,
+      "annual_salary": 5195520,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1641824
+    },
+    {
+      "age": 19,
+      "annual_salary": 8245320,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1641842
+    },
+    {
+      "age": 24,
+      "annual_salary": 1891857,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1641854
+    },
+    {
+      "age": 28,
+      "annual_salary": 2048780,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1641871
+    },
+    {
+      "age": 24,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1641878
+    },
+    {
+      "age": 24,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1641989
+    },
+    {
+      "age": 25,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1641998
+    },
+    {
+      "age": 25,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1642024
+    },
+    {
+      "age": 19,
+      "annual_salary": 12569040,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1642258
+    },
+    {
+      "age": 19,
+      "annual_salary": 11245680,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1642259
+    },
+    {
+      "age": 23,
+      "annual_salary": 3819120,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1642261
+    },
+    {
+      "age": 20,
+      "annual_salary": 5485080,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1642262
+    },
+    {
+      "age": 20,
+      "annual_salary": 10098960,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1642263
+    },
+    {
+      "age": 20,
+      "annual_salary": 9131760,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1642264
+    },
+    {
+      "age": 20,
+      "annual_salary": 6262920,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1642265
+    },
+    {
+      "age": 20,
+      "annual_salary": 3565000,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1642266
+    },
+    {
+      "age": 19,
+      "annual_salary": 4454880,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1642267
+    },
+    {
+      "age": 20,
+      "annual_salary": 2520120,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1642268
+    },
+    {
+      "age": 22,
+      "annual_salary": 4702800,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1642269
+    },
+    {
+      "age": 20,
+      "annual_salary": 6586440,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1642270
+    },
+    {
+      "age": 21,
+      "annual_salary": 3000000,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1642271
+    },
+    {
+      "age": 20,
+      "annual_salary": 4032240,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1642272
+    },
+    {
+      "age": 21,
+      "annual_salary": 2825520,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1642273
+    },
+    {
+      "age": 20,
+      "annual_salary": 3202560,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1642274
+    },
+    {
+      "age": 19,
+      "annual_salary": 7488720,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1642275
+    },
+    {
+      "age": 20,
+      "annual_salary": 4231800,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1642276
+    },
+    {
+      "age": 22,
+      "annual_salary": 3326160,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1642281
+    },
+    {
+      "age": 24,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1642285
+    },
+    {
+      "age": 22,
+      "annual_salary": 1157153,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1642345
+    },
+    {
+      "age": 22,
+      "annual_salary": 2538240,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1642346
+    },
+    {
+      "age": 22,
+      "annual_salary": 1862265,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1642347
+    },
+    {
+      "age": 21,
+      "annual_salary": 425619,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1642348
+    },
+    {
+      "age": 22,
+      "annual_salary": 3000000,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1642349
+    },
+    {
+      "age": 22,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1642354
+    },
+    {
+      "age": 20,
+      "annual_salary": 2795294,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1642358
+    },
+    {
+      "age": 24,
+      "annual_salary": 438920,
+      "contract_years_remaining": 2,
+      "nba_player_id": 1642366
+    },
+    {
+      "age": 23,
+      "annual_salary": 1862265,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1642367
+    },
+    {
+      "age": 21,
+      "annual_salary": 1157153,
+      "contract_years_remaining": 4,
+      "nba_player_id": 1642377
+    },
+    {
+      "age": 24,
+      "contract_years_remaining": 1,
+      "nba_player_id": 1642402
+    },
+    {
+      "age": 23,
+      "annual_salary": 1000000,
+      "contract_years_remaining": 3,
+      "nba_player_id": 1642419
+    }
+  ],
+  "schema_version": 1,
+  "season": "2024-25",
+  "sources": [
+    {
+      "role": "identity",
+      "sha256": "9a1ad32cd295ea069f1769b43f17aa1875b1f3036a4b6f233b749b7cd41d1ec3"
+    },
+    {
+      "role": "player_targets",
+      "sha256": "433e59f47be18ef03d05d75780eb3297f4bf5a969adce1ccd11b5c3a8c279f19"
+    },
+    {
+      "role": "raw_manifest",
+      "sha256": "7d9ba713707cad25aa367521e367b318ac1b22ff917ecce84bb59286d5e820a0"
+    }
+  ],
+  "version": "nba-manager-state-source-v1"
+}

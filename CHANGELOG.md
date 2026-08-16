@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Make NBA manager promotion inputs cross-machine reproducible and bind the six governance proofs
+  to real GitHub Actions jobs/steps without duplicate feature-branch CI runs.
+
 - Add a WIP-only thirty-team focal-policy manager experiment with a frozen observable reality
   baseline, per-team policy injection, source-level paired evidence, resumable gzip cells, keyless
   real-state construction, strict hashes and candidate-only governance.

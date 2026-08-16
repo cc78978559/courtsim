@@ -25,10 +25,11 @@ Bird-rights, obligation/freeze and atomic settlement validation with the candida
 ## Frozen inputs and storage boundary
 
 `nba-manager-source-sync` caches keyless ESPN athlete and historical contract responses locally.
-Raw payloads and their manifest remain under `.cache/`; they are not Git inputs. The compact source
-records explicit source/fallback provenance for every age, salary, contract term and Bird-rights
-value. `nba-manager-state-build` requires at least 95% source age coverage and 90% reality-minute-
-weighted source salary coverage before marking a state formally eligible.
+Raw payloads remain under `.cache/`. The compact, normalized formal source is frozen at
+`experiments/inputs/nba-manager-state-source-2025.json`; it records explicit source/fallback
+provenance for every age, salary, contract term and Bird-rights value. `nba-manager-state-build`
+requires at least 95% source age coverage and 90% reality-minute-weighted source salary coverage
+before marking a state formally eligible.
 
 The state checkpoint, cell states and progress data live in ignored
 `work/manager-promotion/`. Every source/arm/season cell is gzip-compressed and contains only state,
@@ -44,13 +45,15 @@ with a later commit.
 
 ## Commands
 
-Build the local source and initial state:
+Reconstruct the frozen initial state on any machine. The receipt stores only the checkpoint file
+name, so its SHA-256 is independent of the checkout directory and operating system:
 
 ```powershell
-courtsim nba-manager-source-sync <player-targets> <identity-crosswalk> `
-  work/manager-promotion/management-source.json --cache .cache/nba-manager-source
-courtsim nba-manager-state-build <player-targets> `
-  work/manager-promotion/management-source.json <shot-profiles> <team-strength> `
+courtsim nba-manager-state-build `
+  experiments/inputs/nba-player-targets-2024-25.json `
+  experiments/inputs/nba-manager-state-source-2025.json `
+  experiments/inputs/nba-2024-25-team-shot-profiles-calibrated.json `
+  experiments/sources/nba-2024-25-team-strength-035-v1.json `
   work/manager-promotion/initial-franchise.json.gz `
   work/manager-promotion/initial-franchise-receipt.json
 ```
@@ -65,6 +68,7 @@ courtsim nba-manager-study-run `
   <shot-profiles> <macro-reference> experiments/sources/nba-manager-profiles-v1.json `
   work/manager-promotion/formal-v1 `
   --player-targets experiments/inputs/nba-player-targets-2024-25.json `
+  --state-build-source experiments/inputs/nba-manager-state-source-2025.json `
   --protocol experiments/promotion/nba-manager-policy-v1-protocol.json `
   --workers 4 --maximum-new-sources 2
 courtsim nba-manager-study-status work/manager-promotion/formal-v1
@@ -99,5 +103,10 @@ all pass may `nba-manager-study-receipt` write
 candidate evidence and the v6 release registry remain unchanged.
 
 Every `--ci` value must be `NAME=passed@COMMIT@RUN_URL`; the commit must match the frozen study and
-the URL must identify a successful run and matching successful job in the canonical
-`cc78978559/courtsim` repository. All six required names must be supplied exactly once.
+the URL must identify a successful run in the canonical `cc78978559/courtsim` repository. The six
+governance proof names map to the existing Ubuntu/Windows/package jobs and, where relevant, their
+successful named steps. The same run URL may support several proofs without duplicating the
+workflow. All six proof names must be supplied exactly once.
+
+PR #46 is stacked on PR #45. Merge #45 with a merge commit to preserve ancestry. If #45 is squash-
+or rebase-merged, rebase the two #46 commits onto the resulting `main` before retargeting #46.
