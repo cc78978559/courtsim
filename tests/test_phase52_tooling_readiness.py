@@ -20,6 +20,20 @@ from courtsim.tool_status import build_project_status
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_ci_preserves_governance_names_and_combines_complete_coverage() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    assert "name: Quality (ubuntu-latest)" in workflow
+    assert "name: Quality (windows-latest)" in workflow
+    assert "name: Package smoke test" in workflow
+    assert 'coverage run --parallel-mode -m pytest -q -m "not slow"' in workflow
+    assert "coverage run --parallel-mode -m pytest -q -m slow" in workflow
+    assert "pattern: coverage-*" in workflow
+    assert "merge-multiple: true" in workflow
+    assert "python -m coverage combine coverage-data" in workflow
+    assert "python -m coverage report" in workflow
+    assert "needs: [static, coverage-fast, coverage-slow]" in workflow
+
+
 def _summary(season_id: str, seed: int) -> QuickSimSeasonSummary:
     offset = seed % 3
     return QuickSimSeasonSummary(

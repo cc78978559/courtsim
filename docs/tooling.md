@@ -71,6 +71,13 @@
 
 Replay只读取已保存事件，不重新运行模拟。Verify会重新计算清单中输入和输出文件的SHA-256。
 
+## CI 分片
+
+CI 将静态检查、Windows 快速测试、Ubuntu 快速 coverage、Ubuntu 慢测 coverage 和
+package smoke 分开调度。两份 Ubuntu coverage 产物最后合并并执行同一个 85% 门槛；
+因此分片只改变调度，不减少测试集合，也不改变既有 Ubuntu、Windows 和 package
+治理证明名称。
+
 ## Trace边界
 
 正式事件记录“发生了什么”，Decision Trace记录“AI为什么这样选择”。Trace包含候选项、权重、概率、选中项和随机流名称，默认批跑时可以关闭。

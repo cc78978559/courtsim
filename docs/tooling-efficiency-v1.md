@@ -78,6 +78,16 @@ coverage: 86%
 
 `coverage` 子命令仍保留完整逐文件报告，供主动调查覆盖缺口时使用。
 
+远端 CI 同样按反馈成本分片：静态检查和 Windows 快速测试尽早报告；Ubuntu 将
+`not slow` 与 `slow` 分别采集 coverage，最后合并数据并执行 85% 门槛。package smoke
+只等待静态检查，不再等待两套重复的全量 coverage。治理层仍看到
+`Quality (ubuntu-latest)`、`Quality (windows-latest)` 和 `Package smoke test`，避免旧
+回执的证明名称失配。
+
+2026-08-22 本地验证中，12 项慢测普通执行约 33 秒，coverage 插桩后为 13 分 43 秒；
+因此慢 coverage 作业保留 25 分钟失控上限。它与快速 coverage 并行，不把该上限当作
+正常耗时预算。
+
 ## 子命令维护
 
 `tools.ps1` 不再复制 Python CLI 的完整命令白名单。PowerShell 只处理
