@@ -25,6 +25,8 @@
 .\tools.cmd check-static
 .\tools.cmd check-unit
 .\tools.cmd check-fast
+.\tools.cmd check-changed
+.\tools.cmd check-timed
 .\tools.cmd check-slow
 .\tools.cmd check-franchise
 .\tools.cmd check
@@ -33,6 +35,15 @@
 `check-fast` 排除 `slow` 标记；`check` 依次执行格式检查、静态检查、严格类型检查、
 全部测试和覆盖率门槛。失败时控制台只保留有界摘要，完整输出写入
 `work/logs/tooling/`。
+
+`check-fast` 和 `check-timed` 会把附加参数继续传给 pytest。`check-changed` 对仅修改
+测试文件的工作树执行定向检查；源码、依赖、配置或工具脚本发生变化时会保守回退到
+完整快速门禁。`check-timed` 将逐阶段耗时写入被 Git 忽略的
+`work/metrics/check-timed-latest.json`。
+
+若 `.venv` 缺模块或 `pip check` 失败，使用 `bootstrap --repair`。损坏环境会先移动到
+`work/quarantine/venv-<timestamp>`，不会直接删除，然后按锁文件重新创建；健康环境
+会立即返回，不重复联网安装。
 
 ## 机器状态与 NBA 产物
 

@@ -4,6 +4,9 @@
 
 ```powershell
 .\tools.cmd check-fast
+.\tools.cmd check-fast -k schedule
+.\tools.cmd check-changed
+.\tools.cmd check-timed
 ```
 
 局部反馈可把筛选参数直接传给 `test`、`coverage`、`lint`、`format` 和
@@ -19,6 +22,22 @@
 2. Ruff lint；
 3. mypy strict；
 4. 排除 `slow` 标记的 pytest，不采集覆盖率。
+
+附加参数会传给 pytest，因此可用 `-k` 做更小的开发循环。`check-changed` 在只有测试
+文件变化时只检查并运行这些测试；只要源码、依赖、配置或工具入口变化，就自动回退
+到完整 `check-fast`，避免漏掉跨模块回归。`check-timed` 执行同一快速门禁，并把
+提交、脏状态、总耗时和逐阶段耗时写到
+`work/metrics/check-timed-latest.json`，供本地性能回归比较。
+
+环境损坏时运行：
+
+```powershell
+.\tools.cmd bootstrap --repair
+```
+
+修复入口先验证开发模块和 `pip check`。无效 `.venv` 会被移动到被忽略的
+`work/quarantine/`，再按锁文件重建；原目录保留供诊断，不做不可恢复删除。健康环境
+直接成功返回，不重新下载依赖。
 
 成功时每个阶段只输出一行；任一阶段失败时回放该工具的完整诊断并保留退出码。
 完整诊断同时写入 `work/logs/tooling/<stage>-latest.log`，控制台最多保留前 20 行和
@@ -158,11 +177,11 @@ CRC、声明大小和逐文件 SHA-256。恢复前先执行同样的完整验证
 ## 当前验收
 
 - `check-static`：秒级反馈；
-- `check-fast`：2026-07-28 本机约 52 秒；
+- `check-fast`：2026-08-22 本机热启动 25.13 秒（优化前 58.70 秒）；
 - `check`：包含计算密集的完整 NBA 和 franchise 回归，本机约 8–18 分钟；
-- 快速测试：487 passed、1 skipped、3 slow deselected；
-- 完整门禁：490 passed、1 skipped，共收集 491 项；
-- 覆盖率门槛：85%；
+- 快速集合：783 项、12 项 `slow` deselected；
+- 完整门禁：795 项测试通过；
+- 覆盖率：85.05%，门槛 85%；
 - mypy strict 和 Ruff：通过；
 - 成功门禁输出保持 3–5 行，失败全文落盘；
 - 产物审计和 NBA 状态入口均为确定性、只读操作。

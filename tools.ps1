@@ -13,6 +13,34 @@ Set-Location $PSScriptRoot
 
 $VenvPython = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
 $Wheelhouse = Join-Path $PSScriptRoot "tools\wheelhouse"
+$script:TimingEnabled = $false
+$script:TimingStages = [System.Collections.Generic.List[object]]::new()
+$script:TimingStartedAt = $null
+
+function Write-TimingReceipt {
+    if (-not $script:TimingEnabled) { return }
+    $OutputDirectory = Join-Path $PSScriptRoot "work\metrics"
+    New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
+    $OutputPath = Join-Path $OutputDirectory "check-timed-latest.json"
+    $CompletedAt = [DateTimeOffset]::Now
+    $Commit = @(& git rev-parse HEAD 2>$null)
+    $Dirty = @(& git status --porcelain=v1 2>$null).Count -gt 0
+    $Receipt = [ordered]@{
+        schema = "courtsim-local-check-timing-v1"
+        command = "check-timed"
+        started_at = $script:TimingStartedAt.ToString("o")
+        completed_at = $CompletedAt.ToString("o")
+        elapsed_seconds = [math]::Round(
+            ($CompletedAt - $script:TimingStartedAt).TotalSeconds,
+            3
+        )
+        commit = if ($Commit.Count -gt 0) { $Commit[-1] } else { $null }
+        dirty = $Dirty
+        stages = @($script:TimingStages)
+    }
+    $Receipt | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $OutputPath -Encoding UTF8
+    Write-Output "timing-receipt: $OutputPath"
+}
 
 function Invoke-Python {
     param([string[]]$PythonArguments)
@@ -27,8 +55,17 @@ function Invoke-QuietPython {
         [string]$Label,
         [string[]]$PythonArguments
     )
+    $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     $Output = @(& $script:Python @PythonArguments 2>&1)
     $ExitCode = $LASTEXITCODE
+    $Stopwatch.Stop()
+    if ($script:TimingEnabled) {
+        $script:TimingStages.Add([ordered]@{
+            name = $Label
+            elapsed_seconds = [math]::Round($Stopwatch.Elapsed.TotalSeconds, 3)
+            passed = $ExitCode -eq 0
+        })
+    }
     if ($ExitCode -ne 0) {
         $LogDirectory = Join-Path $PSScriptRoot "work\logs\tooling"
         New-Item -ItemType Directory -Force -Path $LogDirectory | Out-Null
@@ -44,6 +81,7 @@ function Invoke-QuietPython {
             Write-Output "... output truncated; showing final 80 lines ..."
             $Output | Select-Object -Last 80 | Write-Output
         }
+        Write-TimingReceipt
         exit $ExitCode
     }
     Write-Output "${Label}: passed"
@@ -63,7 +101,41 @@ function Test-CompatiblePython {
     }
 }
 
+function Test-DevelopmentEnvironment {
+    param([string]$PythonPath)
+    if (-not (Test-Path -LiteralPath $PythonPath)) { return $false }
+    & $PythonPath -c "import coverage, courtsim, mypy, pytest, ruff" *> $null
+    if ($LASTEXITCODE -ne 0) { return $false }
+    & $PythonPath -m pip check *> $null
+    return $LASTEXITCODE -eq 0
+}
+
 if ($Command -eq "bootstrap") {
+    $RepairRequested = $RemainingArguments -contains "--repair"
+    $UnexpectedBootstrapArguments = @($RemainingArguments | Where-Object { $_ -ne "--repair" })
+    if ($UnexpectedBootstrapArguments.Count -gt 0) {
+        throw "Unsupported bootstrap arguments: $($UnexpectedBootstrapArguments -join ' ')"
+    }
+    if ($RepairRequested -and (Test-DevelopmentEnvironment -PythonPath $VenvPython)) {
+        Write-Output "development environment is healthy: $VenvPython"
+        exit 0
+    }
+    if (
+        $RepairRequested -and
+        (Test-Path -LiteralPath (Join-Path $PSScriptRoot ".venv")) -and
+        -not (Test-DevelopmentEnvironment -PythonPath $VenvPython)
+    ) {
+        $QuarantineRoot = Join-Path $PSScriptRoot "work\quarantine"
+        New-Item -ItemType Directory -Force -Path $QuarantineRoot | Out-Null
+        $QuarantinePath = Join-Path `
+            $QuarantineRoot `
+            ("venv-{0}" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
+        if (Test-Path -LiteralPath $QuarantinePath) {
+            throw "Virtual-environment quarantine path already exists: $QuarantinePath"
+        }
+        Move-Item -LiteralPath (Join-Path $PSScriptRoot ".venv") -Destination $QuarantinePath
+        Write-Output "quarantined invalid environment: $QuarantinePath"
+    }
     if (-not (Test-Path -LiteralPath $VenvPython)) {
         $EnvironmentCreated = $false
         $PythonCommand = Get-Command python -ErrorAction SilentlyContinue
@@ -124,6 +196,22 @@ if ($Command -eq "bootstrap-data") {
 $script:Python = if (Test-Path -LiteralPath $VenvPython) { $VenvPython } else { "python" }
 $env:PYTHONPATH = Join-Path $PSScriptRoot "src"
 
+function Invoke-FastCheck {
+    param([string[]]$PytestArguments = @())
+    Invoke-QuietPython "format" @("-m", "ruff", "format", "--check", ".")
+    Invoke-QuietPython "lint" @("-m", "ruff", "check", ".")
+    Invoke-QuietPython "typecheck" @("-m", "mypy")
+    Invoke-QuietPython "unit-tests" (@("-m", "pytest", "-q", "-m", "not slow") + $PytestArguments)
+}
+
+function Get-ChangedPaths {
+    $Paths = @(& git diff --name-only --diff-filter=ACMR HEAD)
+    if ($LASTEXITCODE -ne 0) { throw "Unable to inspect changed Git paths." }
+    $Paths += @(& git ls-files --others --exclude-standard)
+    if ($LASTEXITCODE -ne 0) { throw "Unable to inspect untracked Git paths." }
+    return @($Paths | Where-Object { $_ } | Sort-Object -Unique)
+}
+
 switch ($Command) {
     "test" {
         Invoke-Python (@("-m", "pytest") + $RemainingArguments)
@@ -165,10 +253,45 @@ switch ($Command) {
         Invoke-QuietPython "unit-tests" @("-m", "pytest", "-q", "-m", "not slow")
     }
     "check-fast" {
-        Invoke-QuietPython "format" @("-m", "ruff", "format", "--check", ".")
-        Invoke-QuietPython "lint" @("-m", "ruff", "check", ".")
+        Invoke-FastCheck -PytestArguments $RemainingArguments
+    }
+    "check-timed" {
+        $script:TimingEnabled = $true
+        $script:TimingStartedAt = [DateTimeOffset]::Now
+        Invoke-FastCheck -PytestArguments $RemainingArguments
+        Write-TimingReceipt
+    }
+    "check-changed" {
+        $ChangedPaths = @(Get-ChangedPaths)
+        if ($ChangedPaths.Count -eq 0) {
+            Write-Output "check-changed: no working-tree changes"
+            break
+        }
+        $PythonPaths = @($ChangedPaths | Where-Object { $_ -like "*.py" })
+        $SourceOrConfigurationChanged = @(
+            $ChangedPaths | Where-Object {
+                $_ -like "src/*" -or
+                $_ -eq "pyproject.toml" -or
+                $_ -like "requirements/*" -or
+                $_ -like "tools*"
+            }
+        ).Count -gt 0
+        if ($SourceOrConfigurationChanged) {
+            Write-Output "check-changed: production or tooling change; running full fast gate"
+            Invoke-FastCheck -PytestArguments $RemainingArguments
+            break
+        }
+        $ChangedTests = @($PythonPaths | Where-Object { $_ -like "tests/*" })
+        if ($ChangedTests.Count -eq 0) {
+            Write-Output "check-changed: no Python changes"
+            break
+        }
+        Invoke-QuietPython "format" (@("-m", "ruff", "format", "--check") + $PythonPaths)
+        Invoke-QuietPython "lint" (@("-m", "ruff", "check") + $PythonPaths)
         Invoke-QuietPython "typecheck" @("-m", "mypy")
-        Invoke-QuietPython "unit-tests" @("-m", "pytest", "-q", "-m", "not slow")
+        Invoke-QuietPython "changed-tests" (
+            @("-m", "pytest", "-q", "-m", "not slow") + $ChangedTests + $RemainingArguments
+        )
     }
     "check-slow" {
         Invoke-QuietPython "slow-tests" @("-m", "pytest", "-q", "-m", "slow")
