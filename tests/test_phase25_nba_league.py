@@ -7,6 +7,7 @@ from courtsim.nba_league import (
     NBAConferenceAlignment,
     NBASeriesResult,
     PlayInGame,
+    _nba_unscheduled_matchups,
     generate_nba_schedule,
     nba_alignment_from_dict,
     nba_alignment_to_dict,
@@ -19,6 +20,10 @@ from courtsim.playoffs import PlayoffSeed
 
 def team_ids() -> tuple[str, ...]:
     return tuple(f"T{index:02d}" for index in range(1, 31))
+
+
+def _pair(first: str, second: str) -> tuple[str, str]:
+    return (first, second) if first < second else (second, first)
 
 
 def test_series_home_court_uses_record_for_finals_and_seed_within_conference() -> None:
@@ -35,6 +40,8 @@ def test_series_home_court_uses_record_for_finals_and_seed_within_conference() -
     ) == ("E2", "W1")
 
 
+@pytest.mark.slow
+@pytest.mark.nba
 def test_thirty_team_schedule_has_1230_games_and_82_per_team() -> None:
     schedule = generate_nba_schedule(team_ids())
     assert schedule == generate_nba_schedule(team_ids())
@@ -55,6 +62,8 @@ def test_thirty_team_schedule_has_1230_games_and_82_per_team() -> None:
         assert len(participants) == len(games) * 2
 
 
+@pytest.mark.slow
+@pytest.mark.nba
 def test_thirty_team_schedule_passes_calendar_distribution_gates() -> None:
     schedule = generate_nba_schedule(team_ids())
     assert schedule.games[0].day == 1
@@ -85,13 +94,11 @@ def test_thirty_team_schedule_passes_calendar_distribution_gates() -> None:
         )
 
 
-def test_schedule_uses_division_conference_and_interconference_series_weights() -> None:
-    teams = team_ids()
-    alignment = NBAConferenceAlignment(teams[:15], teams[15:])
-    schedule = generate_nba_schedule(teams, alignment=alignment)
-    pair_games = Counter(
-        tuple(sorted((game.home_team_id, game.away_team_id))) for game in schedule.games
-    )
+def _assert_series_weights(
+    pair_games: Counter[tuple[str, str]],
+    alignment: NBAConferenceAlignment,
+    teams: tuple[str, ...],
+) -> None:
     for conference, divisions in (
         (set(alignment.east_team_ids), alignment.east_divisions),
         (set(alignment.west_team_ids), alignment.west_divisions),
@@ -99,20 +106,42 @@ def test_schedule_uses_division_conference_and_interconference_series_weights() 
         for team_id in conference:
             division = next(set(item) for item in divisions if team_id in item)
             division_counts = Counter(
-                pair_games[tuple(sorted((team_id, opponent_id)))]
-                for opponent_id in division - {team_id}
+                pair_games[_pair(team_id, opponent_id)] for opponent_id in division - {team_id}
             )
             conference_counts = Counter(
-                pair_games[tuple(sorted((team_id, opponent_id)))]
-                for opponent_id in conference - division
+                pair_games[_pair(team_id, opponent_id)] for opponent_id in conference - division
             )
             other_counts = Counter(
-                pair_games[tuple(sorted((team_id, opponent_id)))]
-                for opponent_id in set(teams) - conference
+                pair_games[_pair(team_id, opponent_id)] for opponent_id in set(teams) - conference
             )
             assert division_counts == {4: 4}
             assert conference_counts == {3: 4, 4: 6}
             assert other_counts == {2: 15}
+
+
+def test_matchup_matrix_uses_division_conference_and_interconference_weights() -> None:
+    teams = team_ids()
+    alignment = NBAConferenceAlignment(teams[:15], teams[15:])
+    matchups = _nba_unscheduled_matchups(teams, alignment)
+    pair_games = Counter(_pair(first, second) for _, first, second, _, _ in matchups)
+    appearances = Counter(
+        team_id for _, first, second, _, _ in matchups for team_id in (first, second)
+    )
+    home_games = Counter(home for _, _, _, home, _ in matchups)
+    assert len(matchups) == 1_230
+    assert set(appearances.values()) == {82}
+    assert set(home_games.values()) == {41}
+    _assert_series_weights(pair_games, alignment, teams)
+
+
+@pytest.mark.slow
+@pytest.mark.nba
+def test_schedule_preserves_division_conference_and_interconference_series_weights() -> None:
+    teams = team_ids()
+    alignment = NBAConferenceAlignment(teams[:15], teams[15:])
+    schedule = generate_nba_schedule(teams, alignment=alignment)
+    pair_games = Counter(_pair(game.home_team_id, game.away_team_id) for game in schedule.games)
+    _assert_series_weights(pair_games, alignment, teams)
 
 
 def test_explicit_divisions_round_trip_and_legacy_alignment_migrates() -> None:

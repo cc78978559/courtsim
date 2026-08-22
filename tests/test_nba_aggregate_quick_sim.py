@@ -3,11 +3,15 @@ from __future__ import annotations
 from pathlib import Path
 from typing import cast
 
+import pytest
+
+import courtsim.analysis.nba_aggregate_quick_sim as aggregate_module
 from courtsim.analysis.nba_aggregate_quick_sim import (
     build_nba_aggregate_quick_sim_executor,
     run_nba_aggregate_quick_sim_batch,
 )
 from courtsim.analysis.quick_sim_formal_gate import evaluate_quick_sim_formal_gate
+from courtsim.season import ScheduledGame, SeasonSchedule
 
 ROOT = Path(__file__).resolve().parents[1]
 PARAMETERS = ROOT / "experiments" / "sources" / "nba-aggregate-quick-sim-parameters-v1.json"
@@ -15,7 +19,33 @@ STRENGTH = ROOT / "experiments" / "sources" / "nba-2024-25-team-strength-v1.json
 GATE = ROOT / "experiments" / "gates" / "nba-2022-25-aggregate-quick-sim-formal-gate-v1.json"
 
 
-def test_aggregate_executor_is_fast_deterministic_and_complete() -> None:
+def test_aggregate_executor_smoke_is_deterministic(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    executor = build_nba_aggregate_quick_sim_executor(PARAMETERS, STRENGTH)
+    teams = tuple(team_id for team_id, _ in executor.team_offsets)
+    schedule = SeasonSchedule(
+        teams,
+        tuple(
+            ScheduledGame(index + 1, 1, teams[index * 2], teams[index * 2 + 1])
+            for index in range(15)
+        ),
+    )
+    monkeypatch.setattr(
+        aggregate_module, "generate_nba_schedule", lambda *_args, **_kwargs: schedule
+    )
+    first = executor.execute("aggregate-smoke", 20260906)
+    second = executor.execute("aggregate-smoke", 20260906)
+    assert first == second
+    assert len(first.standings) == 30
+    assert len(first.postseason.series) == 15
+    assert first.summary.games == 15
+    assert first.summary.champion_seed is not None
+
+
+@pytest.mark.slow
+@pytest.mark.nba
+def test_aggregate_executor_is_deterministic_and_complete() -> None:
     executor = build_nba_aggregate_quick_sim_executor(PARAMETERS, STRENGTH)
     first = executor.execute("aggregate-season", 20260906)
     second = executor.execute("aggregate-season", 20260906)
@@ -27,6 +57,8 @@ def test_aggregate_executor_is_fast_deterministic_and_complete() -> None:
     assert first.summary.champion_seed is not None
 
 
+@pytest.mark.slow
+@pytest.mark.nba
 def test_aggregate_batch_reaches_formal_gate_without_target_fitting(tmp_path: Path) -> None:
     checkpoint = tmp_path / "aggregate.json"
     manifest = tmp_path / "aggregate.manifest.json"

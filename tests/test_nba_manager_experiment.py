@@ -68,6 +68,17 @@ def spec(initial: str) -> NBAManagerExperimentSpec:
     )
 
 
+def development_spec(initial: str) -> NBAManagerExperimentSpec:
+    return replace(
+        spec(initial),
+        experiment_id="nba-manager-development-resume",
+        master_seeds=(20270301, 20270302),
+        focal_team_ids=TEAM_IDS[:2],
+        seasons=2,
+        formal_run=False,
+    )
+
+
 def executor(
     calls: list[NBAManagerSeasonRequest],
 ) -> Callable[[NBAManagerSeasonRequest], NBAManagerSeasonExecution]:
@@ -114,6 +125,8 @@ def executor(
     return execute
 
 
+@pytest.mark.slow
+@pytest.mark.franchise
 def test_nba_manager_experiment_resumes_and_verifies(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -248,10 +261,40 @@ def test_nba_manager_experiment_resumes_and_verifies(
     assert no_calls == []
 
 
+def test_development_manager_experiment_resumes_and_verifies(tmp_path: Path) -> None:
+    initial = '{"league":"initial"}'
+    development = development_spec(initial)
+    output = tmp_path / "study"
+    first_calls: list[NBAManagerSeasonRequest] = []
+    first = run_nba_manager_experiment(
+        spec=development,
+        initial_state_payload=initial,
+        executor=executor(first_calls),
+        output_directory=output,
+        maximum_new_sources=1,
+    )
+    assert not first.complete
+    assert first.executed_cells == 4
+    assert first.completed_sources == 1
+
+    resumed_calls: list[NBAManagerSeasonRequest] = []
+    resumed = run_nba_manager_experiment(
+        spec=development,
+        initial_state_payload=initial,
+        executor=executor(resumed_calls),
+        output_directory=output,
+    )
+    assert resumed.complete
+    assert resumed.executed_cells == 4
+    assert resumed.reused_cells == 4
+    assert resumed.report_path is not None
+    assert verify_nba_manager_experiment(resumed.report_path) == resumed.evidence
+
+
 def test_nba_manager_experiment_detects_tampered_cell(tmp_path: Path) -> None:
     initial = '{"league":"initial"}'
     result = run_nba_manager_experiment(
-        spec=spec(initial),
+        spec=development_spec(initial),
         initial_state_payload=initial,
         executor=executor([]),
         output_directory=tmp_path / "study",
@@ -647,14 +690,14 @@ def test_github_ci_attestation_rejects_failed_or_unavailable_runs(
 def test_worker_count_changes_only_dispatch_not_evidence(tmp_path: Path) -> None:
     initial = '{"league":"initial"}'
     serial = run_nba_manager_experiment(
-        spec=spec(initial),
+        spec=development_spec(initial),
         initial_state_payload=initial,
         executor=executor([]),
         output_directory=tmp_path / "serial",
         workers=1,
     )
     parallel = run_nba_manager_experiment(
-        spec=spec(initial),
+        spec=development_spec(initial),
         initial_state_payload=initial,
         executor=executor([]),
         output_directory=tmp_path / "parallel",
