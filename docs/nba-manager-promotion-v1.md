@@ -70,6 +70,7 @@ courtsim nba-manager-study-run `
   --player-targets experiments/inputs/nba-player-targets-2024-25.json `
   --state-build-source experiments/inputs/nba-manager-state-source-2025.json `
   --protocol experiments/promotion/nba-manager-policy-v1-protocol.json `
+  --stop-file work/manager-promotion/formal-v1/STOP `
   --workers 4 --maximum-new-sources 2
 courtsim nba-manager-study-status work/manager-promotion/formal-v1
 courtsim nba-manager-study-verify work/manager-promotion/formal-v1/report.json
@@ -77,6 +78,20 @@ courtsim nba-manager-study-verify work/manager-promotion/formal-v1/report.json
 
 During the formal holdout, inspect only status/manifest health. Do not change code, inputs, weights
 or thresholds, and do not reread the same holdout after lowering a failed threshold.
+
+Progress is atomically published after every verified season cell, including an unindexed cell
+recovered from an interrupted run. To stop without corrupting the active cell, create the configured
+stop file; workers finish their current cell, publish its hash, then exit before starting another.
+The stop file is scheduling-only and is excluded from the semantic plan hash. It remains present so
+an accidental restart cannot continue the holdout; remove it explicitly only after the resource
+gate passes again.
+
+On a 16 GiB Windows host, require three stable launch samples with at least 4 GiB available memory
+when a large interactive process is present (3 GiB otherwise). Sample every 30 seconds, increasing
+to 10--15 seconds below 2.5 GiB. Treat two samples below 1.5 GiB as a boundary-stop request and a
+single sample below 1.0 GiB as an emergency condition. Record Windows available memory, commit
+percentage, pagefile use, the formal process working/private bytes, and per-process growth from the
+launch baseline. Never terminate an external or interactive process.
 
 ## Gate and governance
 

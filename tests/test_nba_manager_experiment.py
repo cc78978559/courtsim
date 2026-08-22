@@ -265,6 +265,87 @@ def test_nba_manager_experiment_detects_tampered_cell(tmp_path: Path) -> None:
         verify_nba_manager_experiment(result.report_path)
 
 
+def test_nba_manager_experiment_publishes_each_cell_and_stops_at_boundary(
+    tmp_path: Path,
+) -> None:
+    initial = '{"league":"initial"}'
+    output = tmp_path / "study"
+    stop_file = output / "STOP"
+    calls: list[NBAManagerSeasonRequest] = []
+    active_executor = executor(calls)
+
+    def request_stop_after_second_cell(
+        request: NBAManagerSeasonRequest,
+    ) -> NBAManagerSeasonExecution:
+        execution = active_executor(request)
+        if len(calls) == 2:
+            stop_file.write_text("resource gate\n", encoding="utf-8")
+        return execution
+
+    stopped = run_nba_manager_experiment(
+        spec=spec(initial),
+        initial_state_payload=initial,
+        executor=request_stop_after_second_cell,
+        output_directory=output,
+        maximum_new_sources=1,
+        stop_file=stop_file,
+    )
+
+    assert stopped.stopped
+    assert not stopped.complete
+    assert stopped.executed_cells == 2
+    assert stopped.completed_sources == 0
+    progress = json.loads((output / "progress.json").read_text(encoding="utf-8"))
+    assert len(progress["cells"]) == 2
+    assert inspect_nba_manager_experiment(output)["completed_cells"] == 2
+
+    stop_file.unlink()
+    resumed_calls: list[NBAManagerSeasonRequest] = []
+    resumed = run_nba_manager_experiment(
+        spec=spec(initial),
+        initial_state_payload=initial,
+        executor=executor(resumed_calls),
+        output_directory=output,
+        maximum_new_sources=1,
+        stop_file=stop_file,
+    )
+
+    assert not resumed.stopped
+    assert resumed.reused_cells == 2
+    assert resumed.executed_cells == 8
+    assert resumed.completed_sources == 1
+    assert inspect_nba_manager_experiment(output)["completed_cells"] == 10
+
+
+def test_nba_manager_experiment_keeps_published_cells_when_executor_fails(
+    tmp_path: Path,
+) -> None:
+    initial = '{"league":"initial"}'
+    output = tmp_path / "study"
+    calls: list[NBAManagerSeasonRequest] = []
+    active_executor = executor(calls)
+
+    def fail_on_third_cell(
+        request: NBAManagerSeasonRequest,
+    ) -> NBAManagerSeasonExecution:
+        if len(calls) == 2:
+            raise RuntimeError("simulated worker failure")
+        return active_executor(request)
+
+    with pytest.raises(RuntimeError, match="simulated worker failure"):
+        run_nba_manager_experiment(
+            spec=spec(initial),
+            initial_state_payload=initial,
+            executor=fail_on_third_cell,
+            output_directory=output,
+            maximum_new_sources=1,
+        )
+
+    progress = json.loads((output / "progress.json").read_text(encoding="utf-8"))
+    assert len(progress["cells"]) == 2
+    assert inspect_nba_manager_experiment(output)["completed_cells"] == 2
+
+
 def test_nba_manager_spec_rejects_incomplete_focal_coverage() -> None:
     initial = "{}"
     with pytest.raises(ValueError, match="mapping"):

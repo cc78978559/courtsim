@@ -16,6 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from enum import IntEnum
 from pathlib import Path, PurePosixPath, PureWindowsPath
+from threading import Lock
 from typing import Any, cast
 
 from courtsim.artifacts import sha256_file, write_json
@@ -219,6 +220,7 @@ class NBAManagerExperimentResult:
     manifest_path: Path | None = None
     evidence: NBAFrontOfficeEvidenceResult | None = None
     version: str = NBA_MANAGER_EXPERIMENT_VERSION
+    stopped: bool = False
 
 
 def nba_manager_execution_config_sha256(config: object) -> str:
@@ -281,8 +283,9 @@ def run_nba_manager_experiment(
     season_weights: tuple[float, ...] = DEFAULT_SEASON_WEIGHTS,
     maximum_new_sources: int | None = None,
     workers: int = 1,
+    stop_file: str | Path | None = None,
 ) -> NBAManagerExperimentResult:
-    """Run complete paired source trajectories and reuse every verified season cell."""
+    """Run paired trajectories with verified cell resume and cooperative boundary stops."""
     if _sha256_text(initial_state_payload) != spec.initial_state_sha256:
         raise NBAManagerExperimentError("NBA manager initial state hash differs from spec")
     if maximum_new_sources is not None and (
@@ -299,6 +302,7 @@ def run_nba_manager_experiment(
     active_thresholds = thresholds or NBAFrontOfficeEvidenceThresholds()
     destination = Path(output_directory)
     destination.mkdir(parents=True, exist_ok=True)
+    stop_path = Path(stop_file) if stop_file is not None else None
     plan_path = destination / "plan.json"
     initial_path = destination / "initial-state.json.gz"
     plan = _plan_payload(spec, active_weights, active_thresholds, season_weights)
@@ -318,6 +322,7 @@ def run_nba_manager_experiment(
         tuple[str, int, int, str, NBAManagerExperimentArm], NBAFrontOfficeOutcome
     ] = {}
     cell_index: dict[str, str] = dict(indexed)
+    progress_lock = Lock()
     tasks: list[tuple[int, int, str]] = []
     for source_index, (master_seed, focal_team_id) in enumerate(
         zip(spec.master_seeds, spec.focal_team_ids, strict=True),
@@ -338,6 +343,7 @@ def run_nba_manager_experiment(
         int,
         dict[tuple[str, int, int, str, NBAManagerExperimentArm], NBAFrontOfficeOutcome],
         dict[str, str],
+        bool,
     ]:
         source_index, master_seed, focal_team_id = task
         source_id = f"source-{source_index:04d}"
@@ -346,9 +352,13 @@ def run_nba_manager_experiment(
             tuple[str, int, int, str, NBAManagerExperimentArm], NBAFrontOfficeOutcome
         ] = {}
         source_indexed: dict[str, str] = {}
+        source_stopped = False
         for arm in NBAManagerExperimentArm:
             state_payload = initial_state_payload
             for offset in range(spec.seasons):
+                if stop_path is not None and stop_path.exists():
+                    source_stopped = True
+                    break
                 season_year = spec.start_season + offset
                 request = NBAManagerSeasonRequest(
                     spec.experiment_id,
@@ -374,18 +384,39 @@ def run_nba_manager_experiment(
                     source_executed += 1
                 state_payload = execution.next_state_payload
                 source_observations[(*execution.outcome.address, arm)] = execution.outcome
-                source_indexed[relative.as_posix()] = sha256_file(cell_path)
-        return source_executed, source_reused, source_observations, source_indexed
+                relative_key = relative.as_posix()
+                cell_digest = sha256_file(cell_path)
+                source_indexed[relative_key] = cell_digest
+                with progress_lock:
+                    if cell_index.get(relative_key) != cell_digest:
+                        cell_index[relative_key] = cell_digest
+                        _write_progress(progress_path, plan_path, initial_path, cell_index)
+            if source_stopped:
+                break
+        return (
+            source_executed,
+            source_reused,
+            source_observations,
+            source_indexed,
+            source_stopped,
+        )
 
+    stop_requested = False
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        for source_executed, source_reused, source_observations, source_indexed in pool.map(
-            execute_source, tasks
-        ):
+        for (
+            source_executed,
+            source_reused,
+            source_observations,
+            source_indexed,
+            source_stopped,
+        ) in pool.map(execute_source, tasks):
             executed += source_executed
             reused += source_reused
+            stop_requested = stop_requested or source_stopped
             observations.update(source_observations)
-            cell_index.update(source_indexed)
-            _write_progress(progress_path, plan_path, initial_path, cell_index)
+            with progress_lock:
+                cell_index.update(source_indexed)
+                _write_progress(progress_path, plan_path, initial_path, cell_index)
 
     completed_sources = sum(
         _source_complete(destination, f"source-{index:04d}", spec)
@@ -401,6 +432,7 @@ def run_nba_manager_experiment(
             reused,
             completed_sources,
             progress_path,
+            stopped=stop_requested,
         )
 
     paired = _paired_outcomes(observations)
