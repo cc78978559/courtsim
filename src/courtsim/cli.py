@@ -726,6 +726,11 @@ def _parser() -> argparse.ArgumentParser:
     manager_study_run.add_argument("--seasons", type=int)
     manager_study_run.add_argument("--maximum-new-sources", type=int)
     manager_study_run.add_argument("--workers", type=int, default=1)
+    manager_study_run.add_argument(
+        "--stop-file",
+        type=Path,
+        help="cooperatively stop after the current atomic season cell when this file exists",
+    )
     manager_study_run.add_argument("--development", action="store_true")
     manager_study_run.add_argument("--periods", type=int, default=4)
     manager_study_run.add_argument("--period-seconds", type=int, default=720)
@@ -1855,6 +1860,7 @@ def main(argv: list[str] | None = None) -> int:
                 season_weights=season_weights,
                 maximum_new_sources=arguments.maximum_new_sources,
                 workers=arguments.workers,
+                stop_file=arguments.stop_file,
             )
             manager_study_summary = {
                 "version": manager_study_result.version,
@@ -1863,7 +1869,9 @@ def main(argv: list[str] | None = None) -> int:
                 "reused_cells": manager_study_result.reused_cells,
                 "completed_sources": manager_study_result.completed_sources,
                 "status": (
-                    "running"
+                    "stopped"
+                    if manager_study_result.stopped
+                    else "running"
                     if not manager_study_result.complete
                     else "candidate-pass"
                     if manager_study_result.evidence is not None
