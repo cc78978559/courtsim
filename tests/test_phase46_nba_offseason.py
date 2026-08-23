@@ -1,3 +1,4 @@
+import pytest
 from test_phase12_manager_league_adapter import career_player
 
 from courtsim.career import CareerStatus, DraftRules, PlayerSeasonSummary, audit_offseason
@@ -178,6 +179,9 @@ def test_two_round_offseason_restores_rosters_after_concentrated_expirations() -
     )
 
 
+@pytest.mark.slow
+@pytest.mark.franchise
+@pytest.mark.nba
 def test_six_consecutive_offseasons_survive_fifth_year_contract_cliff() -> None:
     team_ids = tuple(f"T{index:02d}" for index in range(1, 31))
     rosters = tuple(

@@ -4,6 +4,9 @@
 
 ```powershell
 .\tools.cmd check-fast
+.\tools.cmd check-fast -k schedule
+.\tools.cmd check-changed
+.\tools.cmd check-timed
 ```
 
 局部反馈可把筛选参数直接传给 `test`、`coverage`、`lint`、`format` 和
@@ -19,6 +22,22 @@
 2. Ruff lint；
 3. mypy strict；
 4. 排除 `slow` 标记的 pytest，不采集覆盖率。
+
+附加参数会传给 pytest，因此可用 `-k` 做更小的开发循环。`check-changed` 在只有测试
+文件变化时只检查并运行这些测试；只要源码、依赖、配置或工具入口变化，就自动回退
+到完整 `check-fast`，避免漏掉跨模块回归。`check-timed` 执行同一快速门禁，并把
+提交、脏状态、总耗时和逐阶段耗时写到
+`work/metrics/check-timed-latest.json`，供本地性能回归比较。
+
+环境损坏时运行：
+
+```powershell
+.\tools.cmd bootstrap --repair
+```
+
+修复入口先验证开发模块和 `pip check`。无效 `.venv` 会被移动到被忽略的
+`work/quarantine/`，再按锁文件重建；原目录保留供诊断，不做不可恢复删除。健康环境
+直接成功返回，不重新下载依赖。
 
 成功时每个阶段只输出一行；任一阶段失败时回放该工具的完整诊断并保留退出码。
 完整诊断同时写入 `work/logs/tooling/<stage>-latest.log`，控制台最多保留前 20 行和
@@ -59,6 +78,16 @@ coverage: 86%
 
 `coverage` 子命令仍保留完整逐文件报告，供主动调查覆盖缺口时使用。
 
+远端 CI 同样按反馈成本分片：静态检查和 Windows 快速测试尽早报告；Ubuntu 将
+`not slow` 与 `slow` 分别采集 coverage，最后合并数据并执行 85% 门槛。package smoke
+只等待静态检查，不再等待两套重复的全量 coverage。治理层仍看到
+`Quality (ubuntu-latest)`、`Quality (windows-latest)` 和 `Package smoke test`，避免旧
+回执的证明名称失配。
+
+2026-08-22 本地验证中，12 项慢测普通执行约 33 秒，coverage 插桩后为 13 分 43 秒；
+因此慢 coverage 作业保留 25 分钟失控上限。它与快速 coverage 并行，不把该上限当作
+正常耗时预算。
+
 ## 子命令维护
 
 `tools.ps1` 不再复制 Python CLI 的完整命令白名单。PowerShell 只处理
@@ -66,8 +95,12 @@ bootstrap、测试和质量门禁等本地命令，其余命令统一转发给 `
 因此新增模拟或审计命令只需在 Python CLI 注册一次。
 
 十个参数迁移命令由 `PARAMETER_MIGRATIONS` 注册表统一生成 parser 和执行入口，
-不再各自复制四个位置参数与写入、加载、哈希输出逻辑。CLI 从约 757 行缩减到
-统一注册入口，所有既有迁移命令保持兼容。
+不再各自复制四个位置参数与写入、加载、哈希输出逻辑。所有既有迁移命令保持兼容。
+
+2026-08-23 继续把 8 个产物命令和 6 个 NBA 经理命令分别迁入
+`cli_artifacts.py`、`cli_manager.py`。每个模块同时拥有参数注册和执行分派，顶层
+`cli.py` 只保留命令集合路由与统一错误映射；主文件由 2,381 行降至 1,907 行，内联
+parser 由 74 个降至 60 个。迁移不改变命令名、默认值、控制台 JSON 或退出码。
 
 ## 低上下文状态与 NBA 入口
 
@@ -158,11 +191,11 @@ CRC、声明大小和逐文件 SHA-256。恢复前先执行同样的完整验证
 ## 当前验收
 
 - `check-static`：秒级反馈；
-- `check-fast`：2026-07-28 本机约 52 秒；
+- `check-fast`：2026-08-22 本机热启动 25.13 秒（优化前 58.70 秒）；
 - `check`：包含计算密集的完整 NBA 和 franchise 回归，本机约 8–18 分钟；
-- 快速测试：487 passed、1 skipped、3 slow deselected；
-- 完整门禁：490 passed、1 skipped，共收集 491 项；
-- 覆盖率门槛：85%；
+- 快速集合：783 项、12 项 `slow` deselected；
+- 完整门禁：795 项测试通过；
+- 覆盖率：85.05%，门槛 85%；
 - mypy strict 和 Ruff：通过；
 - 成功门禁输出保持 3–5 行，失败全文落盘；
 - 产物审计和 NBA 状态入口均为确定性、只读操作。

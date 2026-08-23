@@ -264,8 +264,41 @@ def generate_nba_schedule(
     active_alignment = alignment or NBAConferenceAlignment(team_ids[:15], team_ids[15:])
     if set((*active_alignment.east_team_ids, *active_alignment.west_team_ids)) != set(team_ids):
         raise ValueError("NBA alignment must cover the scheduled teams exactly")
-    three_game_home = _three_game_home_teams(active_alignment)
-    divisions = (*active_alignment.east_divisions, *active_alignment.west_divisions)
+    unscheduled = _nba_unscheduled_matchups(team_ids, active_alignment)
+    days: list[tuple[list[tuple[str, str]], set[str]]] = []
+    for _, _, _, home, away in sorted(unscheduled):
+        for games, occupied in days:
+            if home not in occupied and away not in occupied:
+                games.append((home, away))
+                occupied.update((home, away))
+                break
+        else:
+            days.append(([(home, away)], {home, away}))
+    calendar = _assign_nba_calendar(days, active_rules)
+    scheduled_games: list[ScheduledGame] = []
+    for day, matchups in calendar:
+        for home, away in sorted(matchups):
+            scheduled_games.append(ScheduledGame(len(scheduled_games) + 1, day, home, away))
+    schedule = SeasonSchedule(team_ids, tuple(scheduled_games))
+    appearances = Counter(
+        team_id for game in schedule.games for team_id in (game.home_team_id, game.away_team_id)
+    )
+    if set(appearances.values()) != {active_rules.games_per_team}:
+        raise ValueError("generated NBA schedule does not contain eighty-two games per team")
+    home_games = Counter(game.home_team_id for game in schedule.games)
+    if set(home_games.values()) != {active_rules.games_per_team // 2}:
+        raise ValueError("generated NBA schedule does not balance home games")
+    _validate_nba_calendar_gate(schedule, active_rules)
+    return schedule
+
+
+def _nba_unscheduled_matchups(
+    team_ids: tuple[str, ...],
+    alignment: NBAConferenceAlignment,
+) -> tuple[tuple[int, str, str, str, str], ...]:
+    """Build the canonical matchup matrix without assigning calendar dates."""
+    three_game_home = _three_game_home_teams(alignment)
+    divisions = (*alignment.east_divisions, *alignment.west_divisions)
     division_by_team = {
         team_id: division_index
         for division_index, division in enumerate(divisions)
@@ -274,8 +307,8 @@ def generate_nba_schedule(
     conference_by_team = {
         team_id: conference
         for conference, conference_teams in (
-            ("east", active_alignment.east_team_ids),
-            ("west", active_alignment.west_team_ids),
+            ("east", alignment.east_team_ids),
+            ("west", alignment.west_team_ids),
         )
         for team_id in conference_teams
     }
@@ -309,31 +342,7 @@ def generate_nba_schedule(
                     home = first if copy_index % 2 == 0 else second
                 away = second if home == first else first
                 unscheduled.append((copy_index, first, second, home, away))
-    days: list[tuple[list[tuple[str, str]], set[str]]] = []
-    for _, _, _, home, away in sorted(unscheduled):
-        for games, occupied in days:
-            if home not in occupied and away not in occupied:
-                games.append((home, away))
-                occupied.update((home, away))
-                break
-        else:
-            days.append(([(home, away)], {home, away}))
-    calendar = _assign_nba_calendar(days, active_rules)
-    scheduled_games: list[ScheduledGame] = []
-    for day, matchups in calendar:
-        for home, away in sorted(matchups):
-            scheduled_games.append(ScheduledGame(len(scheduled_games) + 1, day, home, away))
-    schedule = SeasonSchedule(team_ids, tuple(scheduled_games))
-    appearances = Counter(
-        team_id for game in schedule.games for team_id in (game.home_team_id, game.away_team_id)
-    )
-    if set(appearances.values()) != {active_rules.games_per_team}:
-        raise ValueError("generated NBA schedule does not contain eighty-two games per team")
-    home_games = Counter(game.home_team_id for game in schedule.games)
-    if set(home_games.values()) != {active_rules.games_per_team // 2}:
-        raise ValueError("generated NBA schedule does not balance home games")
-    _validate_nba_calendar_gate(schedule, active_rules)
-    return schedule
+    return tuple(unscheduled)
 
 
 def _assign_nba_calendar(

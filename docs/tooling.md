@@ -17,7 +17,8 @@
 ```
 
 `bootstrap` 优先使用本地 wheelhouse。没有本地安装包时才会联网下载。
-`tools.cmd` 只对当前子进程绕过 PowerShell 脚本策略，不修改机器配置。
+`tools.cmd` 优先使用已安装的 PowerShell 7 (`pwsh`)，缺失时回退 Windows PowerShell；
+两者都只对当前子进程绕过脚本策略，不修改机器配置，并原样返回门禁退出码。
 
 ## 日常命令
 
@@ -25,6 +26,8 @@
 .\tools.cmd check-static
 .\tools.cmd check-unit
 .\tools.cmd check-fast
+.\tools.cmd check-changed
+.\tools.cmd check-timed
 .\tools.cmd check-slow
 .\tools.cmd check-franchise
 .\tools.cmd check
@@ -33,6 +36,15 @@
 `check-fast` 排除 `slow` 标记；`check` 依次执行格式检查、静态检查、严格类型检查、
 全部测试和覆盖率门槛。失败时控制台只保留有界摘要，完整输出写入
 `work/logs/tooling/`。
+
+`check-fast` 和 `check-timed` 会把附加参数继续传给 pytest。`check-changed` 对仅修改
+测试文件的工作树执行定向检查；源码、依赖、配置或工具脚本发生变化时会保守回退到
+完整快速门禁。`check-timed` 将逐阶段耗时写入被 Git 忽略的
+`work/metrics/check-timed-latest.json`。
+
+若 `.venv` 缺模块或 `pip check` 失败，使用 `bootstrap --repair`。损坏环境会先移动到
+`work/quarantine/venv-<timestamp>`，不会直接删除，然后按锁文件重新创建；健康环境
+会立即返回，不重复联网安装。
 
 ## 机器状态与 NBA 产物
 
@@ -59,6 +71,20 @@
 ```
 
 Replay只读取已保存事件，不重新运行模拟。Verify会重新计算清单中输入和输出文件的SHA-256。
+
+## CI 分片
+
+CI 将静态检查、Windows 快速测试、Ubuntu 快速 coverage、Ubuntu 慢测 coverage 和
+package smoke 分开调度。两份 Ubuntu coverage 产物最后合并并执行同一个 85% 门槛；
+因此分片只改变调度，不减少测试集合，也不改变既有 Ubuntu、Windows 和 package
+治理证明名称。
+
+## CLI 模块边界
+
+顶层 `courtsim.cli` 负责通用命令路由和统一异常到退出码的映射。产物生命周期命令在
+`courtsim.cli_artifacts` 注册并执行，NBA 经理研究命令在 `courtsim.cli_manager`
+注册并执行。新增同族命令应放进对应模块并加入其不可变命令集合，避免继续扩大顶层
+parser 和 `main()` 分支。
 
 ## Trace边界
 

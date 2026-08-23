@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "version": "courtsim-development-map-v1",
+  "entrypoints": {
+    "local_tools": "tools.cmd",
+    "tool_dispatch": "tools.ps1",
+    "python_cli": "src/courtsim/cli.py",
+    "artifact_cli": "src/courtsim/cli_artifacts.py",
+    "manager_cli": "src/courtsim/cli_manager.py",
+    "formal_supervisor": "src/courtsim/formal_supervisor.py",
+    "project_status": "src/courtsim/tool_status.py"
+  },
+  "bounded_contexts": [
+    {
+      "name": "game-engine",
+      "paths": ["src/courtsim/model", "src/courtsim/domain", "src/courtsim/stats"],
+      "tests": ["tests/test_game_runtime.py", "tests/test_invariants.py"]
+    },
+    {
+      "name": "nba-reality-and-quick-sim",
+      "paths": ["src/courtsim/analysis/nba_*", "src/courtsim/nba_league.py"],
+      "tests": ["tests/test_nba_aggregate_quick_sim.py", "tests/test_phase25_nba_league.py"]
+    },
+    {
+      "name": "front-office-and-franchise",
+      "paths": ["src/courtsim/management.py", "src/courtsim/nba_manager_*", "src/courtsim/nba_franchise_*"],
+      "tests": ["tests/test_nba_manager_experiment.py", "tests/test_phase46_nba_offseason.py"]
+    },
+    {
+      "name": "artifact-lifecycle",
+      "paths": ["src/courtsim/analysis/artifact_*", "src/courtsim/cli_artifacts.py"],
+      "tests": ["tests/test_artifact_archive.py", "tests/test_artifact_retention.py"]
+    }
+  ],
+  "verification": {
+    "changed": ".\\tools.cmd check-changed",
+    "fast": ".\\tools.cmd check-fast",
+    "timed": ".\\tools.cmd check-timed",
+    "full": ".\\tools.cmd check",
+    "package": "python -m build --no-isolation"
+  },
+  "write_boundaries": {
+    "tracked_source": "Git worktree only",
+    "generated_local": ["work/", ".cache/", ".venv/", "dist/", "build/"],
+    "formal_holdout": "work/manager-promotion/ in the frozen formal worktree only",
+    "formal_partial_effects": "forbidden until all frozen sources complete"
+  },
+  "governance": {
+    "release_registry": "governance/current-release.json",
+    "candidate_registry": "governance/current-candidate.json",
+    "manager_protocol": "experiments/promotion/nba-manager-policy-v1-protocol.json",
+    "manager_policy_status": "shadow",
+    "supervisor_design": "docs/formal-supervisor-v2.md"
+  }
+}

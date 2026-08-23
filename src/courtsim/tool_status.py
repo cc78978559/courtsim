@@ -13,7 +13,7 @@ from typing import Any, cast
 
 from courtsim import __version__
 
-PROJECT_STATUS_SCHEMA_VERSION = 2
+PROJECT_STATUS_SCHEMA_VERSION = 3
 
 _SPECIAL_ARTIFACT_FIELDS = (
     ("model.schema", "model", "schema_path", "schema_file_sha256"),
@@ -30,8 +30,26 @@ def build_project_status(root: str | Path) -> dict[str, object]:
     workspace = Path(root).resolve()
     release_path = workspace / "governance" / "current-release.json"
     candidate_path = workspace / "governance" / "current-candidate.json"
+    development_map_path = workspace / "docs" / "development-map-v1.json"
+    manager_protocol_path = (
+        workspace / "experiments" / "promotion" / "nba-manager-policy-v1-protocol.json"
+    )
     release_object = _load_registry(release_path, "current release")
     candidate_object = _load_registry(candidate_path, "current candidate")
+    development_map = _load_registry(development_map_path, "development map")
+    manager_protocol = _load_registry(manager_protocol_path, "NBA manager promotion protocol")
+    if development_map.get("version") != "courtsim-development-map-v1":
+        raise ProjectStatusError("development map version differs")
+    if manager_protocol.get("status") != "frozen":
+        raise ProjectStatusError("NBA manager promotion protocol is not frozen")
+    master_seeds = manager_protocol.get("master_seeds")
+    seasons = manager_protocol.get("seasons")
+    if not isinstance(master_seeds, list) or not all(
+        isinstance(seed, int) for seed in master_seeds
+    ):
+        raise ProjectStatusError("NBA manager promotion seeds are invalid")
+    if not isinstance(seasons, int) or seasons < 1:
+        raise ProjectStatusError("NBA manager promotion seasons are invalid")
     release_engine_version = release_object.get("engine_version")
     candidate_engine_version = candidate_object.get("engine_version")
     if not isinstance(release_engine_version, str):
@@ -78,6 +96,34 @@ def build_project_status(root: str | Path) -> dict[str, object]:
             "mismatches": candidate_mismatches,
         },
         "workspace": git,
+        "development": {
+            "map_version": development_map["version"],
+            "map_path": development_map_path.relative_to(workspace).as_posix(),
+            "map_sha256": _sha256(development_map_path),
+            "fast_target_seconds": 35,
+            "timing_receipt": "work/metrics/check-timed-latest.json",
+            "cli_modules": [
+                "courtsim.cli",
+                "courtsim.cli_artifacts",
+                "courtsim.cli_manager",
+            ],
+            "ci_coverage_shards": ["not slow", "slow"],
+            "formal_supervisor": "nba-manager-formal-supervisor-v2",
+        },
+        "manager_formal_holdout": {
+            "policy_status": "shadow",
+            "protocol_status": manager_protocol["status"],
+            "protocol_path": manager_protocol_path.relative_to(workspace).as_posix(),
+            "protocol_sha256": _sha256(manager_protocol_path),
+            "holdout_id": manager_protocol.get("holdout_id"),
+            "independent_sources": len(master_seeds),
+            "seasons_per_source": seasons,
+            "arms": 2,
+            "total_cells": len(master_seeds) * seasons * 2,
+            "partial_effect_access": "forbidden-until-complete",
+            "activation": "not-authorized",
+            "supervisor_execution": "explicit-acknowledgement-required",
+        },
         "capabilities": [
             "deterministic-game-simulation",
             "local-nba-data-pipeline",
@@ -121,9 +167,12 @@ def build_project_status(root: str | Path) -> dict[str, object]:
             "nba-franchise-checkpoint-verification",
             "nba-franchise-manifest-inspection",
             "artifact-retention",
+            "effect-blind-formal-resource-supervisor",
         ],
         "recommended_commands": {
+            "changed": ".\\tools.cmd check-changed",
             "fast": ".\\tools.cmd check-fast",
+            "timed": ".\\tools.cmd check-timed",
             "static": ".\\tools.cmd check-static",
             "unit": ".\\tools.cmd check-unit",
             "franchise": ".\\tools.cmd check-franchise",

@@ -20,6 +20,20 @@ from courtsim.tool_status import build_project_status
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_ci_preserves_governance_names_and_combines_complete_coverage() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    assert "name: Quality (ubuntu-latest)" in workflow
+    assert "name: Quality (windows-latest)" in workflow
+    assert "name: Package smoke test" in workflow
+    assert 'coverage run --parallel-mode -m pytest -q -m "not slow"' in workflow
+    assert "coverage run --parallel-mode -m pytest -q -m slow" in workflow
+    assert "pattern: coverage-*" in workflow
+    assert "merge-multiple: true" in workflow
+    assert "python -m coverage combine coverage-data" in workflow
+    assert "python -m coverage report" in workflow
+    assert "needs: [static, coverage-fast, coverage-slow]" in workflow
+
+
 def _summary(season_id: str, seed: int) -> QuickSimSeasonSummary:
     offset = seed % 3
     return QuickSimSeasonSummary(
@@ -52,6 +66,21 @@ def test_project_status_is_compact_and_verifies_governance(
     assert candidate["status"] == "wip"
     assert candidate["engine_version"] == report["courtsim_version"]
     assert candidate["capability_scope"] == "workspace-wip"
+    development = report["development"]
+    assert isinstance(development, dict)
+    assert development["map_version"] == "courtsim-development-map-v1"
+    assert development["fast_target_seconds"] == 35
+    assert development["ci_coverage_shards"] == ["not slow", "slow"]
+    assert development["formal_supervisor"] == "nba-manager-formal-supervisor-v2"
+    holdout = report["manager_formal_holdout"]
+    assert isinstance(holdout, dict)
+    assert holdout["policy_status"] == "shadow"
+    assert holdout["protocol_status"] == "frozen"
+    assert holdout["independent_sources"] == 30
+    assert holdout["seasons_per_source"] == 5
+    assert holdout["total_cells"] == 300
+    assert holdout["partial_effect_access"] == "forbidden-until-complete"
+    assert holdout["supervisor_execution"] == "explicit-acknowledgement-required"
 
     assert main(["project-status", "--root", str(ROOT)]) == 0
     captured = capsys.readouterr()
@@ -59,6 +88,7 @@ def test_project_status_is_compact_and_verifies_governance(
     cli_report = json.loads(captured.out)
     assert cli_report["courtsim_version"] == report["courtsim_version"]
     assert "nba-quick-sim-comparison" in cli_report["capabilities"]
+    assert cli_report["recommended_commands"]["changed"] == ".\\tools.cmd check-changed"
 
 
 @pytest.mark.parametrize(
