@@ -2,6 +2,8 @@
 
 这是给开发者和外部模型使用的低上下文入口。除非任务涉及历史原因或某个节点的
 详细公式，否则先读本文件，再按下方路由读取少量相关源码或阶段文档。
+机器路由优先读取 `docs/development-map-v1.json`，或运行
+`.\tools.cmd project-status` 获取带哈希的紧凑状态。
 跨机器接续使用 `docs/handoff-v0.55.md`；`handoff-v0.52.md` 和
 `handoff-v0.54.md` 只保留为历史快照。
 
@@ -87,7 +89,10 @@ OFF_BALL_ACTION
 | 30 队经理现实状态与执行适配 | `src/courtsim/nba_manager_adapter.py`、`src/courtsim/analysis/nba_manager_state.py` |
 | 年度新秀班生成 | `src/courtsim/prospects.py` |
 | 白盒经理轮换和上场时间 | `src/courtsim/manager_rotation.py` |
-| 命令入口 | `src/courtsim/cli.py`、`tools.ps1` |
+| 通用命令入口 | `src/courtsim/cli.py`、`tools.ps1` |
+| 产物生命周期命令 | `src/courtsim/cli_artifacts.py` |
+| NBA 经理研究命令 | `src/courtsim/cli_manager.py` |
+| 机器可读开发地图 | `docs/development-map-v1.json`、`src/courtsim/tool_status.py` |
 
 详细阶段契约按需读取：
 

@@ -66,6 +66,19 @@ def test_project_status_is_compact_and_verifies_governance(
     assert candidate["status"] == "wip"
     assert candidate["engine_version"] == report["courtsim_version"]
     assert candidate["capability_scope"] == "workspace-wip"
+    development = report["development"]
+    assert isinstance(development, dict)
+    assert development["map_version"] == "courtsim-development-map-v1"
+    assert development["fast_target_seconds"] == 35
+    assert development["ci_coverage_shards"] == ["not slow", "slow"]
+    holdout = report["manager_formal_holdout"]
+    assert isinstance(holdout, dict)
+    assert holdout["policy_status"] == "shadow"
+    assert holdout["protocol_status"] == "frozen"
+    assert holdout["independent_sources"] == 30
+    assert holdout["seasons_per_source"] == 5
+    assert holdout["total_cells"] == 300
+    assert holdout["partial_effect_access"] == "forbidden-until-complete"
 
     assert main(["project-status", "--root", str(ROOT)]) == 0
     captured = capsys.readouterr()
@@ -73,6 +86,7 @@ def test_project_status_is_compact_and_verifies_governance(
     cli_report = json.loads(captured.out)
     assert cli_report["courtsim_version"] == report["courtsim_version"]
     assert "nba-quick-sim-comparison" in cli_report["capabilities"]
+    assert cli_report["recommended_commands"]["changed"] == ".\\tools.cmd check-changed"
 
 
 @pytest.mark.parametrize(
