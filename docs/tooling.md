@@ -17,7 +17,8 @@
 ```
 
 `bootstrap` 优先使用本地 wheelhouse。没有本地安装包时才会联网下载。
-`tools.cmd` 只对当前子进程绕过 PowerShell 脚本策略，不修改机器配置。
+`tools.cmd` 优先使用已安装的 PowerShell 7 (`pwsh`)，缺失时回退 Windows PowerShell；
+两者都只对当前子进程绕过脚本策略，不修改机器配置，并原样返回门禁退出码。
 
 ## 日常命令
 
@@ -77,6 +78,13 @@ CI 将静态检查、Windows 快速测试、Ubuntu 快速 coverage、Ubuntu 慢�
 package smoke 分开调度。两份 Ubuntu coverage 产物最后合并并执行同一个 85% 门槛；
 因此分片只改变调度，不减少测试集合，也不改变既有 Ubuntu、Windows 和 package
 治理证明名称。
+
+## CLI 模块边界
+
+顶层 `courtsim.cli` 负责通用命令路由和统一异常到退出码的映射。产物生命周期命令在
+`courtsim.cli_artifacts` 注册并执行，NBA 经理研究命令在 `courtsim.cli_manager`
+注册并执行。新增同族命令应放进对应模块并加入其不可变命令集合，避免继续扩大顶层
+parser 和 `main()` 分支。
 
 ## Trace边界
 
