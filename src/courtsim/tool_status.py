@@ -108,6 +108,7 @@ def build_project_status(root: str | Path) -> dict[str, object]:
                 "courtsim.cli_manager",
             ],
             "ci_coverage_shards": ["not slow", "slow"],
+            "formal_supervisor": "nba-manager-formal-supervisor-v2",
         },
         "manager_formal_holdout": {
             "policy_status": "shadow",
@@ -121,6 +122,7 @@ def build_project_status(root: str | Path) -> dict[str, object]:
             "total_cells": len(master_seeds) * seasons * 2,
             "partial_effect_access": "forbidden-until-complete",
             "activation": "not-authorized",
+            "supervisor_execution": "explicit-acknowledgement-required",
         },
         "capabilities": [
             "deterministic-game-simulation",
@@ -165,6 +167,7 @@ def build_project_status(root: str | Path) -> dict[str, object]:
             "nba-franchise-checkpoint-verification",
             "nba-franchise-manifest-inspection",
             "artifact-retention",
+            "effect-blind-formal-resource-supervisor",
         ],
         "recommended_commands": {
             "changed": ".\\tools.cmd check-changed",

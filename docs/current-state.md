@@ -92,6 +92,7 @@ OFF_BALL_ACTION
 | 通用命令入口 | `src/courtsim/cli.py`、`tools.ps1` |
 | 产物生命周期命令 | `src/courtsim/cli_artifacts.py` |
 | NBA 经理研究命令 | `src/courtsim/cli_manager.py` |
+| 正式长测资源监督 | `src/courtsim/formal_supervisor.py`、`docs/formal-supervisor-v2.md` |
 | 机器可读开发地图 | `docs/development-map-v1.json`、`src/courtsim/tool_status.py` |
 
 详细阶段契约按需读取：

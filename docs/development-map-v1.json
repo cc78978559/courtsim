@@ -7,6 +7,7 @@
     "python_cli": "src/courtsim/cli.py",
     "artifact_cli": "src/courtsim/cli_artifacts.py",
     "manager_cli": "src/courtsim/cli_manager.py",
+    "formal_supervisor": "src/courtsim/formal_supervisor.py",
     "project_status": "src/courtsim/tool_status.py"
   },
   "bounded_contexts": [
@@ -48,6 +49,7 @@
     "release_registry": "governance/current-release.json",
     "candidate_registry": "governance/current-candidate.json",
     "manager_protocol": "experiments/promotion/nba-manager-policy-v1-protocol.json",
-    "manager_policy_status": "shadow"
+    "manager_policy_status": "shadow",
+    "supervisor_design": "docs/formal-supervisor-v2.md"
   }
 }

@@ -71,6 +71,7 @@ def test_project_status_is_compact_and_verifies_governance(
     assert development["map_version"] == "courtsim-development-map-v1"
     assert development["fast_target_seconds"] == 35
     assert development["ci_coverage_shards"] == ["not slow", "slow"]
+    assert development["formal_supervisor"] == "nba-manager-formal-supervisor-v2"
     holdout = report["manager_formal_holdout"]
     assert isinstance(holdout, dict)
     assert holdout["policy_status"] == "shadow"
@@ -79,6 +80,7 @@ def test_project_status_is_compact_and_verifies_governance(
     assert holdout["seasons_per_source"] == 5
     assert holdout["total_cells"] == 300
     assert holdout["partial_effect_access"] == "forbidden-until-complete"
+    assert holdout["supervisor_execution"] == "explicit-acknowledgement-required"
 
     assert main(["project-status", "--root", str(ROOT)]) == 0
     captured = capsys.readouterr()

@@ -168,10 +168,16 @@ from courtsim.cli_manager import (
     register_manager_commands,
     run_manager_command,
 )
+from courtsim.cli_supervisor import (
+    SUPERVISOR_COMMANDS,
+    register_supervisor_commands,
+    run_supervisor_command,
+)
 from courtsim.config import ConfigError, load_scenario
 from courtsim.demo import FoundationDemoSimulator
 from courtsim.domain.game import GameClockConfig
 from courtsim.draft_obligations import DraftObligationError, inspect_draft_obligation_files
+from courtsim.formal_supervisor import FormalSupervisorError
 from courtsim.model.trace_mode import TraceMode
 from courtsim.nba_franchise_artifacts import (
     NBAFranchiseArtifactError,
@@ -633,6 +639,7 @@ def _parser() -> argparse.ArgumentParser:
         default_schema=DEFAULT_MODEL_SCHEMA,
         default_parameters=DEFAULT_MODEL_PARAMETERS,
     )
+    register_supervisor_commands(subparsers)
 
     validate = subparsers.add_parser("validate", help="validate a scenario JSON file")
     validate.add_argument("scenario", type=Path)
@@ -1553,6 +1560,9 @@ def main(argv: list[str] | None = None) -> int:
         if arguments.command in MANAGER_COMMANDS:
             return run_manager_command(arguments)
 
+        if arguments.command in SUPERVISOR_COMMANDS:
+            return run_supervisor_command(arguments)
+
         if arguments.command == "validate":
             config = load_scenario(arguments.scenario)
             print(f"valid: {config.name} ({len(config.zones)} zones)")
@@ -1858,6 +1868,7 @@ def main(argv: list[str] | None = None) -> int:
         AuditGateError,
         ConfigError,
         DraftObligationError,
+        FormalSupervisorError,
         ExperimentMatrixError,
         MatrixContrastError,
         MatrixContrastRobustnessError,
